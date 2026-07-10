@@ -1,0 +1,142 @@
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { User } from '../types';
+import * as authApi from '../api/auth';
+
+interface AuthContextType {
+  user: User | null;
+  token: string | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (fullName: string, email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  updateUser: (data: Partial<User>) => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check for stored token on mount
+  useEffect(() => {
+    checkStoredAuth();
+  }, []);
+
+  const checkStoredAuth = async () => {
+    try {
+      const storedToken = await AsyncStorage.getItem('auth_token');
+      const storedUser = await AsyncStorage.getItem('user');
+
+      if (storedToken && storedUser) {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+
+        // Validate token by fetching profile
+        try {
+          const response = await authApi.getProfile();
+          if (response.success && response.data) {
+            setUser(response.data);
+            await AsyncStorage.setItem('user', JSON.stringify(response.data));
+          }
+        } catch {
+          // Token invalid — clear auth
+          await clearAuth();
+        }
+      }
+    } catch (error) {
+      console.error('Error checking stored auth:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const clearAuth = async () => {
+    await AsyncStorage.removeItem('auth_token');
+    await AsyncStorage.removeItem('user');
+    setUser(null);
+    setToken(null);
+  };
+
+  const login = useCallback(async (email: string, password: string) => {
+    const response = await authApi.loginUser(email, password);
+
+    if (response.success && response.data) {
+      const { user: userData, token: authToken } = response.data;
+      await AsyncStorage.setItem('auth_token', authToken);
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      setToken(authToken);
+      setUser(userData);
+    } else {
+      throw new Error(response.message || 'Login failed');
+    }
+  }, []);
+
+  const register = useCallback(async (fullName: string, email: string, password: string) => {
+    const response = await authApi.registerUser(fullName, email, password);
+
+    if (response.success) {
+      // Auto-login after registration
+      await login(email, password);
+    } else {
+      throw new Error(response.message || 'Registration failed');
+    }
+  }, [login]);
+
+  const logout = useCallback(async () => {
+    await clearAuth();
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    try {
+      const response = await authApi.getProfile();
+      if (response.success && response.data) {
+        setUser(response.data);
+        await AsyncStorage.setItem('user', JSON.stringify(response.data));
+      }
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+    }
+  }, []);
+
+  const updateUser = useCallback(async (data: Partial<User>) => {
+    const response = await authApi.updateProfile(data);
+    if (response.success && response.data) {
+      setUser(response.data);
+      await AsyncStorage.setItem('user', JSON.stringify(response.data));
+    } else {
+      throw new Error(response.message || 'Profile update failed');
+    }
+  }, []);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isLoading,
+        isAuthenticated: !!token && !!user,
+        login,
+        register,
+        logout,
+        refreshProfile,
+        updateUser,
+      }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+export default AuthContext;
