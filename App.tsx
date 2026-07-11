@@ -4,12 +4,13 @@
  */
 
 import React from 'react';
-import { StatusBar } from 'react-native';
+import { StatusBar, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from './src/context/AuthContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import FloatingVoiceButton from './src/components/FloatingVoiceButton';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,7 +33,10 @@ function App(): React.JSX.Element {
               backgroundColor="transparent"
               translucent
             />
-            <AppNavigator />
+            <View style={{ flex: 1 }}>
+              <AppNavigator />
+              <FloatingVoiceButton />
+            </View>
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

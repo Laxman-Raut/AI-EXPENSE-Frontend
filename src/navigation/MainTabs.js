@@ -17,6 +17,7 @@ import ReceiptScannerScreen from '../screens/ai/ReceiptScannerScreen';
 import ReceiptImportScreen from '../screens/ai/ReceiptImportScreen';
 import CategoriesScreen from '../screens/budget/CategoriesScreen';
 import CalendarViewScreen from '../screens/calendar/CalendarViewScreen';
+import FloatingVoiceButton from '../components/FloatingVoiceButton';
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
@@ -89,67 +90,70 @@ const MainTabs = () => {
   const navigation = useNavigation();
 
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarShowLabel: true,
-        tabBarLabelStyle: styles.tabBarLabel,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.text.secondary,
-        tabBarStyle: styles.tabBar,
-      }}
-    >
-      <Tab.Screen
-        name="Today"
-        component={DashboardStackScreen}
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon name={focused ? 'today' : 'today-outline'} color={color} focused={focused} />
-          ),
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarShowLabel: true,
+          tabBarLabelStyle: styles.tabBarLabel,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.text.secondary,
+          tabBarStyle: styles.tabBar,
         }}
-      />
-      <Tab.Screen
-        name="Analytics"
-        component={AnalyticsScreen}
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon name={focused ? 'analytics' : 'analytics-outline'} color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Add"
-        component={DummyComponent}
-        options={{
-          tabBarLabel: () => null,
-          tabBarButton: () => (
-            <CustomTabBarButton
-              onPress={() => {
-                navigation.navigate('Today', { screen: 'AddTransaction' });
-              }}
-            />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Wallet"
-        component={TransactionsStackScreen}
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon name={focused ? 'wallet' : 'wallet-outline'} color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon name={focused ? 'person' : 'person-outline'} color={color} focused={focused} />
-          ),
-        }}
-      />
-    </Tab.Navigator>
+      >
+        <Tab.Screen
+          name="Today"
+          component={DashboardStackScreen}
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <AnimatedTabIcon name={focused ? 'today' : 'today-outline'} color={color} focused={focused} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Analytics"
+          component={AnalyticsScreen}
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <AnimatedTabIcon name={focused ? 'analytics' : 'analytics-outline'} color={color} focused={focused} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Add"
+          component={DummyComponent}
+          options={{
+            tabBarLabel: () => null,
+            tabBarButton: () => (
+              <CustomTabBarButton
+                onPress={() => {
+                  navigation.navigate('Today', { screen: 'AddTransaction' });
+                }}
+              />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Wallet"
+          component={TransactionsStackScreen}
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <AnimatedTabIcon name={focused ? 'wallet' : 'wallet-outline'} color={color} focused={focused} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <AnimatedTabIcon name={focused ? 'person' : 'person-outline'} color={color} focused={focused} />
+            ),
+          }}
+        />
+      </Tab.Navigator>
+      <FloatingVoiceButton />
+    </View>
   );
 };
 
