@@ -1,4 +1,7 @@
 export const formatCurrency = (amount, currency = 'INR') => {
+  if (amount === undefined || amount === null || isNaN(Number(amount))) {
+    return currency === 'INR' ? '₹0' : '$0';
+  }
   const absAmount = Math.abs(amount);
   
   if (currency === 'INR') {
@@ -18,6 +21,9 @@ export const formatCurrency = (amount, currency = 'INR') => {
 };
 
 export const formatCompactCurrency = (amount) => {
+  if (amount === undefined || amount === null || isNaN(Number(amount))) {
+    return '₹0';
+  }
   const absAmount = Math.abs(amount);
   if (absAmount >= 10000000) {
     return `₹${(absAmount / 10000000).toFixed(1)}Cr`;

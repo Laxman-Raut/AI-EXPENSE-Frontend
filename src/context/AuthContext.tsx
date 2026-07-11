@@ -25,9 +25,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Check for stored token on mount
   useEffect(() => {
     checkStoredAuth();
-  }, []);
+  }, [checkStoredAuth]);
 
-  const checkStoredAuth = async () => {
+  const checkStoredAuth = useCallback(async () => {
     try {
       const storedToken = await AsyncStorage.getItem('auth_token');
       const storedUser = await AsyncStorage.getItem('user');
@@ -53,7 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const clearAuth = async () => {
     await AsyncStorage.removeItem('auth_token');

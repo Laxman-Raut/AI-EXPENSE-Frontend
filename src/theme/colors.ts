@@ -43,45 +43,45 @@ const LightTheme = {
 };
 
 const DarkTheme = {
-  background: '#0B0F19',          // Deep Navy Obsidian Slate
-  surface: '#151E2E',             // Slate-800 Card Base
-  surfaceLight: '#1E293B',        // Slate-700 Elevated Surface
-  primary: '#6366F1',             // Indigo accent
-  primaryLight: '#1E1B4B',        // Indigo-950 backdrop
-  primaryDark: '#4338CA',         // Indigo-700
+  background: '#090A0F',          // Obsidian black base
+  surface: '#12131A',             // Obsidian Card Slate
+  surfaceLight: '#181A24',        // Elevated surface
+  primary: '#8A3FFC',             // Vibrant purple accent
+  primaryLight: '#A366FF',        // Light violet backdrop
+  primaryDark: '#5E1BDB',         // Deep Royal Purple
   accent: '#FF6037',              // Orange-coral (mockup theme primary!)
   accentLight: '#FFEBE6',
-  income: '#10B981',              // Emerald
-  incomeBg: 'rgba(16, 185, 129, 0.12)',
-  expense: '#F43F5E',             // Rose
-  expenseBg: 'rgba(244, 63, 94, 0.12)',
-  textPrimary: '#F8FAFC',         // Off-white
-  textSecondary: '#94A3B8',       // Slate-400
-  textMuted: '#64748B',           // Slate-500
-  border: 'rgba(99, 102, 241, 0.15)', // Indigo border tint
-  borderLight: 'rgba(255, 255, 255, 0.08)',
-  glass: 'rgba(21, 30, 46, 0.7)',
-  glassLight: 'rgba(30, 41, 59, 0.85)',
-  overlay: 'rgba(15, 23, 42, 0.85)',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#F43F5E',
-  gradientStart: '#0B0F19',
-  gradientEnd: '#1E1B4B',
-  cardGradientStart: 'rgba(99, 102, 241, 0.12)',
-  cardGradientEnd: 'rgba(16, 185, 129, 0.04)',
+  income: '#00D26A',              // Emerald Mint
+  incomeBg: 'rgba(0, 210, 106, 0.12)',
+  expense: '#FF4D67',             // Rose red
+  expenseBg: 'rgba(255, 77, 103, 0.12)',
+  textPrimary: '#FFFFFF',         // White text
+  textSecondary: '#8E949A',       // Medium emphasis text
+  textMuted: '#54595E',           // Low emphasis text
+  border: '#1A1C26',              // Obsidian border
+  borderLight: '#1F222F',
+  glass: 'rgba(18, 19, 26, 0.7)',
+  glassLight: 'rgba(24, 26, 36, 0.85)',
+  overlay: 'rgba(0, 0, 0, 0.75)',
+  success: '#00D26A',
+  warning: '#FFB648',
+  error: '#FF4D67',
+  gradientStart: '#090A0F',
+  gradientEnd: '#12131A',
+  cardGradientStart: 'rgba(138, 63, 252, 0.12)',
+  cardGradientEnd: 'rgba(0, 210, 106, 0.04)',
   
   // Custom mockup theme gradients and colors (dark-adapted)
-  mockupBalanceStart: '#111326',
-  mockupBalanceEnd: '#1C1F38',
-  mockupSalaryStart: '#4C27C2',
-  mockupSalaryEnd: '#7A54DE',
-  mockupExpenseStart: '#D84620',
-  mockupExpenseEnd: '#E66F4E',
+  mockupBalanceStart: '#0E101E',
+  mockupBalanceEnd: '#1A1C30',
+  mockupSalaryStart: '#5E1BDB',
+  mockupSalaryEnd: '#8A3FFC',
+  mockupExpenseStart: '#FF6037',
+  mockupExpenseEnd: '#FF8C68',
   mockupOrange: '#FF6037',
   mockupPurple: '#8A3FFC',
-  mockupNavy: '#1C1E3A',
-  mockupLightGrey: '#151E2E',
+  mockupNavy: '#1A1C29',
+  mockupLightGrey: '#12131A',
 };
 
 type ThemeColors = typeof LightTheme;

@@ -26,7 +26,7 @@ const isEmulator = () => {
 };
 
 // Toggle this to true if you want to develop with a local backend server instead of the deployed one
-const USE_LOCAL_BACKEND = false;
+const USE_LOCAL_BACKEND = true;
 
 const getBaseUrl = () => {
   if (USE_LOCAL_BACKEND) {
