@@ -27,19 +27,6 @@ const CATEGORY_COLORS = {
   Others: '#8E8E93',
 };
 
-const PieCenterLabel = () => (
-  <View style={{ justifyContent: 'center', alignItems: 'center' }}>
-    <Icon name="pie-chart" size={24} color={colors.primary} />
-    <Text style={{
-      color: colors.text.muted,
-      fontSize: 10,
-      fontWeight: '600',
-      marginTop: 4,
-      textTransform: 'uppercase',
-    }}>Expenses</Text>
-  </View>
-);
-
 const DashboardScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { data: summary, isLoading: summaryLoading, refetch: refetchSummary } = useDashboardSummary();
@@ -108,16 +95,40 @@ const DashboardScreen = ({ navigation }) => {
   const totalIncome = summary?.totalIncome || 0;
   const savings = Math.max(totalIncome - totalExpense, 0);
 
-  // Dynamic Pie Chart Data
-  const pieData = [
-    { value: 32, color: CATEGORY_COLORS.Food, label: 'Food' },
-    { value: 18, color: CATEGORY_COLORS.Shopping, label: 'Shopping' },
-    { value: 12, color: CATEGORY_COLORS.Travel, label: 'Travel' },
-    { value: 10, color: CATEGORY_COLORS.Grocery, label: 'Grocery' },
-    { value: 8, color: CATEGORY_COLORS.Rent, label: 'Rent' },
-    { value: 6, color: CATEGORY_COLORS.Investments, label: 'Investments' },
-    { value: 14, color: CATEGORY_COLORS.Others, label: 'Others' },
-  ];
+  const spentPercent = useMemo(() => {
+    if (totalIncome <= 0) return totalExpense > 0 ? 100 : 0;
+    return Math.min(Math.round((totalExpense / totalIncome) * 100), 100);
+  }, [totalExpense, totalIncome]);
+
+  const savedPercent = useMemo(() => {
+    return Math.max(100 - spentPercent, 0);
+  }, [spentPercent]);
+
+  // Dynamic Pie Chart Data: Spent vs Saved
+  const pieData = useMemo(() => {
+    if (totalIncome === 0 && totalExpense === 0) {
+      return [
+        { value: 100, color: colors.divider, label: 'No Data' }
+      ];
+    }
+    const data = [];
+    if (totalExpense > 0) {
+      data.push({
+        value: totalExpense,
+        color: colors.danger || '#FF4D67',
+        label: 'Spent',
+      });
+    }
+    const remaining = totalIncome - totalExpense;
+    if (remaining > 0) {
+      data.push({
+        value: remaining,
+        color: colors.success || '#00D26A',
+        label: 'Saved',
+      });
+    }
+    return data;
+  }, [totalIncome, totalExpense]);
 
   // Render Category Icon Picker helper
   const getCategoryIconInfo = (category, type) => {
@@ -203,11 +214,18 @@ const DashboardScreen = ({ navigation }) => {
         }
         style={styles.contentContainer}
       >
-        {/* Monthly Expenses Chart Card */}
+        {/* Income Spent vs Saved Chart Card */}
         <Card style={styles.chartCard}>
-          <Text style={styles.chartTitle}>Your Monthly Expenses</Text>
-          <Text style={styles.chartAmount}>{formatCurrency(totalExpense)}</Text>
-          <Text style={styles.chartSubtitle}>Expenses up by +₹50,849</Text>
+          <Text style={styles.chartTitle}>Income Spent vs Saved</Text>
+          <Text style={styles.chartAmount}>{spentPercent}% Spent</Text>
+          <Text style={[
+            styles.chartSubtitle,
+            { color: (totalIncome - totalExpense) >= 0 ? colors.success : colors.danger }
+          ]}>
+            {(totalIncome - totalExpense) >= 0
+              ? `Remaining Savings: ${formatCurrency(totalIncome - totalExpense)}`
+              : `Overspent by: ${formatCurrency(Math.abs(totalIncome - totalExpense))}`}
+          </Text>
 
           <View style={styles.pieContainer}>
             <PieChart
@@ -216,27 +234,34 @@ const DashboardScreen = ({ navigation }) => {
               radius={85}
               innerRadius={65}
               innerCircleColor={colors.card}
-              centerLabelComponent={PieCenterLabel}
+              centerLabelComponent={() => (
+                <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+                  <Text style={{
+                    color: colors.text.primary,
+                    fontSize: 20,
+                    fontWeight: 'bold',
+                  }}>{spentPercent}%</Text>
+                  <Text style={{
+                    color: colors.text.muted,
+                    fontSize: 9,
+                    fontWeight: '700',
+                    marginTop: 2,
+                    textTransform: 'uppercase',
+                  }}>Spent</Text>
+                </View>
+              )}
             />
           </View>
 
           {/* Mini Legend list */}
           <View style={styles.legendRow}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: CATEGORY_COLORS.Food }]} />
-              <Text style={styles.legendText}>Food</Text>
+              <View style={[styles.legendDot, { backgroundColor: colors.danger || '#FF4D67' }]} />
+              <Text style={styles.legendText}>Spent: {spentPercent}% ({formatCurrency(totalExpense)})</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: CATEGORY_COLORS.Shopping }]} />
-              <Text style={styles.legendText}>Shopping</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: CATEGORY_COLORS.Travel }]} />
-              <Text style={styles.legendText}>Travel</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: CATEGORY_COLORS.Grocery }]} />
-              <Text style={styles.legendText}>Grocery</Text>
+              <View style={[styles.legendDot, { backgroundColor: colors.success || '#00D26A' }]} />
+              <Text style={styles.legendText}>Saved: {savedPercent}% ({formatCurrency(Math.max(totalIncome - totalExpense, 0))})</Text>
             </View>
           </View>
         </Card>
