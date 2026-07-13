@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, ScrollView } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
@@ -9,10 +9,12 @@ import PrimaryButton from '../../components/atoms/PrimaryButton';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useScanReceipt } from '../../hooks/useAi';
 import { useCreateTransaction } from '../../hooks/useTransactions';
+import { useAlert } from '../../context/AlertContext';
 import dayjs from 'dayjs';
 
 const ReceiptImportScreen = ({ route, navigation }) => {
   const { sharedImageUri } = route.params || {};
+  const { showAlert } = useAlert();
   
   const [imageUri, setImageUri] = useState(sharedImageUri || null);
   const [scanning, setScanning] = useState(false);
@@ -60,10 +62,10 @@ const ReceiptImportScreen = ({ route, navigation }) => {
         setDate(rawDate ? dayjs(rawDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'));
         setScanComplete(true);
       } else {
-        Alert.alert('Scan Failed', 'Could not parse receipt contents.');
+        showAlert('Scan Failed', 'Could not parse receipt contents.');
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'Gemini failed to scan receipt.');
+      showAlert('Error', error.message || 'Gemini failed to scan receipt.');
     } finally {
       setScanning(false);
     }
@@ -71,7 +73,7 @@ const ReceiptImportScreen = ({ route, navigation }) => {
 
   const handleSave = async () => {
     if (!merchant || !amount || !category) {
-      Alert.alert('Error', 'Please fill in all detected fields.');
+      showAlert('Error', 'Please fill in all detected fields.');
       return;
     }
     
@@ -87,13 +89,13 @@ const ReceiptImportScreen = ({ route, navigation }) => {
 
     try {
       await createMutation.mutateAsync(payload);
-      Alert.alert(
+      showAlert(
         'Success',
         'Transaction parsed and saved to ledger!',
         [{ text: 'OK', onPress: () => navigation.navigate('TodayHome') }]
       );
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to save transaction.');
+      showAlert('Error', error.message || 'Failed to save transaction.');
     }
   };
 

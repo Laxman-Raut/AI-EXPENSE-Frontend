@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, Platform, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform, Modal } from 'react-native';
 import dayjs from 'dayjs';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Screen from '../../components/templates/Screen';
@@ -8,6 +8,7 @@ import Input from '../../components/atoms/Input';
 import PrimaryButton from '../../components/atoms/PrimaryButton';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useCreateTransaction, useUpdateTransaction, useTransaction } from '../../hooks/useTransactions';
+import { useAlert } from '../../context/AlertContext';
 
 const CATEGORIES = [
   { name: 'Food', icon: 'fast-food' },
@@ -27,6 +28,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
   const isEditing = !!transactionId;
 
   const { data: transactionDetails } = useTransaction(transactionId);
+  const { showAlert } = useAlert();
   const createMutation = useCreateTransaction();
   const updateMutation = useUpdateTransaction();
 
@@ -63,7 +65,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
 
   const handleSave = async () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount.');
+      showAlert('Error', 'Please enter a valid amount.');
       return;
     }
 
@@ -80,17 +82,17 @@ const AddTransactionScreen = ({ navigation, route }) => {
     try {
       if (isEditing) {
         await updateMutation.mutateAsync({ id: transactionId, data: payload });
-        Alert.alert('Success', 'Transaction updated successfully!', [
+        showAlert('Success', 'Transaction updated successfully!', [
           { text: 'OK', onPress: () => navigation.goBack() }
         ]);
       } else {
         await createMutation.mutateAsync(payload);
-        Alert.alert('Success', 'Transaction saved successfully!', [
+        showAlert('Success', 'Transaction saved successfully!', [
           { text: 'OK', onPress: () => navigation.goBack() }
         ]);
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'Something went wrong.');
+      showAlert('Error', error.message || 'Something went wrong.');
     }
   };
 
@@ -105,7 +107,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
   const handleDateSelect = (date) => {
     const today = dayjs();
     if (date.isAfter(today, 'day')) {
-      Alert.alert('Invalid Date', 'You cannot select a future date.');
+      showAlert('Invalid Date', 'You cannot select a future date.');
       return;
     }
     setTransactionDate(date.toDate());

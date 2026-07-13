@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Modal } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
+import Input from '../../components/atoms/Input';
+import PrimaryButton from '../../components/atoms/PrimaryButton';
 import { colors, spacing, typography, radius } from '../../theme';
+import { useAlert } from '../../context/AlertContext';
 
 const DEFAULT_CATEGORIES = [
   { name: 'Food', icon: 'fast-food-outline', color: '#FF9500' },
@@ -20,39 +23,33 @@ const DEFAULT_CATEGORIES = [
 
 const CategoriesScreen = ({ navigation, route }) => {
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const { showAlert } = useAlert();
 
   const handleAddCategory = () => {
-    Alert.prompt(
-      'New Category',
-      'Enter the name of the new category:',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Add',
-          onPress: (name) => {
-            if (!name || name.trim().length === 0) {
-              Alert.alert('Error', 'Category name cannot be empty.');
-              return;
-            }
-            const exists = categories.some(cat => cat.name.toLowerCase() === name.trim().toLowerCase());
-            if (exists) {
-              Alert.alert('Error', 'Category already exists.');
-              return;
-            }
-            const newCat = {
-              name: name.trim(),
-              icon: 'pricetag-outline',
-              color: colors.primary,
-            };
-            setCategories([...categories, newCat]);
-          },
-        },
-      ],
-      'plain-text'
-    );
+    setAddModalVisible(true);
+  };
+
+  const handleConfirmAdd = () => {
+    const name = newCategoryName;
+    if (!name || name.trim().length === 0) {
+      showAlert('Error', 'Category name cannot be empty.');
+      return;
+    }
+    const exists = categories.some(cat => cat.name.toLowerCase() === name.trim().toLowerCase());
+    if (exists) {
+      showAlert('Error', 'Category already exists.');
+      return;
+    }
+    const newCat = {
+      name: name.trim(),
+      icon: 'pricetag-outline',
+      color: colors.primary,
+    };
+    setCategories([...categories, newCat]);
+    setAddModalVisible(false);
+    setNewCategoryName('');
   };
 
   // Custom Header
@@ -90,7 +87,7 @@ const CategoriesScreen = ({ navigation, route }) => {
                     merge: true,
                   });
                 } else {
-                  Alert.alert('Category Info', `Manage transactions under ${cat.name}`);
+                  showAlert('Category Info', `Manage transactions under ${cat.name}`);
                 }
               }}
             >
@@ -119,6 +116,46 @@ const CategoriesScreen = ({ navigation, route }) => {
 
         <View style={{ height: 100 }} />
       </Screen>
+
+      {/* New Category Prompt Modal */}
+      <Modal
+        visible={addModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAddModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Card style={styles.modalContent}>
+            <Text style={styles.modalTitle}>New Category</Text>
+            
+            <Input
+              label="Category Name"
+              value={newCategoryName}
+              onChangeText={setNewCategoryName}
+              placeholder="e.g. Health"
+              autoFocus
+            />
+
+            <View style={styles.modalActions}>
+              <PrimaryButton 
+                title="Cancel" 
+                onPress={() => {
+                  setAddModalVisible(false);
+                  setNewCategoryName('');
+                }} 
+                type="ghost"
+                style={styles.modalCancel}
+              />
+              <PrimaryButton 
+                title="Add" 
+                onPress={handleConfirmAdd} 
+                type="primary"
+                style={styles.modalConfirm}
+              />
+            </View>
+          </Card>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -208,6 +245,36 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: typography.sizes.base,
     fontWeight: typography.weights.bold,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  modalContent: {
+    width: '100%',
+    padding: spacing.xl,
+  },
+  modalTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  modalCancel: {
+    flex: 1,
+  },
+  modalConfirm: {
+    flex: 1,
   },
 });
 

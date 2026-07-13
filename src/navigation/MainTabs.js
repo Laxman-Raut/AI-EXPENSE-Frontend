@@ -16,12 +16,14 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 import ReceiptScannerScreen from '../screens/ai/ReceiptScannerScreen';
 import ReceiptImportScreen from '../screens/ai/ReceiptImportScreen';
 import CategoriesScreen from '../screens/budget/CategoriesScreen';
+import BudgetScreen from '../screens/budget/BudgetScreen';
 import CalendarViewScreen from '../screens/calendar/CalendarViewScreen';
 import FloatingVoiceButton from '../components/FloatingVoiceButton';
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
 const TransactionsStack = createNativeStackNavigator();
+const ProfileStack = createNativeStackNavigator();
 
 // Animated tab icon component for smooth spring animations
 const AnimatedTabIcon = ({ name, color, focused }) => {
@@ -54,7 +56,16 @@ const DashboardStackScreen = () => (
     <DashboardStack.Screen name="ReceiptImport" component={ReceiptImportScreen} />
     <DashboardStack.Screen name="Categories" component={CategoriesScreen} />
     <DashboardStack.Screen name="Calendar" component={CalendarViewScreen} />
+    <DashboardStack.Screen name="Budget" component={BudgetScreen} />
   </DashboardStack.Navigator>
+);
+
+// Stack navigation for Profile tab
+const ProfileStackScreen = () => (
+  <ProfileStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+    <ProfileStack.Screen name="ProfileHome" component={ProfileScreen} />
+    <ProfileStack.Screen name="Budget" component={BudgetScreen} />
+  </ProfileStack.Navigator>
 );
 
 // Stack navigation for Wallet/Transactions tab
@@ -144,7 +155,7 @@ const MainTabs = () => {
         />
         <Tab.Screen
           name="Profile"
-          component={ProfileScreen}
+          component={ProfileStackScreen}
           options={{
             tabBarIcon: ({ color, focused }) => (
               <AnimatedTabIcon name={focused ? 'person' : 'person-outline'} color={color} focused={focused} />

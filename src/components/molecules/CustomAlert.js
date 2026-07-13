@@ -9,19 +9,10 @@ const CustomAlert = ({
   title,
   message,
   type = 'info', // 'info' | 'warning' | 'destructive'
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
-  onConfirm,
+  buttons = [],
+  onButtonPress,
   onCancel,
 }) => {
-  const isDestructive = type === 'destructive';
-  const isWarning = type === 'warning';
-  
-  let confirmBtnType = 'primary';
-  if (isDestructive) {
-    confirmBtnType = 'danger';
-  }
-
   return (
     <Modal
       visible={visible}
@@ -32,23 +23,30 @@ const CustomAlert = ({
       <View style={styles.overlay}>
         <Card style={styles.card}>
           <Text style={styles.title}>{title}</Text>
-          <Text style={styles.message}>{message}</Text>
+          {message ? <Text style={styles.message}>{message}</Text> : null}
           
           <View style={styles.actions}>
-            {onCancel && (
-              <PrimaryButton
-                title={cancelText}
-                onPress={onCancel}
-                type="ghost"
-                style={styles.btn}
-              />
-            )}
-            <PrimaryButton
-              title={confirmText}
-              onPress={onConfirm}
-              type={confirmBtnType}
-              style={styles.btn}
-            />
+            {buttons.map((btn, index) => {
+              const isCancel = btn.style === 'cancel';
+              const isDestructive = btn.style === 'destructive';
+              
+              let btnType = 'primary';
+              if (isCancel) {
+                btnType = 'ghost';
+              } else if (isDestructive) {
+                btnType = 'danger';
+              }
+              
+              return (
+                <PrimaryButton
+                  key={index}
+                  title={btn.text}
+                  onPress={() => onButtonPress(btn)}
+                  type={btnType}
+                  style={styles.btn}
+                />
+              );
+            })}
           </View>
         </Card>
       </View>

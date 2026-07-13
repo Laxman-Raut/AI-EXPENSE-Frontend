@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, ScrollView } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Screen from '../../components/templates/Screen';
@@ -11,6 +10,7 @@ import PrimaryButton from '../../components/atoms/PrimaryButton';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useScanReceipt } from '../../hooks/useAi';
 import { useCreateTransaction } from '../../hooks/useTransactions';
+import { useAlert } from '../../context/AlertContext';
 import dayjs from 'dayjs';
 
 const SAMPLES = [
@@ -35,6 +35,7 @@ const SAMPLES = [
 ];
 
 const ReceiptScannerScreen = ({ navigation }) => {
+  const { showAlert } = useAlert();
   const [imageUri, setImageUri] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);
@@ -52,7 +53,7 @@ const ReceiptScannerScreen = ({ navigation }) => {
   const handleSelectImage = async (source) => {
     // Guard against unlinked native modules (requires npm run android)
     if (source === 'camera' && (typeof launchCamera !== 'function' || !launchCamera)) {
-      Alert.alert(
+      showAlert(
         'Native Library Missing',
         'Camera support requires compiling native modules.\n\nPlease run "npm run android" in your terminal to build the app with camera permissions.\n\nIn the meantime, you can test the AI parser instantly using the sample preset bills below!',
         [{ text: 'OK' }]
@@ -60,7 +61,7 @@ const ReceiptScannerScreen = ({ navigation }) => {
       return;
     }
     if (source === 'gallery' && (typeof launchImageLibrary !== 'function' || !launchImageLibrary)) {
-      Alert.alert(
+      showAlert(
         'Native Library Missing',
         'Gallery support requires compiling native modules.\n\nPlease run "npm run android" in your terminal to build the app with gallery permissions.\n\nIn the meantime, you can test the AI parser instantly using the sample preset bills below!',
         [{ text: 'OK' }]
@@ -77,7 +78,7 @@ const ReceiptScannerScreen = ({ navigation }) => {
     const callback = async (response) => {
       if (response.didCancel) return;
       if (response.errorMessage) {
-        Alert.alert('Error', response.errorMessage);
+        showAlert('Error', response.errorMessage);
         return;
       }
       const asset = response.assets?.[0];
@@ -103,10 +104,10 @@ const ReceiptScannerScreen = ({ navigation }) => {
             setDate(rawDate ? dayjs(rawDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'));
             setScanComplete(true);
           } else {
-            Alert.alert('Scan Failed', 'Could not parse receipt contents.');
+            showAlert('Scan Failed', 'Could not parse receipt contents.');
           }
         } catch (error) {
-          Alert.alert('Error', error.message || 'Gemini failed to scan receipt.');
+          showAlert('Error', error.message || 'Gemini failed to scan receipt.');
         } finally {
           setScanning(false);
         }
@@ -120,7 +121,7 @@ const ReceiptScannerScreen = ({ navigation }) => {
         launchImageLibrary(options, callback);
       }
     } catch (err) {
-      Alert.alert(
+      showAlert(
         'Native Link Failure',
         'Could not open image picker natively. Please run "npm run android" to rebuild the application.',
         [{ text: 'OK' }]
@@ -145,10 +146,10 @@ const ReceiptScannerScreen = ({ navigation }) => {
         setDate(rawDate ? dayjs(rawDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'));
         setScanComplete(true);
       } else {
-        Alert.alert('Scan Failed', 'Could not parse sample receipt.');
+        showAlert('Scan Failed', 'Could not parse sample receipt.');
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'Gemini failed to scan sample receipt.');
+      showAlert('Error', error.message || 'Gemini failed to scan sample receipt.');
     } finally {
       setScanning(false);
     }
@@ -156,7 +157,7 @@ const ReceiptScannerScreen = ({ navigation }) => {
 
   const handleSave = async () => {
     if (!merchant || !amount || !category) {
-      Alert.alert('Error', 'Please fill in all detected fields.');
+      showAlert('Error', 'Please fill in all detected fields.');
       return;
     }
     
@@ -172,13 +173,13 @@ const ReceiptScannerScreen = ({ navigation }) => {
 
     try {
       await createMutation.mutateAsync(payload);
-      Alert.alert(
+      showAlert(
         'Success',
         'Transaction parsed and saved to ledger!',
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to save transaction.');
+      showAlert('Error', error.message || 'Failed to save transaction.');
     }
   };
 

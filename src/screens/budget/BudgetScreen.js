@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
@@ -9,11 +9,13 @@ import { colors, spacing, typography, radius, shadow } from '../../theme';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useAuth } from '../../hooks/useAuth';
 import { useTransactions } from '../../hooks/useTransactions';
+import { useAlert } from '../../context/AlertContext';
 import dayjs from 'dayjs';
 
 const BudgetScreen = () => {
   const { user, updateUser } = useAuth();
   const { data: transactions } = useTransactions();
+  const { showAlert } = useAlert();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [newBudgetVal, setNewBudgetVal] = useState('');
@@ -75,7 +77,7 @@ const BudgetScreen = () => {
   const handleUpdateBudget = async () => {
     const val = Number(newBudgetVal);
     if (!newBudgetVal || isNaN(val) || val <= 0) {
-      Alert.alert('Error', 'Please enter a valid budget amount.');
+      showAlert('Error', 'Please enter a valid budget amount.');
       return;
     }
     
@@ -84,9 +86,9 @@ const BudgetScreen = () => {
       await updateUser({ monthlyBudget: val });
       setModalVisible(false);
       setNewBudgetVal('');
-      Alert.alert('Success', 'Monthly budget updated successfully.');
+      showAlert('Success', 'Monthly budget updated successfully.');
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to update monthly budget.');
+      showAlert('Error', error.message || 'Failed to update monthly budget.');
     } finally {
       setUpdateLoading(false);
     }

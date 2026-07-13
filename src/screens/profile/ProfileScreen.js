@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
 import SettingRow from '../../components/molecules/SettingRow';
-import CustomAlert from '../../components/molecules/CustomAlert';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
 import { useAuth } from '../../hooks/useAuth';
+import { useAlert } from '../../context/AlertContext';
 
 const ProfileScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
-  const [logoutAlertVisible, setLogoutAlertVisible] = useState(false);
+  const { showAlert } = useAlert();
 
   const getInitials = () => {
     if (user?.fullName) {
@@ -18,6 +18,22 @@ const ProfileScreen = ({ navigation }) => {
       return parts.map(p => p[0]).join('').toUpperCase().slice(0, 2);
     }
     return 'RK'; // Fallback mockup initials
+  };
+
+  const showInfoAlert = (title, message) => {
+    showAlert(title, message, [{ text: 'OK' }]);
+  };
+
+  const handleLogoutPress = () => {
+    showAlert(
+      'Logout',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', style: 'destructive', onPress: logout }
+      ],
+      'warning'
+    );
   };
 
   const renderHeader = () => (
@@ -33,20 +49,6 @@ const ProfileScreen = ({ navigation }) => {
         header={renderHeader()}
         style={styles.contentContainer}
       >
-        {/* Custom Confirmation Alert Overlay */}
-        <CustomAlert
-          visible={logoutAlertVisible}
-          title="Logout"
-          message="Are you sure you want to sign out?"
-          type="warning"
-          confirmText="Logout"
-          onConfirm={() => {
-            setLogoutAlertVisible(false);
-            logout();
-          }}
-          onCancel={() => setLogoutAlertVisible(false)}
-        />
-
         {/* User Info Card */}
         <View style={styles.profileHeaderBox}>
           <View style={styles.avatarCircle}>
@@ -61,40 +63,45 @@ const ProfileScreen = ({ navigation }) => {
           <SettingRow
             icon="person-outline"
             label="Profile Settings"
-            onPress={() => Alert.alert('Profile Settings', 'Manage your user profile details.')}
+            onPress={() => showInfoAlert('Profile Settings', 'Manage your user profile details.')}
+          />
+          <SettingRow
+            icon="wallet-outline"
+            label="Monthly Budget"
+            onPress={() => navigation.navigate('Budget')}
           />
           <SettingRow
             icon="notifications-outline"
             label="Notifications"
-            onPress={() => Alert.alert('Notifications', 'Manage your notification preferences.')}
+            onPress={() => showInfoAlert('Notifications', 'Manage your notification preferences.')}
           />
           <SettingRow
             icon="cash-outline"
             label="Currency"
             value="INR (₹)"
-            onPress={() => Alert.alert('Currency', 'Currency selection is locked to INR (₹).')}
+            onPress={() => showInfoAlert('Currency', 'Currency selection is locked to INR (₹).')}
           />
           <SettingRow
             icon="color-palette-outline"
             label="Theme"
             value="Dark"
-            onPress={() => Alert.alert('Theme', 'App theme is locked to Dark.')}
+            onPress={() => showInfoAlert('Theme', 'App theme is locked to Dark.')}
           />
           <SettingRow
             icon="cloud-upload-outline"
             label="Backup & Restore"
-            onPress={() => Alert.alert('Backup', 'Database backups are automatically synchronized to the cloud.')}
+            onPress={() => showInfoAlert('Backup', 'Database backups are automatically synchronized to the cloud.')}
           />
           <SettingRow
             icon="help-circle-outline"
             label="Help & Support"
-            onPress={() => Alert.alert('Support', 'Opening Help & Support ticket desk...')}
+            onPress={() => showInfoAlert('Support', 'Opening Help & Support ticket desk...')}
           />
           <SettingRow
             icon="information-circle-outline"
             label="About App"
             isLast
-            onPress={() => Alert.alert('About', 'AboutMoney v1.0.0 - Smart expense tracker.')}
+            onPress={() => showInfoAlert('About', 'AboutMoney v1.0.0 - Smart expense tracker.')}
           />
         </Card>
 
@@ -102,7 +109,7 @@ const ProfileScreen = ({ navigation }) => {
         <TouchableOpacity 
           style={styles.logoutBtn} 
           activeOpacity={0.8}
-          onPress={() => setLogoutAlertVisible(true)}
+          onPress={handleLogoutPress}
         >
           <Text style={styles.logoutBtnText}>Logout</Text>
         </TouchableOpacity>

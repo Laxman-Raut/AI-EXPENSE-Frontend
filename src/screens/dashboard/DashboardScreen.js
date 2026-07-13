@@ -316,6 +316,51 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         </Card>
 
+        {/* Monthly Budget Card */}
+        {user?.monthlyBudget ? (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('Budget')}
+            style={styles.budgetCardContainer}
+          >
+            <Card style={styles.budgetCard}>
+              <View style={styles.budgetHeader}>
+                <View style={styles.budgetTitleRow}>
+                  <Icon name="wallet-outline" size={18} color={colors.primary} />
+                  <Text style={styles.budgetTitle}>Monthly Budget Limit</Text>
+                </View>
+                <Text style={styles.budgetValueText}>
+                  {formatCurrency(totalExpense)} / {formatCurrency(user.monthlyBudget)}
+                </Text>
+              </View>
+              <View style={styles.budgetProgressBarBg}>
+                <View
+                  style={[
+                    styles.budgetProgressBarFill,
+                    {
+                      width: `${Math.min(Math.round((totalExpense / user.monthlyBudget) * 100), 100)}%`,
+                      backgroundColor: (totalExpense / user.monthlyBudget) >= 0.9 ? colors.danger : colors.primary
+                    }
+                  ]}
+                />
+              </View>
+              <View style={styles.budgetFooter}>
+                <Text style={styles.budgetPercentText}>
+                  {Math.round((totalExpense / user.monthlyBudget) * 100)}% utilized
+                </Text>
+                <Text style={[
+                  styles.budgetRemainingText,
+                  { color: user.monthlyBudget - totalExpense >= 0 ? colors.success : colors.danger }
+                ]}>
+                  {user.monthlyBudget - totalExpense >= 0
+                    ? `${formatCurrency(user.monthlyBudget - totalExpense)} remaining`
+                    : `${formatCurrency(Math.abs(user.monthlyBudget - totalExpense))} overspent`}
+                </Text>
+              </View>
+            </Card>
+          </TouchableOpacity>
+        ) : null}
+
         {/* Recent Transactions List */}
         <View style={styles.transactionsHeaderRow}>
           <Text style={styles.transactionsTitle}>Recent Transactions</Text>
@@ -676,6 +721,62 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
     fontSize: typography.sizes.sm,
     marginTop: spacing.sm,
+  },
+  budgetCardContainer: {
+    marginBottom: spacing.xxl,
+  },
+  budgetCard: {
+    padding: spacing.lg,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  budgetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  budgetTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  budgetTitle: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.secondary,
+    fontWeight: typography.weights.semibold,
+  },
+  budgetValueText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+  },
+  budgetProgressBarBg: {
+    height: 6,
+    backgroundColor: colors.divider,
+    borderRadius: radius.full,
+    overflow: 'hidden',
+    marginBottom: spacing.sm,
+  },
+  budgetProgressBarFill: {
+    height: '100%',
+    borderRadius: radius.full,
+  },
+  budgetFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  budgetPercentText: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.muted,
+    fontWeight: typography.weights.medium,
+  },
+  budgetRemainingText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semibold,
   },
 });
 

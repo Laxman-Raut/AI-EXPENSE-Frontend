@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Modal, Alert, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Modal, ScrollView, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import dayjs from 'dayjs';
 import Screen from '../../components/templates/Screen';
@@ -11,6 +11,7 @@ import { colors, spacing, typography, radius, shadow } from '../../theme';
 import { useTransactions, useDeleteTransaction } from '../../hooks/useTransactions';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { exportToExcel, exportToPDF } from '../../utils/exportUtils';
+import { useAlert } from '../../context/AlertContext';
 
 const FILTER_CHIPS = ['All', 'Income', 'Expense', 'Food', 'Shopping', 'Bills', 'Travel'];
 
@@ -25,6 +26,7 @@ const formatDateGroup = (dateInput) => {
 const TransactionsScreen = ({ navigation }) => {
   const { data: transactions, isLoading: txLoading, refetch } = useTransactions();
   const deleteTransaction = useDeleteTransaction();
+  const { showAlert } = useAlert();
 
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,7 +47,7 @@ const TransactionsScreen = ({ navigation }) => {
   };
 
   const handleDelete = (id) => {
-    Alert.alert(
+    showAlert(
       'Delete Transaction',
       'Are you sure you want to delete this transaction?',
       [
@@ -55,13 +57,14 @@ const TransactionsScreen = ({ navigation }) => {
           style: 'destructive', 
           onPress: () => deleteTransaction.mutate(id) 
         }
-      ]
+      ],
+      'destructive'
     );
   };
 
   const handleExport = async (type) => {
     if (!filteredTxns || filteredTxns.length === 0) {
-      Alert.alert('No Data', 'There are no transactions to export.');
+      showAlert('No Data', 'There are no transactions to export.');
       return;
     }
     setExporting(true);
@@ -73,7 +76,7 @@ const TransactionsScreen = ({ navigation }) => {
         await exportToPDF(filteredTxns);
       }
     } catch (err) {
-      Alert.alert('Export Failed', err?.message || 'Could not export. Please try again.');
+      showAlert('Export Failed', err?.message || 'Could not export. Please try again.');
     } finally {
       setExporting(false);
     }

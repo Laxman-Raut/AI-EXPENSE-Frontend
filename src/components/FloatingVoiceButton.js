@@ -10,7 +10,6 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   PermissionsAndroid,
@@ -23,6 +22,7 @@ import { colors, spacing, radius, shadow, typography } from '../theme';
 import apiClient from '../api/client';
 import { useCreateTransaction } from '../hooks/useTransactions';
 import { useAuth } from '../hooks/useAuth';
+import { useAlert } from '../context/AlertContext';
 import Card from './molecules/Card';
 import PrimaryButton from './atoms/PrimaryButton';
 import dayjs from 'dayjs';
@@ -32,6 +32,7 @@ const { SpeechRecognitionModule } = NativeModules;
 
 const FloatingVoiceButton = () => {
   const { isAuthenticated } = useAuth();
+  const { showAlert } = useAlert();
   const [modalVisible, setModalVisible] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -59,7 +60,7 @@ const FloatingVoiceButton = () => {
     if (!modalVisible) return;
 
     if (!SpeechRecognitionModule) {
-      Alert.alert(
+      showAlert(
         'Native Module Missing',
         'The native SpeechRecognitionModule is not loaded.\n\nPlease run "npm run android" to compile the new native module into the app.',
         [{ text: 'OK', onPress: () => setModalVisible(false) }]
@@ -91,7 +92,7 @@ const FloatingVoiceButton = () => {
       setIsListening(false);
       // Suppress annoying timeout logs if the user just stopped speaking manually
       if (event.code !== 7 && event.code !== 6) { 
-        Alert.alert('Speech Error', event.message || 'An error occurred during recognition.');
+        showAlert('Speech Error', event.message || 'An error occurred during recognition.');
       }
     });
 
@@ -203,7 +204,7 @@ const FloatingVoiceButton = () => {
             }
           );
           if (granted !== PermissionsAndroid.RESULTS_GRANTED) {
-            Alert.alert('Permission Denied', 'Microphone permission is required to use Voice AI.');
+            showAlert('Permission Denied', 'Microphone permission is required to use Voice AI.');
             return;
           }
         }
@@ -219,7 +220,7 @@ const FloatingVoiceButton = () => {
     try {
       SpeechRecognitionModule.startListening();
     } catch (e) {
-      Alert.alert('Error', 'Failed to start speech recognition.');
+      showAlert('Error', 'Failed to start speech recognition.');
     }
   };
 
@@ -233,7 +234,7 @@ const FloatingVoiceButton = () => {
 
   const handleProcessText = async () => {
     if (!inputText.trim()) {
-      Alert.alert('Empty query', 'Please speak or type a transaction details query.');
+      showAlert('Empty query', 'Please speak or type a transaction details query.');
       return;
     }
 
@@ -248,10 +249,10 @@ const FloatingVoiceButton = () => {
       if (response.data && response.data.success) {
         setParsedData(response.data.data);
       } else {
-        Alert.alert('Processing Failed', 'Gemini failed to parse transaction fields.');
+        showAlert('Processing Failed', 'Gemini failed to parse transaction fields.');
       }
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.message || error.message || 'Error communicating with AI parser.');
+      showAlert('Error', error.response?.data?.message || error.message || 'Error communicating with AI parser.');
     } finally {
       setLoading(false);
     }
@@ -272,7 +273,7 @@ const FloatingVoiceButton = () => {
       };
 
       await createMutation.mutateAsync(payload);
-      Alert.alert('Saved!', 'Transaction successfully logged to ledger.', [
+      showAlert('Saved!', 'Transaction successfully logged to ledger.', [
         {
           text: 'OK',
           onPress: () => {
@@ -283,7 +284,7 @@ const FloatingVoiceButton = () => {
         },
       ]);
     } catch (error) {
-      Alert.alert('Error Saving', error.message || 'Failed to register transaction.');
+      showAlert('Error Saving', error.message || 'Failed to register transaction.');
     }
   };
 
