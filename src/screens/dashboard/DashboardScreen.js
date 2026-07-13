@@ -106,7 +106,7 @@ const DashboardScreen = ({ navigation }) => {
   // Calculate totals
   const totalExpense = summary?.totalExpense || 0;
   const totalIncome = summary?.totalIncome || 0;
-  const savings = totalIncome - totalExpense;
+  const savings = Math.max(totalIncome - totalExpense, 0);
 
   // Dynamic Pie Chart Data
   const pieData = [
@@ -177,12 +177,12 @@ const DashboardScreen = ({ navigation }) => {
         >
           <Icon name="calendar-outline" size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.searchBtn} activeOpacity={0.7}>
+        <TouchableOpacity 
+          style={styles.searchBtn} 
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('Wallet')}
+        >
           <Icon name="search-outline" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.monthSelectPill} activeOpacity={0.7}>
-          <Text style={styles.monthSelectText}>June 2025</Text>
-          <Icon name="chevron-down" size={14} color={colors.text.secondary} style={{ marginLeft: 4 }} />
         </TouchableOpacity>
       </View>
     </View>

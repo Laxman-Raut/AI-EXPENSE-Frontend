@@ -10,6 +10,7 @@ import TransactionCard from '../../components/molecules/TransactionCard';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
 import { useTransactions, useDeleteTransaction } from '../../hooks/useTransactions';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { exportToExcel, exportToPDF } from '../../utils/exportUtils';
 
 const FILTER_CHIPS = ['All', 'Income', 'Expense', 'Food', 'Shopping', 'Bills', 'Travel'];
 
@@ -33,6 +34,10 @@ const TransactionsScreen = ({ navigation }) => {
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'oldest' | 'amount_high'
 
+  // Export modal
+  const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await refetch();
@@ -52,6 +57,26 @@ const TransactionsScreen = ({ navigation }) => {
         }
       ]
     );
+  };
+
+  const handleExport = async (type) => {
+    if (!filteredTxns || filteredTxns.length === 0) {
+      Alert.alert('No Data', 'There are no transactions to export.');
+      return;
+    }
+    setExporting(true);
+    setExportModalVisible(false);
+    try {
+      if (type === 'excel') {
+        await exportToExcel(filteredTxns);
+      } else {
+        await exportToPDF(filteredTxns);
+      }
+    } catch (err) {
+      Alert.alert('Export Failed', err?.message || 'Could not export. Please try again.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   // Client-side search and filters
@@ -114,8 +139,8 @@ const TransactionsScreen = ({ navigation }) => {
         edges={['top', 'left', 'right']}
         safeAreaStyle={styles.safeArea}
       >
-        {/* Search Input & Calendar Row */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.md, marginBottom: spacing.xs }}>
+        {/* Search Input, Calendar & Export Row */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.sm, marginBottom: spacing.xs }}>
           <View style={{ flex: 1 }}>
             <Input
               value={searchQuery}
@@ -126,20 +151,21 @@ const TransactionsScreen = ({ navigation }) => {
             />
           </View>
           <TouchableOpacity
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: radius.md,
-              backgroundColor: colors.card,
-              borderWidth: 1,
-              borderColor: colors.divider,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
+            style={styles.iconBtn}
             activeOpacity={0.7}
             onPress={() => navigation.navigate('Calendar')}
           >
             <Icon name="calendar-outline" size={22} color={colors.text.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.iconBtn, { backgroundColor: colors.primary }]}
+            activeOpacity={0.7}
+            onPress={() => setExportModalVisible(true)}
+          >
+            {exporting
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <Icon name="download-outline" size={22} color="#fff" />
+            }
           </TouchableOpacity>
         </View>
 
@@ -229,6 +255,58 @@ const TransactionsScreen = ({ navigation }) => {
           <Icon name="funnel" size={20} color="#FFFFFF" />
           <Text style={styles.filterBtnText}>Filters</Text>
         </TouchableOpacity>
+
+        {/* Export Modal */}
+        <Modal
+          visible={exportModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setExportModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <Card style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Export Transactions</Text>
+                <TouchableOpacity onPress={() => setExportModalVisible(false)}>
+                  <Icon name="close" size={24} color={colors.text.primary} />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.exportSubtitle}>
+                {filteredTxns.length} transaction{filteredTxns.length !== 1 ? 's' : ''} will be exported
+              </Text>
+
+              <TouchableOpacity
+                style={styles.exportOption}
+                activeOpacity={0.8}
+                onPress={() => handleExport('excel')}
+              >
+                <View style={[styles.exportIconBox, { backgroundColor: 'rgba(0, 196, 140, 0.12)' }]}>
+                  <Icon name="grid-outline" size={24} color="#00C48C" />
+                </View>
+                <View style={styles.exportOptionText}>
+                  <Text style={styles.exportOptionTitle}>Export as Excel</Text>
+                  <Text style={styles.exportOptionDesc}>Spreadsheet (.xlsx) — open in Excel or Sheets</Text>
+                </View>
+                <Icon name="chevron-forward" size={18} color={colors.text.muted} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.exportOption}
+                activeOpacity={0.8}
+                onPress={() => handleExport('pdf')}
+              >
+                <View style={[styles.exportIconBox, { backgroundColor: 'rgba(255, 100, 124, 0.12)' }]}>
+                  <Icon name="document-text-outline" size={24} color="#FF647C" />
+                </View>
+                <View style={styles.exportOptionText}>
+                  <Text style={styles.exportOptionTitle}>Export as PDF</Text>
+                  <Text style={styles.exportOptionDesc}>Printable report with summary stats</Text>
+                </View>
+                <Icon name="chevron-forward" size={18} color={colors.text.muted} />
+              </TouchableOpacity>
+            </Card>
+          </View>
+        </Modal>
 
         {/* Premium Filter modal bottom sheet */}
         <Modal
@@ -360,6 +438,52 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
     fontSize: typography.sizes.base,
     fontWeight: typography.weights.medium,
+  },
+  iconBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  exportSubtitle: {
+    fontSize: typography.sizes.sm,
+    color: colors.text.secondary,
+    marginBottom: spacing.lg,
+  },
+  exportOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.secondary,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    marginBottom: spacing.sm,
+  },
+  exportIconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  exportOptionText: {
+    flex: 1,
+  },
+  exportOptionTitle: {
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+    marginBottom: 2,
+  },
+  exportOptionDesc: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.muted,
   },
   floatingFilterBtn: {
     position: 'absolute',

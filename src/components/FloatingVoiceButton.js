@@ -156,22 +156,23 @@ const FloatingVoiceButton = () => {
       onMoveShouldSetPanResponder: (evt, gestureState) => {
         // Capture gesture only if it's a drag (finger moved more than 5px)
         const shouldMove = Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
-        console.log('[FloatingVoiceButton] Should drag capture:', shouldMove);
         return shouldMove;
       },
       onPanResponderGrant: () => {
-        console.log('[FloatingVoiceButton] Drag gesture started');
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        position.setValue({
-          x: gestureState.moveX - 28,
-          y: gestureState.moveY - 28,
+        position.setOffset({
+          x: position.x._value,
+          y: position.y._value,
         });
+        position.setValue({ x: 0, y: 0 });
       },
+      onPanResponderMove: Animated.event(
+        [null, { dx: position.x, dy: position.y }],
+        { useNativeDriver: false }
+      ),
       onPanResponderRelease: (evt, gestureState) => {
-        console.log('[FloatingVoiceButton] Drag gesture released');
-        const snapX = gestureState.moveX > SCREEN_WIDTH / 2 ? SCREEN_WIDTH - 76 : 20;
-        const boundedY = Math.max(80, Math.min(SCREEN_HEIGHT - 140, gestureState.moveY - 28));
+        position.flattenOffset();
+        const snapX = position.x._value > SCREEN_WIDTH / 2 - 28 ? SCREEN_WIDTH - 76 : 20;
+        const boundedY = Math.max(80, Math.min(SCREEN_HEIGHT - 140, position.y._value));
 
         Animated.spring(position, {
           toValue: { x: snapX, y: boundedY },

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { LineChart, PieChart } from 'react-native-gifted-charts';
 import Icon from 'react-native-vector-icons/Ionicons';
+import dayjs from 'dayjs';
 import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
 import { colors, spacing, typography, radius } from '../../theme';
@@ -103,7 +104,7 @@ const AnalyticsScreen = () => {
     <View style={styles.header}>
       <Text style={styles.headerTitle}>Analytics</Text>
       <TouchableOpacity style={styles.monthSelectPill} activeOpacity={0.7}>
-        <Text style={styles.monthSelectText}>June 2025</Text>
+        <Text style={styles.monthSelectText}>{dayjs().format('MMMM YYYY')}</Text>
         <Icon name="chevron-down" size={14} color={colors.text.secondary} style={{ marginLeft: 4 }} />
       </TouchableOpacity>
     </View>

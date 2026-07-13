@@ -26,3 +26,18 @@ export const updateProfile = async (data) => {
   const response = await apiClient.put('auth/profile', data);
   return response.data;
 };
+
+export const forgotPassword = async (email) => {
+  const response = await apiClient.post('auth/forgot-password', { email });
+  return response.data;
+};
+
+export const verifyOtp = async (email, otp) => {
+  const response = await apiClient.post('auth/verify-otp', { email, otp });
+  return response.data;
+};
+
+export const resetPassword = async (email, otp, newPassword) => {
+  const response = await apiClient.post('auth/reset-password', { email, otp, newPassword });
+  return response.data;
+};
