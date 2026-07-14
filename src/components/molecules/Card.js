@@ -58,9 +58,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   glassCard: {
-    backgroundColor: colors.glass,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.07)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
   },
 });
 

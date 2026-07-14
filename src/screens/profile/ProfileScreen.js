@@ -84,8 +84,8 @@ const ProfileScreen = ({ navigation }) => {
           <SettingRow
             icon="color-palette-outline"
             label="Theme"
-            value="Dark"
-            onPress={() => showInfoAlert('Theme', 'App theme is locked to Dark.')}
+            value="Obsidian"
+            onPress={() => showInfoAlert('Theme', 'The app uses a premium Obsidian Dark palette customized for eye comfort.')}
           />
           <SettingRow
             icon="cloud-upload-outline"

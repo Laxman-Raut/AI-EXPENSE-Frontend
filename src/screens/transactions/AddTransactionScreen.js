@@ -220,7 +220,10 @@ const AddTransactionScreen = ({ navigation, route }) => {
           <TouchableOpacity
             style={styles.fieldRow}
             activeOpacity={0.8}
-            onPress={() => navigation.navigate('Categories', { isSelection: true, returnScreen: 'AddTransaction' })}
+            onPress={() => navigation.navigate('Categories', {
+              isSelection: true,
+              onCategorySelect: (selectedCat) => setCategory(selectedCat),
+            })}
           >
             <Text style={styles.fieldLabel}>Category</Text>
             <View style={styles.pickerWrapper}>

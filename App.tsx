@@ -24,11 +24,6 @@ const queryClient = new QueryClient({
   },
 });
 
-await NotificationService.show(
-  "🎉 Welcome",
-  "This is your first saved notification."
-);
-
 function App(): React.JSX.Element {
   useEffect(() => {
     const initNotifications = async () => {

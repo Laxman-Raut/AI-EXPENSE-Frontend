@@ -1,52 +1,19 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 
-const isEmulator = () => {
-  if (Platform.OS !== 'android') return false;
-  
-  const constants = Platform.constants;
-  const brand = (constants.Brand || '').toLowerCase();
-  const model = (constants.Model || '').toLowerCase();
-  const fingerprint = (constants.Fingerprint || '').toLowerCase();
-  const hardware = (constants.Hardware || '').toLowerCase();
-  
-  return (
-    brand.startsWith('generic') ||
-    brand.startsWith('unknown') ||
-    model.includes('google_sdk') ||
-    model.includes('emulator') ||
-    model.includes('android sdk built for x86') ||
-    fingerprint.startsWith('generic') ||
-    fingerprint.startsWith('unknown') ||
-    hardware.includes('goldfish') ||
-    hardware.includes('ranchu') ||
-    hardware.includes('vbox')
-  );
-};
+// ─────────────────────────────────────────────────────────────
+// CONNECTION SETTINGS
+// ─────────────────────────────────────────────────────────────
+// Using adb reverse tcp:5000 tcp:5000 — tunnels USB so the phone
+// reaches your PC's localhost:5000 directly. No Wi-Fi IP needed.
+// ─────────────────────────────────────────────────────────────
 
-// Toggle this to true if you want to develop with a local backend server instead of the deployed one
-const USE_LOCAL_BACKEND = true;
-
-const getBaseUrl = () => {
-  if (USE_LOCAL_BACKEND) {
-    return isEmulator() ? 'http://10.0.2.2:5000/api' : 'http://localhost:5000/api';
-  }
-  let url = process.env.API_URL;
-  if (url) {
-    if (!url.endsWith('/api') && !url.endsWith('/api/')) {
-      url = url.endsWith('/') ? `${url}api` : `${url}/api`;
-    }
-    return url;
-  }
-  return 'https://ai-smart-expense-tracker-age8.onrender.com/api';
-};
-
-const BASE_URL = getBaseUrl();
+const BASE_URL = 'http://localhost:5000/api';
+console.log('[API Client] Connecting to:', BASE_URL);
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
-  timeout: 30000, // 30s — allows Render cold-start to wake up
+  timeout: 60000, // 60s — allows Render cold-start to wake up
   headers: {
     'Content-Type': 'application/json',
   },

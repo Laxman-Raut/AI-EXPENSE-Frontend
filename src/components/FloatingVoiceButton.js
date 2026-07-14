@@ -4,9 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  PanResponder,
   Animated,
-  Dimensions,
   Modal,
   TextInput,
   ActivityIndicator,
@@ -27,7 +25,6 @@ import Card from './molecules/Card';
 import PrimaryButton from './atoms/PrimaryButton';
 import dayjs from 'dayjs';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const { SpeechRecognitionModule } = NativeModules;
 
 const FloatingVoiceButton = () => {
@@ -40,11 +37,6 @@ const FloatingVoiceButton = () => {
   const [parsedData, setParsedData] = useState(null);
 
   const createMutation = useCreateTransaction();
-
-  // Floating Button Drag Position Ref
-  const position = useRef(
-    new Animated.ValueXY({ x: SCREEN_WIDTH - 76, y: SCREEN_HEIGHT - 160 })
-  ).current;
 
   // Soundwave Animation Refs
   const wave1 = useRef(new Animated.Value(10)).current;
@@ -150,40 +142,6 @@ const FloatingVoiceButton = () => {
     };
   }, [isListening]);
 
-  // PanResponder to handle dragging the button around the screen
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false, // Let taps pass through to TouchableOpacity onPress
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        // Capture gesture only if it's a drag (finger moved more than 5px)
-        const shouldMove = Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
-        return shouldMove;
-      },
-      onPanResponderGrant: () => {
-        position.setOffset({
-          x: position.x._value,
-          y: position.y._value,
-        });
-        position.setValue({ x: 0, y: 0 });
-      },
-      onPanResponderMove: Animated.event(
-        [null, { dx: position.x, dy: position.y }],
-        { useNativeDriver: false }
-      ),
-      onPanResponderRelease: (evt, gestureState) => {
-        position.flattenOffset();
-        const snapX = position.x._value > SCREEN_WIDTH / 2 - 28 ? SCREEN_WIDTH - 76 : 20;
-        const boundedY = Math.max(80, Math.min(SCREEN_HEIGHT - 140, position.y._value));
-
-        Animated.spring(position, {
-          toValue: { x: snapX, y: boundedY },
-          useNativeDriver: false,
-          tension: 80,
-          friction: 9,
-        }).start();
-      },
-    })
-  ).current;
 
   if (!isAuthenticated) return null;
 
@@ -290,11 +248,8 @@ const FloatingVoiceButton = () => {
 
   return (
     <>
-      {/* Draggable Hover Button */}
-      <Animated.View
-        style={[styles.floatingContainer, position.getLayout()]}
-        {...panResponder.panHandlers}
-      >
+      {/* Stable Floating Button */}
+      <View style={styles.floatingContainer}>
         <TouchableOpacity
           style={styles.floatingButton}
           activeOpacity={0.8}
@@ -305,7 +260,7 @@ const FloatingVoiceButton = () => {
         >
           <Icon name="mic" size={26} color="#FFFFFF" />
         </TouchableOpacity>
-      </Animated.View>
+      </View>
 
       {/* Voice Assistant Overlay Modal */}
       <Modal
@@ -472,6 +427,8 @@ const FloatingVoiceButton = () => {
 const styles = StyleSheet.create({
   floatingContainer: {
     position: 'absolute',
+    bottom: 104,
+    right: 20,
     width: 56,
     height: 56,
     zIndex: 9999,

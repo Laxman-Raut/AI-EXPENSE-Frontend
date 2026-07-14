@@ -170,9 +170,9 @@ const MainTabs = () => {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: colors.card,
+    backgroundColor: 'rgba(18, 19, 26, 0.85)',
     borderWidth: 1,
-    borderColor: colors.border || colors.divider,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     height: Platform.OS === 'ios' ? 88 : 72,
     paddingBottom: Platform.OS === 'ios' ? 28 : 14,
     paddingTop: spacing.xs,
@@ -183,9 +183,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     elevation: 12,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
   },
   tabBarLabel: {
     fontSize: typography.sizes?.xs || 10,

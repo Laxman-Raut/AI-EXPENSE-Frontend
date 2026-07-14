@@ -8,11 +8,12 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Check for stored token on mount
-  useEffect(() => {
-    checkStoredAuth();
-  }, [checkStoredAuth]);
+  const clearAuth = useCallback(async () => {
+    await AsyncStorage.removeItem('auth_token');
+    await AsyncStorage.removeItem('user');
+    setUser(null);
+    setToken(null);
+  }, []);
 
   const checkStoredAuth = useCallback(async () => {
     try {
@@ -40,14 +41,12 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [clearAuth]);
 
-  const clearAuth = async () => {
-    await AsyncStorage.removeItem('auth_token');
-    await AsyncStorage.removeItem('user');
-    setUser(null);
-    setToken(null);
-  };
+  // Check for stored token on mount
+  useEffect(() => {
+    checkStoredAuth();
+  }, [checkStoredAuth]);
 
   const login = useCallback(async (email, password) => {
     const response = await authApi.loginUser(email, password);

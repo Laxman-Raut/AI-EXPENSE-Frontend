@@ -81,11 +81,12 @@ const CategoriesScreen = ({ navigation, route }) => {
               activeOpacity={0.7}
               onPress={() => {
                 if (route.params?.isSelection) {
-                  navigation.navigate({
-                    name: route.params?.returnScreen || 'AddTransaction',
-                    params: { selectedCategory: cat.name },
-                    merge: true,
-                  });
+                  // Use goBack() + callback so the calling screen stays mounted
+                  // and none of its state (amount, notes, etc.) is lost
+                  if (route.params?.onCategorySelect) {
+                    route.params.onCategorySelect(cat.name);
+                  }
+                  navigation.goBack();
                 } else {
                   showAlert('Category Info', `Manage transactions under ${cat.name}`);
                 }

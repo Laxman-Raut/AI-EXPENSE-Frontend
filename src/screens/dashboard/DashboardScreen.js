@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, RefreshControl, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, RefreshControl, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import { PieChart } from 'react-native-gifted-charts';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import Icon from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
 import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
@@ -176,24 +177,34 @@ const DashboardScreen = ({ navigation }) => {
     return { name, bgColor };
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning ☀️';
+    if (hour < 17) return 'Good Afternoon 🌤️';
+    return 'Good Evening 🌙';
+  };
+
   // Custom Header
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={styles.headerTitle}>Overview</Text>
+      <View style={styles.headerLeft}>
+        <Text style={styles.greetingText}>{getGreeting()}</Text>
+        <Text style={styles.usernameText}>{user?.fullName || 'Laxman Raut'}</Text>
+      </View>
       <View style={styles.headerRight}>
         <TouchableOpacity 
           style={[styles.searchBtn, { marginRight: spacing.sm }]} 
           activeOpacity={0.7}
           onPress={() => navigation.navigate('Calendar')}
         >
-          <Icon name="calendar-outline" size={22} color="#FFFFFF" />
+          <Icon name="calendar-outline" size={20} color={colors.text.primary} />
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.searchBtn} 
           activeOpacity={0.7}
           onPress={() => navigation.navigate('Wallet')}
         >
-          <Icon name="search-outline" size={22} color="#FFFFFF" />
+          <Icon name="search-outline" size={20} color={colors.text.primary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -291,20 +302,40 @@ const DashboardScreen = ({ navigation }) => {
 
         {/* Summary Stats Row */}
         <View style={styles.statsRow}>
-          <Card style={styles.statsBox}>
+          <LinearGradient
+            colors={['rgba(255, 77, 103, 0.12)', 'rgba(255, 77, 103, 0.03)']}
+            style={styles.statsBoxGradient}
+            start={{x: 0, y: 0}}
+            end={{x: 1, y: 1}}
+          >
+            <View style={styles.statsIconWrapper}>
+              <Icon name="arrow-down" size={16} color={colors.danger} />
+            </View>
             <Text style={styles.statsBoxLabel}>Total Expenses</Text>
-            <Text style={styles.statsBoxAmount}>{formatCurrency(totalExpense)}</Text>
-          </Card>
-          <Card style={styles.statsBox}>
+            <Text style={[styles.statsBoxAmount, { color: colors.danger }]}>{formatCurrency(totalExpense)}</Text>
+          </LinearGradient>
+
+          <LinearGradient
+            colors={['rgba(0, 210, 106, 0.12)', 'rgba(0, 210, 106, 0.03)']}
+            style={styles.statsBoxGradient}
+            start={{x: 0, y: 0}}
+            end={{x: 1, y: 1}}
+          >
+            <View style={styles.statsIconWrapper}>
+              <Icon name="arrow-up" size={16} color={colors.success} />
+            </View>
             <Text style={styles.statsBoxLabel}>Total Income</Text>
-            <Text style={[styles.statsBoxAmount, { color: colors.success }]}>
-              {formatCurrency(totalIncome)}
-            </Text>
-          </Card>
+            <Text style={[styles.statsBoxAmount, { color: colors.success }]}>{formatCurrency(totalIncome)}</Text>
+          </LinearGradient>
         </View>
 
         {/* Savings & Sparkline */}
-        <Card style={styles.savingsCard}>
+        <LinearGradient
+          colors={['#171B30', '#0D0F1F']}
+          style={styles.savingsCardGradient}
+          start={{x: 0, y: 0}}
+          end={{x: 1, y: 1}}
+        >
           <View style={styles.savingsHeader}>
             <View>
               <Text style={styles.savingsLabel}>Savings</Text>
@@ -339,7 +370,7 @@ const DashboardScreen = ({ navigation }) => {
               />
             </Svg>
           </View>
-        </Card>
+        </LinearGradient>
 
         {/* Monthly Budget Card */}
         {user?.monthlyBudget ? (
@@ -455,13 +486,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingTop: Platform.OS === 'ios' ? spacing.xl + 8 : spacing.lg,
     paddingBottom: spacing.sm,
   },
-  headerTitle: {
-    fontSize: typography.sizes.xxl,
-    fontWeight: typography.weights.bold,
+  headerLeft: {
+    justifyContent: 'center',
+  },
+  greetingText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
+  usernameText: {
+    fontSize: typography.sizes.xl + 2,
+    fontWeight: '800',
     color: colors.text.primary,
+    marginTop: 2,
   },
   headerRight: {
     flexDirection: 'row',
@@ -592,13 +634,21 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginBottom: spacing.xl,
   },
-  statsBox: {
+  statsBoxGradient: {
     flex: 1,
     padding: spacing.lg,
-    backgroundColor: colors.card,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  statsIconWrapper: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
   },
   statsBoxLabel: {
     fontSize: typography.sizes.xs,
@@ -611,12 +661,11 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.text.primary,
   },
-  savingsCard: {
+  savingsCardGradient: {
     padding: spacing.lg,
-    backgroundColor: colors.card,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     marginBottom: spacing.xxl,
   },
   savingsHeader: {

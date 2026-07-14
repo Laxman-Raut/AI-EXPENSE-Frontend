@@ -21,11 +21,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Check for stored token on mount
-  useEffect(() => {
-    checkStoredAuth();
-  }, [checkStoredAuth]);
+  const clearAuth = useCallback(async () => {
+    await AsyncStorage.removeItem('auth_token');
+    await AsyncStorage.removeItem('user');
+    setUser(null);
+    setToken(null);
+  }, []);
 
   const checkStoredAuth = useCallback(async () => {
     try {
@@ -53,14 +54,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [clearAuth]);
 
-  const clearAuth = async () => {
-    await AsyncStorage.removeItem('auth_token');
-    await AsyncStorage.removeItem('user');
-    setUser(null);
-    setToken(null);
-  };
+  // Check for stored token on mount
+  useEffect(() => {
+    checkStoredAuth();
+  }, [checkStoredAuth]);
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await authApi.loginUser(email, password);
