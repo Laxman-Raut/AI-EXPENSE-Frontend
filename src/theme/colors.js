@@ -41,3 +41,4 @@ const colors = {
 };
 
 export default colors;
+export const Colors = colors;

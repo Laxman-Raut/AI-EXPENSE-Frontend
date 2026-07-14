@@ -18,6 +18,7 @@ import ReceiptImportScreen from '../screens/ai/ReceiptImportScreen';
 import CategoriesScreen from '../screens/budget/CategoriesScreen';
 import BudgetScreen from '../screens/budget/BudgetScreen';
 import CalendarViewScreen from '../screens/calendar/CalendarViewScreen';
+import NotificationScreen from '../screens/NotificationScreen';
 import FloatingVoiceButton from '../components/FloatingVoiceButton';
 
 const Tab = createBottomTabNavigator();
@@ -57,6 +58,7 @@ const DashboardStackScreen = () => (
     <DashboardStack.Screen name="Categories" component={CategoriesScreen} />
     <DashboardStack.Screen name="Calendar" component={CalendarViewScreen} />
     <DashboardStack.Screen name="Budget" component={BudgetScreen} />
+    <DashboardStack.Screen name="Notifications" component={NotificationScreen} />
   </DashboardStack.Navigator>
 );
 
@@ -78,6 +80,7 @@ const TransactionsStackScreen = () => (
     <TransactionsStack.Screen name="ReceiptImport" component={ReceiptImportScreen} />
     <TransactionsStack.Screen name="Categories" component={CategoriesScreen} />
     <TransactionsStack.Screen name="Calendar" component={CalendarViewScreen} />
+    <TransactionsStack.Screen name="Notifications" component={NotificationScreen} />
   </TransactionsStack.Navigator>
 );
 

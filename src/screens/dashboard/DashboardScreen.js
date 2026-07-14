@@ -11,6 +11,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useDashboardSummary, useRecentTransactions } from '../../hooks/useDashboard';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDate } from '../../utils/formatDate';
+import { useUnreadCount } from '../../hooks/useNotifications';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -32,6 +33,7 @@ const DashboardScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { data: summary, isLoading: summaryLoading, refetch: refetchSummary } = useDashboardSummary();
   const { data: recentTxns, isLoading: recentLoading, refetch: refetchRecent } = useRecentTransactions();
+  const unreadCount = useUnreadCount();
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('ALL'); // 'ALL' | 'EXPENSES' | 'INCOME'
@@ -193,7 +195,17 @@ const DashboardScreen = ({ navigation }) => {
       </View>
       <View style={styles.headerRight}>
         <TouchableOpacity 
-          style={[styles.searchBtn, { marginRight: spacing.sm }]} 
+          style={styles.searchBtn} 
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('Notifications')}
+        >
+          <Icon name="notifications-outline" size={20} color={colors.text.primary} />
+          {unreadCount > 0 && (
+            <View style={styles.notificationBadge} />
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.searchBtn} 
           activeOpacity={0.7}
           onPress={() => navigation.navigate('Calendar')}
         >
@@ -277,28 +289,6 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         </Card>
 
-        {/* Tab Filters */}
-        <View style={styles.filterContainer}>
-          {['ALL', 'EXPENSES', 'INCOME'].map((filter) => (
-            <TouchableOpacity
-              key={filter}
-              style={[
-                styles.filterTab,
-                activeFilter === filter ? styles.activeFilterTab : null
-              ]}
-              onPress={() => setActiveFilter(filter)}
-            >
-              <Text
-                style={[
-                  styles.filterTabText,
-                  activeFilter === filter ? styles.activeFilterTabText : null
-                ]}
-              >
-                {filter}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
 
         {/* Summary Stats Row */}
         <View style={styles.statsRow}>
@@ -351,7 +341,7 @@ const DashboardScreen = ({ navigation }) => {
 
           {/* Sparkline svg representation */}
           <View style={styles.sparklineContainer}>
-            <Svg height="48" width={SCREEN_WIDTH - 64} viewBox="0 0 300 50">
+            <Svg height="55" width={SCREEN_WIDTH - 64} viewBox="0 -5 300 60">
               <Defs>
                 <SvgGradient id="sparklineGrad" x1="0" y1="0" x2="0" y2="1">
                   <Stop offset="0%" stopColor={colors.success} stopOpacity="0.3" />
@@ -416,6 +406,29 @@ const DashboardScreen = ({ navigation }) => {
             </Card>
           </TouchableOpacity>
         ) : null}
+
+        {/* Tab Filters */}
+        <View style={styles.filterContainer}>
+          {['ALL', 'EXPENSES', 'INCOME'].map((filter) => (
+            <TouchableOpacity
+              key={filter}
+              style={[
+                styles.filterTab,
+                activeFilter === filter ? styles.activeFilterTab : null
+              ]}
+              onPress={() => setActiveFilter(filter)}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  activeFilter === filter ? styles.activeFilterTabText : null
+                ]}
+              >
+                {filter}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         {/* Recent Transactions List */}
         <View style={styles.transactionsHeaderRow}>
@@ -519,6 +532,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    borderWidth: 1,
+    borderColor: colors.card,
   },
   monthSelectPill: {
     flexDirection: 'row',
