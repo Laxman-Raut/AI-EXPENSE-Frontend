@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, ScrollView, Animated } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Screen from '../../components/templates/Screen';
@@ -49,6 +49,46 @@ const ReceiptScannerScreen = ({ navigation }) => {
 
   const scanReceiptMutation = useScanReceipt();
   const createMutation = useCreateTransaction();
+
+  // Scanner animation states
+  const laserAnim = React.useRef(new Animated.Value(0)).current;
+  const [statusText, setStatusText] = useState('Gemini AI is analyzing invoice...');
+
+  React.useEffect(() => {
+    let timer1, timer2, timer3;
+    if (scanning) {
+      // Loop laser animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(laserAnim, {
+            toValue: 220,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(laserAnim, {
+            toValue: 0,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+
+      // Dynamic text updates to show scanning steps
+      timer1 = setTimeout(() => setStatusText('Reading items & total amount...'), 2000);
+      timer2 = setTimeout(() => setStatusText('Extracting merchant details...'), 4500);
+      timer3 = setTimeout(() => setStatusText('Categorizing transaction...'), 7000);
+    } else {
+      setStatusText('Gemini AI is analyzing invoice...');
+      laserAnim.setValue(0);
+    }
+
+    return () => {
+      laserAnim.stopAnimation();
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+    };
+  }, [scanning]);
 
   const handleSelectImage = async (source) => {
     // Guard against unlinked native modules (requires npm run android)
@@ -255,13 +295,26 @@ const ReceiptScannerScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Step 2: Upload / AI Progress */}
+        {/* Step 2: Upload / AI Progress (Animated Scanner) */}
         {imageUri && scanning && (
-          <Card style={styles.progressCard}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <View style={styles.progressInfo}>
-              <Text style={styles.progressTitle}>Reading all data</Text>
-              
+          <Card style={styles.scanningCard}>
+            <View style={styles.scanningImageContainer}>
+              {imageUri.startsWith('http') ? (
+                <Image source={{ uri: imageUri }} style={styles.scanningImage} resizeMode="cover" />
+              ) : (
+                <View style={[styles.scanningImage, styles.mockReceiptPlaceholder]}>
+                  <Icon name="receipt-outline" size={48} color="rgba(255, 255, 255, 0.25)" />
+                  <Text style={styles.mockReceiptTextPlaceholder}>Processing Captured Receipt</Text>
+                </View>
+              )}
+              {/* Animated Laser Line */}
+              <Animated.View style={[styles.laserLine, { transform: [{ translateY: laserAnim }] }]} />
+              {/* Blur Overlay */}
+              <View style={styles.scanningOverlay} />
+            </View>
+            <View style={styles.scanningDetails}>
+              <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: spacing.sm }} />
+              <Text style={styles.scanningStatusText}>{statusText}</Text>
             </View>
           </Card>
         )}
@@ -559,6 +612,68 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xs,
     paddingHorizontal: spacing.md,
+  },
+  scanningCard: {
+    padding: 0,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.xl,
+    backgroundColor: colors.card,
+  },
+  scanningImageContainer: {
+    width: '100%',
+    height: 220,
+    position: 'relative',
+    backgroundColor: '#050609',
+    justifyContent: 'center',
+  },
+  scanningImage: {
+    width: '100%',
+    height: '100%',
+    opacity: 0.45,
+  },
+  mockReceiptPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: '#090A0F',
+  },
+  mockReceiptTextPlaceholder: {
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: typography.sizes.xs + 1,
+    fontWeight: typography.weights.bold,
+  },
+  laserLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.85,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  scanningOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(138, 63, 252, 0.04)',
+  },
+  scanningDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+    backgroundColor: 'rgba(138, 63, 252, 0.05)',
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+  },
+  scanningStatusText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
   },
 });
 
