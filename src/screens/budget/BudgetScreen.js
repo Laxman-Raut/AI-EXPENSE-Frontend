@@ -21,6 +21,10 @@ const BudgetScreen = () => {
   const [newBudgetVal, setNewBudgetVal] = useState('');
   const [updateLoading, setUpdateLoading] = useState(false);
 
+  // New Category Budget states
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [catBudgets, setCatBudgets] = useState({});
+
   // Retrieve user total budget limit (default to 50000 if not set)
   const monthlyBudget = user?.monthlyBudget || 50000;
 
@@ -49,7 +53,8 @@ const BudgetScreen = () => {
 
     return categoryConfigs.map(cfg => {
       const spent = spentMap[cfg.name] || 0;
-      const limit = Math.round(monthlyBudget * cfg.limitPct);
+      const userLimit = user?.categoryBudgets?.[cfg.name] || (user?.categoryBudgets && typeof user.categoryBudgets.get === 'function' ? user.categoryBudgets.get(cfg.name) : null);
+      const limit = userLimit !== undefined && userLimit !== null && userLimit > 0 ? userLimit : Math.round(monthlyBudget * cfg.limitPct);
       return {
         name: cfg.name,
         limit,
@@ -58,7 +63,7 @@ const BudgetScreen = () => {
         color: cfg.color,
       };
     });
-  }, [transactions, monthlyBudget]);
+  }, [transactions, monthlyBudget, user]);
 
   // Calculate stats
   const totalSpent = useMemo(() => {
@@ -89,6 +94,38 @@ const BudgetScreen = () => {
       showAlert('Success', 'Monthly budget updated successfully.');
     } catch (error) {
       showAlert('Error', error.message || 'Failed to update monthly budget.');
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  const handleOpenCategoryModal = () => {
+    const initialBudgets = {};
+    categories.forEach(cat => {
+      initialBudgets[cat.name] = String(cat.limit);
+    });
+    setCatBudgets(initialBudgets);
+    setCategoryModalVisible(true);
+  };
+
+  const handleSaveCategoryBudgets = async () => {
+    const updatedBudgets = {};
+    for (const key of Object.keys(catBudgets)) {
+      const val = Number(catBudgets[key]);
+      if (catBudgets[key] && (isNaN(val) || val < 0)) {
+        showAlert('Error', `Please enter a valid amount for ${key}.`);
+        return;
+      }
+      updatedBudgets[key] = val;
+    }
+
+    try {
+      setUpdateLoading(true);
+      await updateUser({ categoryBudgets: updatedBudgets });
+      setCategoryModalVisible(false);
+      showAlert('Success', 'Category budgets updated successfully.');
+    } catch (error) {
+      showAlert('Error', error.message || 'Failed to update category budgets.');
     } finally {
       setUpdateLoading(false);
     }
@@ -167,7 +204,7 @@ const BudgetScreen = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Category Limits</Text>
-            <TouchableOpacity onPress={() => setModalVisible(true)}>
+            <TouchableOpacity onPress={handleOpenCategoryModal}>
               <Text style={styles.editLimitsText}>Adjust Limits</Text>
             </TouchableOpacity>
           </View>
@@ -248,6 +285,49 @@ const BudgetScreen = () => {
               <PrimaryButton 
                 title="Confirm" 
                 onPress={handleUpdateBudget} 
+                loading={updateLoading}
+                type="primary"
+                style={styles.modalConfirm}
+              />
+            </View>
+          </Card>
+        </View>
+      </Modal>
+
+      {/* Edit Category Budgets Modal */}
+      <Modal
+        visible={categoryModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCategoryModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Card style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Adjust Category Limits</Text>
+            <ScrollView style={{ maxHeight: 300, marginBottom: spacing.md }} showsVerticalScrollIndicator={false}>
+              {categories.map(cat => (
+                <Input
+                  key={cat.name}
+                  label={`${cat.name} Limit ($)`}
+                  value={catBudgets[cat.name] || ''}
+                  onChangeText={(val) => setCatBudgets(prev => ({ ...prev, [cat.name]: val }))}
+                  placeholder="e.g. 500"
+                  keyboardType="numeric"
+                  icon={<Icon name={cat.icon} size={18} color={cat.color} />}
+                />
+              ))}
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <PrimaryButton 
+                title="Cancel" 
+                onPress={() => setCategoryModalVisible(false)} 
+                type="ghost"
+                style={styles.modalCancel}
+              />
+              <PrimaryButton 
+                title="Save Limits" 
+                onPress={handleSaveCategoryBudgets} 
                 loading={updateLoading}
                 type="primary"
                 style={styles.modalConfirm}

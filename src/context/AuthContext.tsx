@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types';
 import * as authApi from '../api/auth';
+import { setGlobalCurrency } from '../utils/formatCurrency';
 
 interface AuthContextType {
   user: User | null;
@@ -60,6 +61,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     checkStoredAuth();
   }, [checkStoredAuth]);
+
+  // Sync global currency format value whenever user updates
+  useEffect(() => {
+    if (user && user.currency) {
+      setGlobalCurrency(user.currency);
+    }
+  }, [user]);
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await authApi.loginUser(email, password);
