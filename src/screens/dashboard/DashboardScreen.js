@@ -12,6 +12,7 @@ import { useDashboardSummary, useRecentTransactions } from '../../hooks/useDashb
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDate } from '../../utils/formatDate';
 import { useUnreadCount } from '../../hooks/useNotifications';
+import ChatbotDrawer from '../../components/ChatbotDrawer';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -37,6 +38,7 @@ const DashboardScreen = ({ navigation }) => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('ALL'); // 'ALL' | 'EXPENSES' | 'INCOME'
+  const [chatbotVisible, setChatbotVisible] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -194,6 +196,13 @@ const DashboardScreen = ({ navigation }) => {
         <Text style={styles.usernameText}>{user?.fullName || 'Laxman Raut'}</Text>
       </View>
       <View style={styles.headerRight}>
+        <TouchableOpacity 
+          style={styles.searchBtn} 
+          activeOpacity={0.7}
+          onPress={() => setChatbotVisible(true)}
+        >
+          <Icon name="chatbubble-ellipses-outline" size={20} color={colors.text.primary} />
+        </TouchableOpacity>
         <TouchableOpacity 
           style={styles.searchBtn} 
           activeOpacity={0.7}
@@ -481,6 +490,20 @@ const DashboardScreen = ({ navigation }) => {
         {/* Padding for absolute tab bar */}
         <View style={{ height: 100 }} />
       </Screen>
+
+      {/* Floating Chatbot Button */}
+      <View style={styles.chatbotFloatingContainer}>
+        <TouchableOpacity
+          style={styles.chatbotFloatingButton}
+          activeOpacity={0.8}
+          onPress={() => setChatbotVisible(true)}
+        >
+          <Icon name="chatbubble-ellipses" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Chatbot Drawer Panel */}
+      <ChatbotDrawer visible={chatbotVisible} onClose={() => setChatbotVisible(false)} />
     </View>
   );
 };
@@ -875,6 +898,25 @@ const styles = StyleSheet.create({
   budgetRemainingText: {
     fontSize: typography.sizes.xs,
     fontWeight: typography.weights.semibold,
+  },
+  chatbotFloatingContainer: {
+    position: 'absolute',
+    bottom: 176, // Above FloatingVoiceButton which is at bottom: 104
+    right: 20,
+    width: 56,
+    height: 56,
+    zIndex: 9999,
+    elevation: 99,
+  },
+  chatbotFloatingButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadow.lg,
+    elevation: 8,
   },
 });
 
