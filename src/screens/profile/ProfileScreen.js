@@ -325,6 +325,11 @@ const ProfileScreen = ({ navigation }) => {
             onPress={() => navigation.navigate('Budget')}
           />
           <SettingRow
+            icon="repeat-outline"
+            label="Recurring Automations"
+            onPress={() => navigation.navigate('RecurringTransactions')}
+          />
+          <SettingRow
             icon="notifications-outline"
             label="Notifications"
             onPress={() => setNotifyModalVisible(true)}

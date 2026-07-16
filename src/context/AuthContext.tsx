@@ -1,8 +1,15 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { User } from '../types';
-import * as authApi from '../api/auth';
 import { setGlobalCurrency } from '../utils/formatCurrency';
+import {
+  checkStoredAuth,
+  login as loginThunk,
+  register as registerThunk,
+  logout as logoutThunk,
+  updateUser as updateUserThunk,
+  refreshProfile as refreshProfileThunk,
+} from '../store/authSlice';
 
 interface AuthContextType {
   user: User | null;
@@ -19,106 +26,38 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const clearAuth = useCallback(async () => {
-    await AsyncStorage.removeItem('auth_token');
-    await AsyncStorage.removeItem('user');
-    setUser(null);
-    setToken(null);
-  }, []);
+  const { user, token, isLoading, isAuthenticated } = useSelector((state: any) => state.auth);
+  const dispatch = useDispatch<any>();
 
-  const checkStoredAuth = useCallback(async () => {
-    try {
-      const storedToken = await AsyncStorage.getItem('auth_token');
-      const storedUser = await AsyncStorage.getItem('user');
-
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-
-        // Validate token by fetching profile
-        try {
-          const response = await authApi.getProfile();
-          if (response.success && response.data) {
-            setUser(response.data);
-            await AsyncStorage.setItem('user', JSON.stringify(response.data));
-          }
-        } catch {
-          // Token invalid — clear auth
-          await clearAuth();
-        }
-      }
-    } catch (error) {
-      console.error('Error checking stored auth:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [clearAuth]);
-
-  // Check for stored token on mount
   useEffect(() => {
-    checkStoredAuth();
-  }, [checkStoredAuth]);
+    dispatch(checkStoredAuth());
+  }, [dispatch]);
 
-  // Sync global currency format value whenever user updates
   useEffect(() => {
     if (user && user.currency) {
       setGlobalCurrency(user.currency);
     }
   }, [user]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const response = await authApi.loginUser(email, password);
+  const login = async (email: string, password: string): Promise<void> => {
+    await dispatch((loginThunk as any)({ email, password })).unwrap();
+  };
 
-    if (response.success && response.data) {
-      const { user: userData, token: authToken } = response.data;
-      await AsyncStorage.setItem('auth_token', authToken);
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
-      setToken(authToken);
-      setUser(userData);
-    } else {
-      throw new Error(response.message || 'Login failed');
-    }
-  }, []);
+  const register = async (fullName: string, email: string, password: string): Promise<void> => {
+    await dispatch((registerThunk as any)({ fullName, email, password })).unwrap();
+  };
 
-  const register = useCallback(async (fullName: string, email: string, password: string) => {
-    const response = await authApi.registerUser(fullName, email, password);
+  const logout = async (): Promise<void> => {
+    await dispatch((logoutThunk as any)()).unwrap();
+  };
 
-    if (response.success) {
-      // Auto-login after registration
-      await login(email, password);
-    } else {
-      throw new Error(response.message || 'Registration failed');
-    }
-  }, [login]);
+  const refreshProfile = async (): Promise<void> => {
+    await dispatch((refreshProfileThunk as any)()).unwrap();
+  };
 
-  const logout = useCallback(async () => {
-    await clearAuth();
-  }, []);
-
-  const refreshProfile = useCallback(async () => {
-    try {
-      const response = await authApi.getProfile();
-      if (response.success && response.data) {
-        setUser(response.data);
-        await AsyncStorage.setItem('user', JSON.stringify(response.data));
-      }
-    } catch (error) {
-      console.error('Error refreshing profile:', error);
-    }
-  }, []);
-
-  const updateUser = useCallback(async (data: Partial<User>) => {
-    const response = await authApi.updateProfile(data);
-    if (response.success && response.data) {
-      setUser(response.data);
-      await AsyncStorage.setItem('user', JSON.stringify(response.data));
-    } else {
-      throw new Error(response.message || 'Profile update failed');
-    }
-  }, []);
+  const updateUser = async (data: Partial<User>): Promise<void> => {
+    await dispatch((updateUserThunk as any)(data)).unwrap();
+  };
 
   return (
     <AuthContext.Provider
@@ -126,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         token,
         isLoading,
-        isAuthenticated: !!token && !!user,
+        isAuthenticated,
         login,
         register,
         logout,

@@ -1,69 +1,35 @@
-import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSelector, useDispatch } from 'react-redux';
+import {
+  initStore as initStoreThunk,
+  setTheme as setThemeThunk,
+  setCurrency as setCurrencyThunk,
+  setMonthlyBudget as setMonthlyBudgetThunk,
+  setNotificationsEnabled as setNotificationsEnabledThunk,
+} from './appSlice';
 
-const useAppStore = create((set) => ({
-  theme: 'light', // 'dark' or 'light'
-  currency: '₹', // '₹', '$', '€', etc.
-  monthlyBudget: 50000,
-  notificationsEnabled: true,
-  isInitialized: false,
+// A wrapper hook to mimic Zustand's selector pattern
+const useAppStore = (selector) => {
+  const state = useSelector((reduxState) => reduxState.app);
+  const dispatch = useDispatch();
 
-  initStore: async () => {
-    try {
-      const storedTheme = await AsyncStorage.getItem('app_theme');
-      const storedCurrency = await AsyncStorage.getItem('app_currency');
-      const storedBudget = await AsyncStorage.getItem('app_budget');
-      const storedNotifications = await AsyncStorage.getItem('app_notifications');
+  const actions = {
+    initStore: () => dispatch(initStoreThunk()),
+    setTheme: (theme) => dispatch(setThemeThunk(theme)),
+    setCurrency: (currency) => dispatch(setCurrencyThunk(currency)),
+    setMonthlyBudget: (budget) => dispatch(setMonthlyBudgetThunk(budget)),
+    setNotificationsEnabled: (enabled) => dispatch(setNotificationsEnabledThunk(enabled)),
+  };
 
-      const updates = {};
-      if (storedTheme) updates.theme = storedTheme;
-      if (storedCurrency) updates.currency = storedCurrency;
-      if (storedBudget) updates.monthlyBudget = Number(storedBudget);
-      if (storedNotifications) updates.notificationsEnabled = storedNotifications === 'true';
-      updates.isInitialized = true;
+  const combinedState = {
+    ...state,
+    ...actions,
+  };
 
-      set(updates);
-    } catch (error) {
-      console.error('Error initializing Zustand store:', error);
-      set({ isInitialized: true });
-    }
-  },
+  if (selector) {
+    return selector(combinedState);
+  }
 
-  setTheme: async (theme) => {
-    try {
-      await AsyncStorage.setItem('app_theme', theme);
-      set({ theme });
-    } catch (error) {
-      console.error('Error saving theme:', error);
-    }
-  },
-
-  setCurrency: async (currency) => {
-    try {
-      await AsyncStorage.setItem('app_currency', currency);
-      set({ currency });
-    } catch (error) {
-      console.error('Error saving currency:', error);
-    }
-  },
-
-  setMonthlyBudget: async (monthlyBudget) => {
-    try {
-      await AsyncStorage.setItem('app_budget', String(monthlyBudget));
-      set({ monthlyBudget });
-    } catch (error) {
-      console.error('Error saving budget:', error);
-    }
-  },
-
-  setNotificationsEnabled: async (enabled) => {
-    try {
-      await AsyncStorage.setItem('app_notifications', String(enabled));
-      set({ notificationsEnabled: enabled });
-    } catch (error) {
-      console.error('Error saving notification preference:', error);
-    }
-  },
-}));
+  return combinedState;
+};
 
 export default useAppStore;

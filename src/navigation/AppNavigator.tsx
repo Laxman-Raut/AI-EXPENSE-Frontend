@@ -5,7 +5,6 @@ import { useAuth } from '../hooks/useAuth';
 import AuthStack from './AuthStack';
 import MainTabs from './MainTabs';
 import LoadingSpinner from '../components/atoms/LoadingSpinner';
-import { AlertProvider } from '../context/AlertContext';
 
 const { ShareIntentModule } = NativeModules;
 const shareIntentEmitter = new NativeEventEmitter(ShareIntentModule);
@@ -61,11 +60,9 @@ const AppNavigator: React.FC = () => {
   }
 
   return (
-    <AlertProvider>
-      <NavigationContainer ref={navigationRef}>
-        {isAuthenticated ? <MainTabs /> : <AuthStack />}
-      </NavigationContainer>
-    </AlertProvider>
+    <NavigationContainer ref={navigationRef}>
+      {isAuthenticated ? <MainTabs /> : <AuthStack />}
+    </NavigationContainer>
   );
 };
 

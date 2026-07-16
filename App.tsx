@@ -8,8 +8,11 @@ import { StatusBar, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Provider } from 'react-redux';
+import { store } from './src/store';
 
 import { AuthProvider } from './src/context/AuthContext';
+import { AlertProvider } from './src/context/AlertContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import FloatingVoiceButton from './src/components/FloatingVoiceButton';
 import NotificationService from './src/services/notificationService';
@@ -39,24 +42,28 @@ function App(): React.JSX.Element {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <StatusBar
-              barStyle="light-content"
-              backgroundColor="transparent"
-              translucent
-            />
+    <Provider store={store}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <AlertProvider>
+                <StatusBar
+                  barStyle="light-content"
+                  backgroundColor="transparent"
+                  translucent
+                />
 
-            <View style={{ flex: 1 }}>
-              <AppNavigator />
-              <FloatingVoiceButton />
-            </View>
-          </AuthProvider>
-        </QueryClientProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+                <View style={{ flex: 1 }}>
+                  <AppNavigator />
+                  <FloatingVoiceButton />
+                </View>
+              </AlertProvider>
+            </AuthProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </Provider>
   );
 }
 

@@ -19,6 +19,8 @@ import CategoriesScreen from '../screens/budget/CategoriesScreen';
 import BudgetScreen from '../screens/budget/BudgetScreen';
 import CalendarViewScreen from '../screens/calendar/CalendarViewScreen';
 import NotificationScreen from '../screens/NotificationScreen';
+import RecurringTransactionsScreen from '../screens/recurring/RecurringTransactionsScreen';
+import AddEditRecurringScreen from '../screens/recurring/AddEditRecurringScreen';
 import FloatingVoiceButton from '../components/FloatingVoiceButton';
 
 const Tab = createBottomTabNavigator();
@@ -67,6 +69,9 @@ const ProfileStackScreen = () => (
   <ProfileStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
     <ProfileStack.Screen name="ProfileHome" component={ProfileScreen} />
     <ProfileStack.Screen name="Budget" component={BudgetScreen} />
+    <ProfileStack.Screen name="RecurringTransactions" component={RecurringTransactionsScreen} />
+    <ProfileStack.Screen name="AddEditRecurring" component={AddEditRecurringScreen} />
+    <ProfileStack.Screen name="Categories" component={CategoriesScreen} />
   </ProfileStack.Navigator>
 );
 
