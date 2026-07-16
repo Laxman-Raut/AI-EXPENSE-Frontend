@@ -45,8 +45,14 @@ const ReceiptScannerScreen = ({ route, navigation }) => {
     setScanComplete(false);
     setScanning(true);
 
+    const fileToScan = {
+      uri: file.uri,
+      name: file.fileName || 'document.pdf',
+      type: file.mimeType || 'application/pdf',
+    };
+
     try {
-      const result = await scanReceiptMutation.mutateAsync(file);
+      const result = await scanReceiptMutation.mutateAsync(fileToScan);
       if (result && result.success) {
         setMerchant(result.data.merchant || '');
         setAmount(String(result.data.amount || ''));
@@ -243,18 +249,36 @@ const ReceiptScannerScreen = ({ route, navigation }) => {
     }
   };
 
+  const normalizePaymentMethod = (method) => {
+    const normalized = String(method || '').trim().toLowerCase();
+    if (normalized.includes('cash')) return 'Cash';
+    if (normalized.includes('upi') || normalized.includes('gpay') || normalized.includes('phonepe') || normalized.includes('paytm')) return 'UPI';
+    if (normalized.includes('credit') || normalized.includes('card') || normalized.includes('visa') || normalized.includes('mastercard') || normalized.includes('amex')) return 'Credit Card';
+    if (normalized.includes('debit')) return 'Debit Card';
+    if (normalized.includes('wallet')) return 'Wallet';
+    if (normalized.includes('bank') || normalized.includes('transfer') || normalized.includes('neft') || normalized.includes('rtgs') || normalized.includes('netbanking')) return 'Bank Transfer';
+    return 'UPI';
+  };
+
   const handleSave = async () => {
     if (!merchant || !amount || !category) {
       showAlert('Error', 'Please fill in all detected fields.');
       return;
     }
+
+    const parsedAmount = Number(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      showAlert('Error', 'Please enter a valid positive amount.');
+      return;
+    }
     
+    // Normalize properties to satisfy transaction Zod validation rules
     const payload = {
       type: 'expense',
-      category: category,
-      amount: Number(amount),
-      description: merchant,
-      paymentMethod: paymentMethod || 'UPI',
+      category: category && category.trim().length >= 2 ? category.trim() : 'Other',
+      amount: parsedAmount,
+      description: merchant && merchant.trim().length >= 3 ? merchant.trim() : `${category || 'Other'} Expense`,
+      paymentMethod: normalizePaymentMethod(paymentMethod),
       transactionDate: date ? dayjs(date).toISOString() : dayjs().toISOString(),
       note: `AI Scanned receipt: ${merchant}`,
     };

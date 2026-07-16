@@ -22,10 +22,40 @@ const AppNavigator: React.FC = () => {
     const handleReceivedFiles = (files: any[]) => {
       if (files && files.length > 0) {
         const first = files[0];
+        
+        let uri = first.filePath || first.contentUri || '';
+        if (uri && !uri.startsWith('file://') && !uri.startsWith('content://') && uri.startsWith('/')) {
+          uri = `file://${uri}`;
+        }
+
+        const getValidMimeType = (file: any) => {
+          let mime = file.mimeType || '';
+          if (mime.startsWith('.')) {
+            const ext = mime.slice(1).toLowerCase();
+            if (ext === 'pdf') return 'application/pdf';
+            if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+            if (ext === 'png') return 'image/png';
+            if (ext === 'webp') return 'image/webp';
+            if (ext === 'doc' || ext === 'docx') return 'application/msword';
+            if (ext === 'xls' || ext === 'xlsx') return 'application/vnd.ms-excel';
+          }
+          if (mime.includes('/')) return mime;
+          
+          const ext = (file.extension || file.fileName?.split('.').pop() || '').toLowerCase();
+          if (ext === 'pdf') return 'application/pdf';
+          if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+          if (ext === 'png') return 'image/png';
+          if (ext === 'webp') return 'image/webp';
+          if (ext === 'doc' || ext === 'docx') return 'application/msword';
+          if (ext === 'xls' || ext === 'xlsx') return 'application/vnd.ms-excel';
+          
+          return 'application/octet-stream';
+        };
+
         const sharedFile = {
-          uri: first.filePath || first.contentUri,
-          fileName: first.fileName || (first.filePath ? first.filePath.split('/').pop() : 'document.pdf'),
-          mimeType: first.mimeType || (first.extension ? `application/${first.extension}` : 'application/pdf'),
+          uri,
+          fileName: first.fileName || (uri ? uri.split('/').pop() : 'document.pdf'),
+          mimeType: getValidMimeType(first),
           size: first.fileSize || 0,
         };
 
