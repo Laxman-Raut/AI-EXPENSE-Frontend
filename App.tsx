@@ -14,7 +14,6 @@ import { store } from './src/store';
 import { AuthProvider } from './src/context/AuthContext';
 import { AlertProvider } from './src/context/AlertContext';
 import AppNavigator from './src/navigation/AppNavigator';
-import FloatingVoiceButton from './src/components/FloatingVoiceButton';
 import NotificationService from './src/services/notificationService';
 
 const queryClient = new QueryClient({
@@ -56,7 +55,6 @@ function App(): React.JSX.Element {
 
                 <View style={{ flex: 1 }}>
                   <AppNavigator />
-                  <FloatingVoiceButton />
                 </View>
               </AlertProvider>
             </AuthProvider>

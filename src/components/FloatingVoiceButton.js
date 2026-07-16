@@ -24,6 +24,7 @@ import { useAlert } from '../context/AlertContext';
 import Card from './molecules/Card';
 import PrimaryButton from './atoms/PrimaryButton';
 import dayjs from 'dayjs';
+import ChatbotDrawer from './ChatbotDrawer';
 
 const { SpeechRecognitionModule } = NativeModules;
 
@@ -31,6 +32,7 @@ const FloatingVoiceButton = () => {
   const { isAuthenticated } = useAuth();
   const { showAlert } = useAlert();
   const [modalVisible, setModalVisible] = useState(false);
+  const [chatbotVisible, setChatbotVisible] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -248,17 +250,27 @@ const FloatingVoiceButton = () => {
 
   return (
     <>
-      {/* Stable Floating Button */}
+      {/* Stable Floating Buttons Stack */}
       <View style={styles.floatingContainer}>
+        {/* Chatbot Button */}
         <TouchableOpacity
           style={styles.floatingButton}
-          activeOpacity={0.8}
+          activeOpacity={0.7}
+          onPress={() => setChatbotVisible(true)}
+        >
+          <Icon name="chatbubble-ellipses-outline" size={22} color={colors.primary} />
+        </TouchableOpacity>
+
+        {/* Voice Button */}
+        <TouchableOpacity
+          style={styles.floatingButton}
+          activeOpacity={0.7}
           onPress={() => {
-            console.log('[FloatingVoiceButton] Button tapped! Opening modal');
+            console.log('[FloatingVoiceButton] Voice button tapped! Opening modal');
             setModalVisible(true);
           }}
         >
-          <Icon name="mic" size={26} color="#FFFFFF" />
+          <Icon name="mic-outline" size={22} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -420,6 +432,9 @@ const FloatingVoiceButton = () => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Chatbot Global Drawer */}
+      <ChatbotDrawer visible={chatbotVisible} onClose={() => setChatbotVisible(false)} />
     </>
   );
 };
@@ -427,22 +442,24 @@ const FloatingVoiceButton = () => {
 const styles = StyleSheet.create({
   floatingContainer: {
     position: 'absolute',
-    bottom: 104,
-    right: 20,
-    width: 56,
-    height: 56,
+    bottom: 96,
+    right: 16,
+    alignItems: 'center',
+    gap: 12,
     zIndex: 9999,
     elevation: 99,
   },
   floatingButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(18, 19, 26, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    ...shadow.lg,
-    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    ...shadow.md,
+    elevation: 6,
   },
   modalOverlay: {
     flex: 1,

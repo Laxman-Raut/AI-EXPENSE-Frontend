@@ -21,7 +21,6 @@ import CalendarViewScreen from '../screens/calendar/CalendarViewScreen';
 import NotificationScreen from '../screens/NotificationScreen';
 import RecurringTransactionsScreen from '../screens/recurring/RecurringTransactionsScreen';
 import AddEditRecurringScreen from '../screens/recurring/AddEditRecurringScreen';
-import FloatingVoiceButton from '../components/FloatingVoiceButton';
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
@@ -171,7 +170,6 @@ const MainTabs = () => {
           }}
         />
       </Tab.Navigator>
-      <FloatingVoiceButton />
     </View>
   );
 };
