@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, ScrollView, Animated } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import { pick, errorCodes } from '@react-native-documents/picker';
 import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
 import Input from '../../components/atoms/Input';
@@ -13,30 +14,10 @@ import { useCreateTransaction } from '../../hooks/useTransactions';
 import { useAlert } from '../../context/AlertContext';
 import dayjs from 'dayjs';
 
-const SAMPLES = [
-  {
-    title: 'Whole Foods Grocery',
-    desc: 'Mock receipt displaying grocery items',
-    url: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?q=80&w=600',
-    icon: 'cart-outline',
-  },
-  {
-    title: 'Cafe Coffee Invoice',
-    desc: 'Mock bill displaying coffee purchases',
-    url: 'https://images.unsplash.com/photo-1543007630-9710e4a00a20?q=80&w=600',
-    icon: 'cafe-outline',
-  },
-  {
-    title: 'Tech Store Bill',
-    desc: 'Mock invoice displaying retail purchases',
-    url: 'https://images.unsplash.com/photo-1527018601619-a508a2be00cd?q=80&w=600',
-    icon: 'laptop-outline',
-  },
-];
-
 const ReceiptScannerScreen = ({ navigation }) => {
   const { showAlert } = useAlert();
   const [imageUri, setImageUri] = useState(null);
+  const [isDocument, setIsDocument] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);
 
@@ -129,6 +110,7 @@ const ReceiptScannerScreen = ({ navigation }) => {
           type: asset.type || 'image/jpeg',
         };
         setImageUri(asset.uri);
+        setIsDocument(false);
         setScanComplete(false);
         setScanning(true);
         
@@ -169,29 +151,57 @@ const ReceiptScannerScreen = ({ navigation }) => {
     }
   };
 
-  const handleSelectSample = async (sampleUrl) => {
-    setImageUri(sampleUrl);
-    setScanComplete(false);
-    setScanning(true);
-    
+  const handleSelectDocument = async () => {
     try {
-      const result = await scanReceiptMutation.mutateAsync(sampleUrl);
-      if (result && result.success) {
-        setMerchant(result.data.merchant || '');
-        setAmount(String(result.data.amount || ''));
-        setCategory(result.data.category || 'Other');
-        setPaymentMethod(result.data.paymentMethod || 'Credit Card');
+      const results = await pick({
+        type: [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ],
+      });
+      
+      const res = results?.[0];
+      if (res) {
+        const file = {
+          uri: res.uri,
+          name: res.name || 'document',
+          type: res.type || 'application/pdf',
+        };
         
-        const rawDate = result.data.transactionDate;
-        setDate(rawDate ? dayjs(rawDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'));
-        setScanComplete(true);
-      } else {
-        showAlert('Scan Failed', 'Could not parse sample receipt.');
+        setImageUri(res.uri);
+        setIsDocument(true);
+        setScanComplete(false);
+        setScanning(true);
+        
+        try {
+          const result = await scanReceiptMutation.mutateAsync(file);
+          if (result && result.success) {
+            setMerchant(result.data.merchant || '');
+            setAmount(String(result.data.amount || ''));
+            setCategory(result.data.category || 'Other');
+            setPaymentMethod(result.data.paymentMethod || 'Credit Card');
+            
+            const rawDate = result.data.transactionDate;
+            setDate(rawDate ? dayjs(rawDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'));
+            setScanComplete(true);
+          } else {
+            showAlert('Scan Failed', 'Could not parse document contents.');
+          }
+        } catch (error) {
+          showAlert('Error', error.message || 'Gemini failed to scan document.');
+        } finally {
+          setScanning(false);
+        }
       }
     } catch (error) {
-      showAlert('Error', error.message || 'Gemini failed to scan sample receipt.');
-    } finally {
-      setScanning(false);
+      if (error?.code === errorCodes.OPERATION_CANCELED) {
+        // User cancelled selection
+      } else {
+        showAlert('Error', error.message || 'Failed to pick document.');
+      }
     }
   };
 
@@ -238,11 +248,11 @@ const ReceiptScannerScreen = ({ navigation }) => {
         header={renderHeader()}
         style={styles.contentContainer}
       >
-        {/* Step 1: Upload Source Buttons & Samples */}
+        {/* Step 1: Upload Source Buttons */}
         {!imageUri && (
           <View style={styles.uploadSection}>
             <Text style={styles.hintText}>
-              Scan receipts to automatically extract merchant, amount, category and date details.
+              Upload or scan receipts & invoice documents to automatically extract merchant, amount, category, and date details.
             </Text>
             
             <View style={styles.btnRow}>
@@ -267,31 +277,18 @@ const ReceiptScannerScreen = ({ navigation }) => {
                 </View>
                 <Text style={styles.sourceText}>Gallery</Text>
               </TouchableOpacity>
-            </View>
 
-            <Text style={[styles.sectionTitle, { marginTop: spacing.xl, marginBottom: spacing.md, alignSelf: 'flex-start' }]}>
-              Or Select a Preset Sample Bill
-            </Text>
-
-            {SAMPLES.map(sample => (
-              <TouchableOpacity
-                key={sample.title}
-                activeOpacity={0.85}
-                onPress={() => handleSelectSample(sample.url)}
-                style={styles.sampleItemCard}
+              <TouchableOpacity 
+                activeOpacity={0.8}
+                onPress={handleSelectDocument}
+                style={styles.sourceCard}
               >
-                <View style={styles.sampleLeft}>
-                  <View style={styles.sampleIconBox}>
-                    <Icon name={sample.icon} size={24} color={colors.primary} />
-                  </View>
-                  <View style={styles.sampleMeta}>
-                    <Text style={styles.sampleTitle}>{sample.title}</Text>
-                    <Text style={styles.sampleDesc}>{sample.desc}</Text>
-                  </View>
+                <View style={styles.iconBox}>
+                  <Icon name="document-text" size={32} color={colors.primary} />
                 </View>
-                <Icon name="chevron-forward" size={16} color={colors.text.muted} />
+                <Text style={styles.sourceText}>Document</Text>
               </TouchableOpacity>
-            ))}
+            </View>
           </View>
         )}
 
@@ -303,8 +300,10 @@ const ReceiptScannerScreen = ({ navigation }) => {
                 <Image source={{ uri: imageUri }} style={styles.scanningImage} resizeMode="cover" />
               ) : (
                 <View style={[styles.scanningImage, styles.mockReceiptPlaceholder]}>
-                  <Icon name="receipt-outline" size={48} color="rgba(255, 255, 255, 0.25)" />
-                  <Text style={styles.mockReceiptTextPlaceholder}>Processing Captured Receipt</Text>
+                  <Icon name={isDocument ? "document-text-outline" : "receipt-outline"} size={48} color="rgba(255, 255, 255, 0.25)" />
+                  <Text style={styles.mockReceiptTextPlaceholder}>
+                    {isDocument ? "Processing Uploaded Document" : "Processing Captured Receipt"}
+                  </Text>
                 </View>
               )}
               {/* Animated Laser Line */}
@@ -330,8 +329,10 @@ const ReceiptScannerScreen = ({ navigation }) => {
                   <Image source={{ uri: imageUri }} style={{ width: '100%', height: '100%', borderRadius: radius.md }} resizeMode="contain" />
                 ) : (
                   <View style={styles.mockReceipt}>
-                    <Icon name="receipt-outline" size={40} color={colors.text.muted} />
-                    <Text style={styles.mockReceiptText}>Custom Captured Receipt</Text>
+                    <Icon name={isDocument ? "document-text-outline" : "receipt-outline"} size={40} color={colors.text.muted} />
+                    <Text style={styles.mockReceiptText}>
+                      {isDocument ? "Custom Uploaded Document" : "Custom Captured Receipt"}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -340,6 +341,7 @@ const ReceiptScannerScreen = ({ navigation }) => {
                 activeOpacity={0.8}
                 onPress={() => {
                   setImageUri(null);
+                  setIsDocument(false);
                   setScanComplete(false);
                   setMerchant('');
                   setAmount('');

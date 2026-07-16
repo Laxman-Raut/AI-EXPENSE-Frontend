@@ -190,7 +190,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
               <Icon name="sparkles" size={16} color="#FFFFFF" />
             </View>
             <View style={styles.aiBannerTextContainer}>
-              <Text style={styles.aiBannerTitle}>Auto-fill with Gemini AI</Text>
+              <Text style={styles.aiBannerTitle}>Receipt / Invoice Scanner</Text>
               <Text style={styles.aiBannerSubtitle}>Scan a receipt photo or sample invoice</Text>
             </View>
           </View>
