@@ -42,13 +42,28 @@
         <category android:name="android.intent.category.LAUNCHER" />
     </intent-filter>
 
-    <!-- New Share Intent -->
+    <!-- Share Intent for Single File -->
     <intent-filter>
         <action android:name="android.intent.action.SEND" />
-
         <category android:name="android.intent.category.DEFAULT" />
-
         <data android:mimeType="image/*" />
+        <data android:mimeType="application/pdf" />
+    </intent-filter>
+
+    <!-- Share Intent for Multiple Files -->
+    <intent-filter>
+        <action android:name="android.intent.action.SEND_MULTIPLE" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="image/*" />
+        <data android:mimeType="application/pdf" />
+    </intent-filter>
+
+    <!-- Deep Link Scheme for ReceiveSharingIntent -->
+    <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="aiexpensetracker" />
     </intent-filter>
 
 </activity>

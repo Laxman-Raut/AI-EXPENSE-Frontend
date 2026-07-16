@@ -1,13 +1,11 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
-import { NativeModules, NativeEventEmitter } from 'react-native';
+import { NativeModules } from 'react-native';
+import ReceiveSharingIntent from 'react-native-receive-sharing-intent';
 import { useAuth } from '../hooks/useAuth';
 import AuthStack from './AuthStack';
 import MainTabs from './MainTabs';
 import LoadingSpinner from '../components/atoms/LoadingSpinner';
-
-const { ShareIntentModule } = NativeModules;
-const shareIntentEmitter = new NativeEventEmitter(ShareIntentModule);
 
 export const navigationRef = createNavigationContainerRef<any>();
 
@@ -16,42 +14,54 @@ const AppNavigator: React.FC = () => {
 
   useEffect(() => {
     if (!isAuthenticated) return;
+    if (!NativeModules.ReceiveSharingIntent) {
+      console.log('ReceiveSharingIntent native module is not registered in the native binary yet.');
+      return;
+    }
 
-    let isMounted = true;
+    const handleReceivedFiles = (files: any[]) => {
+      if (files && files.length > 0) {
+        const first = files[0];
+        const sharedFile = {
+          uri: first.filePath || first.contentUri,
+          fileName: first.fileName || (first.filePath ? first.filePath.split('/').pop() : 'document.pdf'),
+          mimeType: first.mimeType || (first.extension ? `application/${first.extension}` : 'application/pdf'),
+          size: first.fileSize || 0,
+        };
 
-    const navigateToImport = (uri: string) => {
-      if (navigationRef.isReady()) {
-        navigationRef.navigate('Today', {
-          screen: 'ReceiptImport',
-          params: { sharedImageUri: uri },
-        });
-      }
-    };
-
-    // 1. Check for initial share on cold start
-    const checkInitialShare = async () => {
-      try {
-        const sharedUri = await ShareIntentModule.getInitialShare();
-        if (sharedUri && isMounted) {
-          navigateToImport(sharedUri);
+        if (navigationRef.isReady()) {
+          navigationRef.navigate('Today', {
+            screen: 'ReceiptScanner',
+            params: { sharedFile },
+          });
         }
-      } catch (error) {
-        console.error('Failed to get initial share:', error);
+
+        ReceiveSharingIntent.clearReceivedFiles();
       }
     };
 
-    // Wait a brief moment for the navigation stacks to fully mount
-    const timeoutId = setTimeout(checkInitialShare, 800);
+    // Listen for cold starts and background intents
+    ReceiveSharingIntent.getReceivedFiles(
+      handleReceivedFiles,
+      (error: any) => {
+        console.log('Share intent error:', error);
+      },
+      'aiexpensetracker'
+    );
 
-    // 2. Listen for hot share events (when app is already running)
-    const subscription = shareIntentEmitter.addListener('onShareIntent', (sharedUri: string) => {
-      navigateToImport(sharedUri);
-    });
+    const timeoutId = setTimeout(() => {
+      ReceiveSharingIntent.getReceivedFiles(
+        handleReceivedFiles,
+        (error: any) => {
+          console.log('Share intent error:', error);
+        },
+        'aiexpensetracker'
+      );
+    }, 800);
 
     return () => {
-      isMounted = false;
       clearTimeout(timeoutId);
-      subscription.remove();
+      ReceiveSharingIntent.clearReceivedFiles();
     };
   }, [isAuthenticated]);
 

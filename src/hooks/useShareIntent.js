@@ -8,12 +8,18 @@ export default function useShareIntent() {
     ReceiveSharingIntent.getReceivedFiles(
       (files) => {
         console.log("Received Files:", files);
-        setSharedFiles(files);
+        const mapped = files.map(file => ({
+          uri: file.filePath || file.contentUri,
+          fileName: file.fileName || (file.filePath ? file.filePath.split('/').pop() : 'document.pdf'),
+          mimeType: file.mimeType || (file.extension ? `application/${file.extension}` : 'application/pdf'),
+          size: file.fileSize || 0,
+        }));
+        setSharedFiles(mapped);
       },
       (error) => {
         console.log("Share Error:", error);
       },
-      "AIExpenseTracker"
+      "aiexpensetracker"
     );
 
     return () => {
@@ -21,5 +27,10 @@ export default function useShareIntent() {
     };
   }, []);
 
-  return sharedFiles;
+  const clearIntent = () => {
+    ReceiveSharingIntent.clearReceivedFiles();
+    setSharedFiles([]);
+  };
+
+  return { sharedFiles, clearIntent };
 }

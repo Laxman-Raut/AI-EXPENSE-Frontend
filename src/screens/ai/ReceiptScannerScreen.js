@@ -14,7 +14,7 @@ import { useCreateTransaction } from '../../hooks/useTransactions';
 import { useAlert } from '../../context/AlertContext';
 import dayjs from 'dayjs';
 
-const ReceiptScannerScreen = ({ navigation }) => {
+const ReceiptScannerScreen = ({ route, navigation }) => {
   const { showAlert } = useAlert();
   const [imageUri, setImageUri] = useState(null);
   const [isDocument, setIsDocument] = useState(false);
@@ -34,6 +34,44 @@ const ReceiptScannerScreen = ({ navigation }) => {
   // Scanner animation states
   const laserAnim = React.useRef(new Animated.Value(0)).current;
   const [statusText, setStatusText] = useState('Gemini AI is analyzing invoice...');
+
+  const { sharedFile } = route.params || {};
+
+  const handleProcessSharedFile = React.useCallback(async (file) => {
+    if (!file || !file.uri) return;
+
+    setImageUri(file.uri);
+    setIsDocument(file.mimeType?.includes('pdf') || file.fileName?.endsWith('.pdf') || false);
+    setScanComplete(false);
+    setScanning(true);
+
+    try {
+      const result = await scanReceiptMutation.mutateAsync(file);
+      if (result && result.success) {
+        setMerchant(result.data.merchant || '');
+        setAmount(String(result.data.amount || ''));
+        setCategory(result.data.category || 'Other');
+        setPaymentMethod(result.data.paymentMethod || 'Credit Card');
+        
+        const rawDate = result.data.transactionDate;
+        setDate(rawDate ? dayjs(rawDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'));
+        setScanComplete(true);
+      } else {
+        showAlert('Scan Failed', 'Could not parse document contents.');
+      }
+    } catch (error) {
+      showAlert('Error', error.message || 'Gemini failed to scan document.');
+    } finally {
+      setScanning(false);
+    }
+  }, [scanReceiptMutation, showAlert]);
+
+  React.useEffect(() => {
+    if (sharedFile) {
+      handleProcessSharedFile(sharedFile);
+      navigation.setParams({ sharedFile: undefined });
+    }
+  }, [sharedFile, handleProcessSharedFile, navigation]);
 
   React.useEffect(() => {
     let timer1, timer2, timer3;
