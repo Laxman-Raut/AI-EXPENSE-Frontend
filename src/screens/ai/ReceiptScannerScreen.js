@@ -12,10 +12,12 @@ import { colors, spacing, typography, radius } from '../../theme';
 import { useScanReceipt } from '../../hooks/useAi';
 import { useCreateTransaction } from '../../hooks/useTransactions';
 import { useAlert } from '../../context/AlertContext';
+import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 import dayjs from 'dayjs';
 
 const ReceiptScannerScreen = ({ route, navigation }) => {
   const { showAlert } = useAlert();
+  const { hasPremiumAccess, showPremiumAlert } = usePremiumAccess();
   const [imageUri, setImageUri] = useState(null);
   const [isDocument, setIsDocument] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -23,6 +25,13 @@ const ReceiptScannerScreen = ({ route, navigation }) => {
 
   // Form Fields
   const [merchant, setMerchant] = useState('');
+  
+  React.useEffect(() => {
+    if (!hasPremiumAccess) {
+      showPremiumAlert();
+      navigation.goBack();
+    }
+  }, [hasPremiumAccess, navigation]);
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
@@ -38,7 +47,11 @@ const ReceiptScannerScreen = ({ route, navigation }) => {
   const { sharedFile } = route.params || {};
 
   const handleProcessSharedFile = React.useCallback(async (file) => {
-    if (!file || !file.uri) return;
+    console.log('[ReceiptScanner] handleProcessSharedFile called — uri:', file?.uri, 'mimeType:', file?.mimeType);
+    if (!file || !file.uri) {
+      console.warn('[ReceiptScanner] No file or URI — aborting.');
+      return;
+    }
 
     setImageUri(file.uri);
     setIsDocument(file.mimeType?.includes('pdf') || file.fileName?.endsWith('.pdf') || false);
@@ -73,6 +86,7 @@ const ReceiptScannerScreen = ({ route, navigation }) => {
   }, [scanReceiptMutation, showAlert]);
 
   React.useEffect(() => {
+    console.log('[ReceiptScanner] sharedFile param changed:', sharedFile ? JSON.stringify(sharedFile) : 'null');
     if (sharedFile) {
       handleProcessSharedFile(sharedFile);
       navigation.setParams({ sharedFile: undefined });

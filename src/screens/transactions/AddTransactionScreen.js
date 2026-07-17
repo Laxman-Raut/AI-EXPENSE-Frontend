@@ -9,6 +9,7 @@ import PrimaryButton from '../../components/atoms/PrimaryButton';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useCreateTransaction, useUpdateTransaction, useTransaction } from '../../hooks/useTransactions';
 import { useAlert } from '../../context/AlertContext';
+import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 
 const CATEGORIES = [
   { name: 'Food', icon: 'fast-food' },
@@ -29,6 +30,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
 
   const { data: transactionDetails } = useTransaction(transactionId);
   const { showAlert } = useAlert();
+  const { hasPremiumAccess, showPremiumAlert } = usePremiumAccess();
   const createMutation = useCreateTransaction();
   const updateMutation = useUpdateTransaction();
 
@@ -181,20 +183,33 @@ const AddTransactionScreen = ({ navigation, route }) => {
  
         {/* Gemini AI Receipt Scanning Prompt Banner */}
         <TouchableOpacity
-          style={styles.aiBanner}
+          style={[styles.aiBanner, !hasPremiumAccess && { opacity: 0.7 }]}
           activeOpacity={0.85}
-          onPress={() => navigation.navigate('ReceiptScanner')}
+          onPress={() => {
+            if (hasPremiumAccess) {
+              navigation.navigate('ReceiptScanner');
+            } else {
+              showPremiumAlert();
+            }
+          }}
         >
           <View style={styles.aiBannerLeft}>
             <View style={styles.aiIconBox}>
               <Icon name="sparkles" size={16} color="#FFFFFF" />
             </View>
             <View style={styles.aiBannerTextContainer}>
-              <Text style={styles.aiBannerTitle}>Receipt / Invoice Scanner</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.aiBannerTitle}>Receipt / Invoice Scanner</Text>
+                {!hasPremiumAccess && (
+                  <View style={styles.proLabel}>
+                    <Text style={styles.proLabelText}>PRO</Text>
+                  </View>
+                )}
+              </View>
               <Text style={styles.aiBannerSubtitle}>Scan a receipt photo or sample invoice</Text>
             </View>
           </View>
-          <Icon name="chevron-forward" size={16} color={colors.primary} />
+          <Icon name={hasPremiumAccess ? "chevron-forward" : "lock-closed"} size={16} color={colors.primary} />
         </TouchableOpacity>
 
         {/* Big Amount Section */}
@@ -619,6 +634,19 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.xs - 1,
     color: colors.text.secondary,
     marginTop: 2,
+  },
+  proLabel: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  proLabelText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: typography.weights.bold,
   },
 });
 

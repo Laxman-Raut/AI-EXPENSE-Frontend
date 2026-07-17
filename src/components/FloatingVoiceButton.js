@@ -25,12 +25,14 @@ import Card from './molecules/Card';
 import PrimaryButton from './atoms/PrimaryButton';
 import dayjs from 'dayjs';
 import ChatbotDrawer from './ChatbotDrawer';
+import { usePremiumAccess } from '../hooks/usePremiumAccess';
 
 const { SpeechRecognitionModule } = NativeModules;
 
 const FloatingVoiceButton = () => {
   const { isAuthenticated } = useAuth();
   const { showAlert } = useAlert();
+  const { hasPremiumAccess, showPremiumAlert } = usePremiumAccess();
   const [modalVisible, setModalVisible] = useState(false);
   const [chatbotVisible, setChatbotVisible] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -254,23 +256,43 @@ const FloatingVoiceButton = () => {
       <View style={styles.floatingContainer}>
         {/* Chatbot Button */}
         <TouchableOpacity
-          style={styles.floatingButton}
+          style={[styles.floatingButton, !hasPremiumAccess && { opacity: 0.65 }]}
           activeOpacity={0.7}
-          onPress={() => setChatbotVisible(true)}
+          onPress={() => {
+            if (hasPremiumAccess) {
+              setChatbotVisible(true);
+            } else {
+              showPremiumAlert();
+            }
+          }}
         >
           <Icon name="chatbubble-ellipses-outline" size={22} color={colors.primary} />
+          {!hasPremiumAccess && (
+            <View style={styles.proBadge}>
+              <Icon name="lock-closed" size={8} color="#FFFFFF" />
+            </View>
+          )}
         </TouchableOpacity>
 
         {/* Voice Button */}
         <TouchableOpacity
-          style={styles.floatingButton}
+          style={[styles.floatingButton, !hasPremiumAccess && { opacity: 0.65 }]}
           activeOpacity={0.7}
           onPress={() => {
-            console.log('[FloatingVoiceButton] Voice button tapped! Opening modal');
-            setModalVisible(true);
+            if (hasPremiumAccess) {
+              console.log('[FloatingVoiceButton] Voice button tapped! Opening modal');
+              setModalVisible(true);
+            } else {
+              showPremiumAlert();
+            }
           }}
         >
           <Icon name="mic-outline" size={22} color={colors.primary} />
+          {!hasPremiumAccess && (
+            <View style={styles.proBadge}>
+              <Icon name="lock-closed" size={8} color="#FFFFFF" />
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -629,6 +651,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: typography.weights.bold,
     fontSize: typography.sizes.sm,
+  },
+  proBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: colors.primary,
+    borderRadius: 7,
+    width: 14,
+    height: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.card,
   },
 });
 

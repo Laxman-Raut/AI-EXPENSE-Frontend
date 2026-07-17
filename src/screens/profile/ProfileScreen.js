@@ -25,11 +25,13 @@ import { useAlert } from '../../context/AlertContext';
 import { useTransactions } from '../../hooks/useTransactions';
 import apiClient from '../../api/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 
 const ProfileScreen = ({ navigation }) => {
   const { user, logout, updateUser } = useAuth();
   const { showAlert } = useAlert();
   const { data: transactions } = useTransactions();
+  const { hasPremiumAccess, showPremiumAlert } = usePremiumAccess();
 
   // Modals visibility
   const [profileModalVisible, setProfileModalVisible] = useState(false);
@@ -347,9 +349,21 @@ const ProfileScreen = ({ navigation }) => {
             onPress={() => setThemeModalVisible(true)}
           />
           <SettingRow
+            icon="card-outline"
+            label="Pro Subscription"
+            onPress={() => navigation.navigate('Subscription')}
+          />
+          <SettingRow
             icon="cloud-upload-outline"
             label="Backup & Restore"
-            onPress={() => setBackupModalVisible(true)}
+            rightElement={!hasPremiumAccess ? <Icon name="lock-closed" size={16} color={colors.primary} /> : undefined}
+            onPress={() => {
+              if (hasPremiumAccess) {
+                setBackupModalVisible(true);
+              } else {
+                showPremiumAlert();
+              }
+            }}
           />
           <SettingRow
             icon="help-circle-outline"

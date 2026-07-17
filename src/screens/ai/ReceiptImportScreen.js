@@ -10,11 +10,13 @@ import { colors, spacing, typography, radius } from '../../theme';
 import { useScanReceipt } from '../../hooks/useAi';
 import { useCreateTransaction } from '../../hooks/useTransactions';
 import { useAlert } from '../../context/AlertContext';
+import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 import dayjs from 'dayjs';
 
 const ReceiptImportScreen = ({ route, navigation }) => {
   const { sharedImageUri } = route.params || {};
   const { showAlert } = useAlert();
+  const { hasPremiumAccess, showPremiumAlert } = usePremiumAccess();
   
   const [imageUri, setImageUri] = useState(sharedImageUri || null);
   const [scanning, setScanning] = useState(false);
@@ -22,6 +24,13 @@ const ReceiptImportScreen = ({ route, navigation }) => {
 
   // Form Fields
   const [merchant, setMerchant] = useState('');
+
+  useEffect(() => {
+    if (!hasPremiumAccess) {
+      showPremiumAlert();
+      navigation.goBack();
+    }
+  }, [hasPremiumAccess, navigation]);
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');

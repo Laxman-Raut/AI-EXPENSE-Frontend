@@ -21,6 +21,7 @@ import CalendarViewScreen from '../screens/calendar/CalendarViewScreen';
 import NotificationScreen from '../screens/NotificationScreen';
 import RecurringTransactionsScreen from '../screens/recurring/RecurringTransactionsScreen';
 import AddEditRecurringScreen from '../screens/recurring/AddEditRecurringScreen';
+import SubscriptionScreen from '../screens/profile/SubscriptionScreen';
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
@@ -71,6 +72,7 @@ const ProfileStackScreen = () => (
     <ProfileStack.Screen name="RecurringTransactions" component={RecurringTransactionsScreen} />
     <ProfileStack.Screen name="AddEditRecurring" component={AddEditRecurringScreen} />
     <ProfileStack.Screen name="Categories" component={CategoriesScreen} />
+    <ProfileStack.Screen name="Subscription" component={SubscriptionScreen} />
   </ProfileStack.Navigator>
 );
 
