@@ -21,7 +21,10 @@ import CalendarViewScreen from '../screens/calendar/CalendarViewScreen';
 import NotificationScreen from '../screens/NotificationScreen';
 import RecurringTransactionsScreen from '../screens/recurring/RecurringTransactionsScreen';
 import AddEditRecurringScreen from '../screens/recurring/AddEditRecurringScreen';
-import SubscriptionScreen from '../screens/profile/SubscriptionScreen';
+import SubscriptionScreen from '../screens/profile/subscription/SubscriptionScreen';
+import PaymentSuccessScreen from '../screens/profile/subscription/PaymentSuccessScreen';
+import PaymentFailedScreen from '../screens/profile/subscription/PaymentFailedScreen';
+import PremiumFeaturesScreen from '../screens/profile/subscription/PremiumFeaturesScreen';
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
@@ -73,6 +76,9 @@ const ProfileStackScreen = () => (
     <ProfileStack.Screen name="AddEditRecurring" component={AddEditRecurringScreen} />
     <ProfileStack.Screen name="Categories" component={CategoriesScreen} />
     <ProfileStack.Screen name="Subscription" component={SubscriptionScreen} />
+    <ProfileStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
+    <ProfileStack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
+    <ProfileStack.Screen name="PremiumFeatures" component={PremiumFeaturesScreen} />
   </ProfileStack.Navigator>
 );
 

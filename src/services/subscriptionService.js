@@ -1,4 +1,5 @@
 import * as subscriptionApi from '../api/subscription';
+import * as paymentApi from '../api/payment';
 import dayjs from 'dayjs';
 
 class SubscriptionService {
@@ -33,6 +34,36 @@ class SubscriptionService {
   }
 
   /**
+   * Creates a payment order in the backend for the selected plan
+   */
+  async createPaymentOrder(plan) {
+    try {
+      const response = await paymentApi.createPaymentOrder(plan);
+      if (response && response.success) {
+        return response.data;
+      }
+      throw new Error(response?.message || 'Failed to create payment order');
+    } catch (error) {
+      throw new Error(error.message || 'Failed to create payment order');
+    }
+  }
+
+  /**
+   * Verifies Razorpay payment signature in the backend
+   */
+  async verifyPayment(payload) {
+    try {
+      const response = await paymentApi.verifyPayment(payload);
+      if (response && response.success) {
+        return response.data;
+      }
+      throw new Error(response?.message || 'Failed to verify payment');
+    } catch (error) {
+      throw new Error(error.message || 'Failed to verify payment');
+    }
+  }
+
+  /**
    * Cancels subscription / reverts to Free
    */
   async cancelUserSubscription() {
@@ -52,7 +83,8 @@ class SubscriptionService {
    */
   isSubscriptionPro(subscription) {
     if (!subscription) return false;
-    return subscription.plan === 'pro' && subscription.status === 'active';
+    const isProPlan = ['pro', 'pro_monthly', 'pro_yearly'].includes(subscription.plan);
+    return isProPlan && subscription.status === 'active';
   }
 
   /**

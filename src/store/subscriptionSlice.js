@@ -38,6 +38,30 @@ export const cancelUserSubscription = createAsyncThunk(
   }
 );
 
+export const createPaymentOrder = createAsyncThunk(
+  'subscription/createPaymentOrder',
+  async (plan, { rejectWithValue }) => {
+    try {
+      const data = await subscriptionService.createPaymentOrder(plan);
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to create payment order');
+    }
+  }
+);
+
+export const verifyPayment = createAsyncThunk(
+  'subscription/verifyPayment',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await subscriptionService.verifyPayment(payload);
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Payment verification failed');
+    }
+  }
+);
+
 const subscriptionSlice = createSlice({
   name: 'subscription',
   initialState: {
@@ -98,6 +122,39 @@ const subscriptionSlice = createSlice({
       .addCase(upgradeUserSubscription.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Failed to upgrade subscription';
+        state.upgradeSuccess = false;
+      })
+      // createPaymentOrder
+      .addCase(createPaymentOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createPaymentOrder.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(createPaymentOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to create order';
+      })
+      // verifyPayment
+      .addCase(verifyPayment.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.upgradeSuccess = false;
+      })
+      .addCase(verifyPayment.fulfilled, (state, action) => {
+        state.loading = false;
+        state.plan = action.payload.subscription?.plan || 'pro';
+        state.status = action.payload.subscription?.status || 'active';
+        state.provider = action.payload.subscription?.provider || 'razorpay';
+        state.startDate = action.payload.subscription?.startDate || null;
+        state.endDate = action.payload.subscription?.endDate || null;
+        state.autoRenew = action.payload.subscription?.autoRenew || false;
+        state.upgradeSuccess = true;
+      })
+      .addCase(verifyPayment.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to verify payment';
         state.upgradeSuccess = false;
       })
       // cancelUserSubscription
