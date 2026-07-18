@@ -204,6 +204,14 @@ const AnalyticsScreen = () => {
     };
   }, [transactions, activeTab, timeframe]);
 
+  // Calculate precise spacing to fit the LineChart exactly within container width (taking padding into account)
+  const chartSpacing = useMemo(() => {
+    const N = analyticsData.chartData.length;
+    if (N <= 1) return 0;
+    // SCREEN_WIDTH - 64 (card wrapper spacing) - 32 (initialSpacing=16 + endSpacing=16)
+    return (SCREEN_WIDTH - 64 - 32) / (N - 1);
+  }, [analyticsData.chartData]);
+
   // ─────────────────────────────────────────────────────────────
   // RENDER SECTIONS
   // ─────────────────────────────────────────────────────────────
@@ -294,6 +302,8 @@ const AnalyticsScreen = () => {
               startOpacity={0.2}
               endOpacity={0.0}
               initialSpacing={16}
+              endSpacing={16}
+              spacing={chartSpacing}
               noOfSections={4}
               rulesColor={colors.divider}
               yAxisThickness={0}
@@ -304,6 +314,64 @@ const AnalyticsScreen = () => {
               dataPointsColor={activeTab === 'EXPENSES' ? colors.danger : colors.success}
               dataPointsRadius={4}
               curved
+              overflowTop={35}
+              overflowBottom={15}
+              
+              // 1. DIRECT PROPS (destructured by the library components)
+              showPointerStrip={true}
+              pointerStripWidth={1.5}
+              pointerStripColor="rgba(255, 255, 255, 0.35)"
+              pointerStripUptoDataPoint={true}
+              pointerColor={activeTab === 'EXPENSES' ? colors.danger : colors.success}
+              pointerRadius={6}
+              pointerWidth={2}
+              activatePointersOnLongPress={false}
+              activatePointersInstantlyOnTouch={true}
+              pointerLabelWidth={140}
+              pointerLabelHeight={36}
+              shiftPointerLabelX={-70}
+              shiftPointerLabelY={-38}
+              pointerLabelComponent={(items) => {
+                if (!items) return null;
+                const item = Array.isArray(items) ? items[0] : items;
+                if (!item || item.value === undefined) return null;
+                return (
+                  <View style={styles.tooltipContainer}>
+                    <Text style={styles.tooltipText}>
+                      {formatCurrency(item.value)} • {item.label}
+                    </Text>
+                  </View>
+                );
+              }}
+              
+              // 2. POINTERCONFIG PROP OBJECT (required by wrapper to attach touch listeners)
+              pointerConfig={{
+                showPointerStrip: true,
+                pointerStripWidth: 1.5,
+                pointerStripColor: 'rgba(255, 255, 255, 0.35)',
+                pointerStripUptoDataPoint: true,
+                pointerColor: activeTab === 'EXPENSES' ? colors.danger : colors.success,
+                pointerRadius: 6,
+                pointerWidth: 2,
+                activatePointersOnLongPress: false,
+                activatePointersInstantlyOnTouch: true,
+                pointerLabelWidth: 140,
+                pointerLabelHeight: 36,
+                shiftPointerLabelX: -70,
+                shiftPointerLabelY: -38,
+                pointerLabelComponent: (items) => {
+                  if (!items) return null;
+                  const item = Array.isArray(items) ? items[0] : items;
+                  if (!item || item.value === undefined) return null;
+                  return (
+                    <View style={styles.tooltipContainer}>
+                      <Text style={styles.tooltipText}>
+                        {formatCurrency(item.value)} • {item.label}
+                      </Text>
+                    </View>
+                  );
+                }
+              }}
             />
           </Card>
         </View>
@@ -601,6 +669,27 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
     fontSize: typography.sizes.xs,
     marginVertical: spacing.md,
+  },
+  tooltipContainer: {
+    backgroundColor: '#1E222D',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 110,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  tooltipText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: 'bold',
   },
 });
 

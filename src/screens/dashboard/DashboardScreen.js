@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, RefreshControl, TouchableOpacity, Dimensions, Platform } from 'react-native';
-import { PieChart } from 'react-native-gifted-charts';
+import { PieChart, LineChart } from 'react-native-gifted-charts';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import Icon from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
+import dayjs from 'dayjs';
 import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
@@ -107,6 +108,61 @@ const DashboardScreen = ({ navigation }) => {
   const savedPercent = useMemo(() => {
     return Math.max(100 - spentPercent, 0);
   }, [spentPercent]);
+
+  // Dynamic Savings Trend Data for the Savings Card
+  const savingsChartData = useMemo(() => {
+    // If no recent transactions, return mock data for a clean onboarding trend
+    if (!recentTxns || recentTxns.length === 0) {
+      return [
+        { value: 1200, label: '01 Jul' },
+        { value: 2500, label: '05 Jul' },
+        { value: 1800, label: '10 Jul' },
+        { value: 3900, label: '15 Jul' },
+        { value: 3200, label: '20 Jul' },
+        { value: 5400, label: '25 Jul' },
+        { value: savings || 6000, label: 'Today' },
+      ];
+    }
+
+    // Sort recent transactions in chronological order (oldest first)
+    const sortedTxns = [...recentTxns].sort(
+      (a, b) => new Date(a.transactionDate) - new Date(b.transactionDate)
+    );
+
+    let runningSavings = 0;
+    const points = [];
+
+    // Loop through transactions to build savings trajectory
+    sortedTxns.forEach(txn => {
+      if (txn.type === 'income') {
+        runningSavings += txn.amount;
+      } else {
+        runningSavings = Math.max(runningSavings - txn.amount, 0);
+      }
+      points.push({
+        value: runningSavings,
+        label: dayjs(txn.transactionDate).format('DD MMM'),
+      });
+    });
+
+    // If we only have 1 or 2 points, pad it to make a line
+    if (points.length < 3) {
+      return [
+        { value: Math.max(savings * 0.3, 500), label: '01 Jul' },
+        { value: Math.max(savings * 0.7, 1000), label: '15 Jul' },
+        { value: savings, label: 'Today' },
+      ];
+    }
+
+    return points;
+  }, [recentTxns, savings]);
+
+  // Calculate precise spacing to fit the LineChart exactly within container width
+  const chartSpacing = useMemo(() => {
+    const N = savingsChartData.length;
+    if (N <= 1) return 0;
+    return (SCREEN_WIDTH - 74) / (N - 1);
+  }, [savingsChartData]);
 
   // Dynamic Pie Chart Data: Spent vs Saved
   const pieData = useMemo(() => {
@@ -340,26 +396,87 @@ const DashboardScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Sparkline svg representation */}
+          {/* Interactive Savings Line Chart */}
           <View style={styles.sparklineContainer}>
-            <Svg height="55" width={SCREEN_WIDTH - 64} viewBox="0 -5 300 60">
-              <Defs>
-                <SvgGradient id="sparklineGrad" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0%" stopColor={colors.success} stopOpacity="0.3" />
-                  <Stop offset="100%" stopColor={colors.success} stopOpacity="0" />
-                </SvgGradient>
-              </Defs>
-              <Path
-                d="M0,40 Q30,15 60,35 T120,20 T180,30 T240,10 T300,25"
-                fill="none"
-                stroke={colors.success}
-                strokeWidth="2.5"
-              />
-              <Path
-                d="M0,40 Q30,15 60,35 T120,20 T180,30 T240,10 T300,25 L300,50 L0,50 Z"
-                fill="url(#sparklineGrad)"
-              />
-            </Svg>
+            <LineChart
+              data={savingsChartData}
+              width={SCREEN_WIDTH - 74}
+              height={100}
+              spacing={chartSpacing}
+              color={colors.success}
+              thickness={3}
+              startFillColor={colors.success}
+              endFillColor={colors.success}
+              startOpacity={0.2}
+              endOpacity={0.01}
+              initialSpacing={0}
+              endSpacing={0}
+              hideRules
+              hideYAxisText
+              hideAxesAndRules
+              hideDataPoints={true}
+              yAxisLabelWidth={0}
+              xAxisLabelsHeight={0}
+              overflowBottom={15}
+              overflowTop={15}
+              curved
+              
+              // 1. DIRECT PROPS (destructured by the library components)
+              showPointerStrip={true}
+              pointerStripWidth={1.5}
+              pointerStripColor="rgba(255, 255, 255, 0.35)"
+              pointerStripUptoDataPoint={true}
+              pointerColor={colors.success}
+              pointerRadius={6}
+              pointerWidth={2}
+              activatePointersOnLongPress={false}
+              activatePointersInstantlyOnTouch={true}
+              pointerLabelWidth={130}
+              pointerLabelHeight={34}
+              shiftPointerLabelX={-65}
+              shiftPointerLabelY={-36}
+              pointerLabelComponent={(items) => {
+                if (!items) return null;
+                const item = Array.isArray(items) ? items[0] : items;
+                if (!item || item.value === undefined) return null;
+                return (
+                  <View style={styles.tooltipContainer}>
+                    <Text style={styles.tooltipText}>
+                      {formatCurrency(item.value)} • {item.label}
+                    </Text>
+                  </View>
+                );
+              }}
+              
+              // 2. POINTERCONFIG PROP OBJECT (required by wrapper to attach touch listeners)
+              pointerConfig={{
+                showPointerStrip: true,
+                pointerStripWidth: 1.5,
+                pointerStripColor: 'rgba(255, 255, 255, 0.35)',
+                pointerStripUptoDataPoint: true,
+                pointerColor: colors.success,
+                pointerRadius: 6,
+                pointerWidth: 2,
+                activatePointersOnLongPress: false,
+                activatePointersInstantlyOnTouch: true,
+                pointerLabelWidth: 130,
+                pointerLabelHeight: 34,
+                shiftPointerLabelX: -65,
+                shiftPointerLabelY: -36,
+                pointerLabelComponent: (items) => {
+                  if (!items) return null;
+                  const item = Array.isArray(items) ? items[0] : items;
+                  if (!item || item.value === undefined) return null;
+                  return (
+                    <View style={styles.tooltipContainer}>
+                      <Text style={styles.tooltipText}>
+                        {formatCurrency(item.value)} • {item.label}
+                      </Text>
+                    </View>
+                  );
+                }
+              }}
+            />
           </View>
         </LinearGradient>
 
@@ -734,6 +851,9 @@ const styles = StyleSheet.create({
   sparklineContainer: {
     marginTop: spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible',
+    paddingBottom: spacing.sm,
   },
   transactionsHeaderRow: {
     flexDirection: 'row',
@@ -879,6 +999,27 @@ const styles = StyleSheet.create({
   budgetRemainingText: {
     fontSize: typography.sizes.xs,
     fontWeight: typography.weights.semibold,
+  },
+  tooltipContainer: {
+    backgroundColor: '#1E222D',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 110,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  tooltipText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: 'bold',
   },
 });
 

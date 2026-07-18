@@ -57,15 +57,20 @@ const TransactionDetailScreen = ({ navigation, route }) => {
           title="Delete Transaction"
           message="Are you sure you want to delete this transaction? This action cannot be undone."
           type="destructive"
-          confirmText="Delete"
-          onConfirm={async () => {
+          buttons={[
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive' }
+          ]}
+          onButtonPress={async (btn) => {
             setDeleteAlertVisible(false);
-            try {
-              await deleteMutation.mutateAsync(id);
-              navigation.goBack();
-            } catch (error) {
-              setErrorMessage(error.message || 'Failed to delete transaction');
-              setErrorAlertVisible(true);
+            if (btn.style === 'destructive') {
+              try {
+                await deleteMutation.mutateAsync(id);
+                navigation.goBack();
+              } catch (error) {
+                setErrorMessage(error.message || 'Failed to delete transaction');
+                setErrorAlertVisible(true);
+              }
             }
           }}
           onCancel={() => setDeleteAlertVisible(false)}
@@ -76,8 +81,10 @@ const TransactionDetailScreen = ({ navigation, route }) => {
           title="Error"
           message={errorMessage}
           type="destructive"
-          confirmText="OK"
-          onConfirm={() => setErrorAlertVisible(false)}
+          buttons={[
+            { text: 'OK' }
+          ]}
+          onButtonPress={() => setErrorAlertVisible(false)}
           onCancel={() => setErrorAlertVisible(false)}
         />
 
