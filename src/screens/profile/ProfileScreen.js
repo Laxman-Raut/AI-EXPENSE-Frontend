@@ -36,7 +36,6 @@ const ProfileScreen = ({ navigation }) => {
   // Modals visibility
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
-  const [themeModalVisible, setThemeModalVisible] = useState(false);
   const [notifyModalVisible, setNotifyModalVisible] = useState(false);
   const [backupModalVisible, setBackupModalVisible] = useState(false);
   const [supportModalVisible, setSupportModalVisible] = useState(false);
@@ -47,7 +46,6 @@ const ProfileScreen = ({ navigation }) => {
   const [editMobile, setEditMobile] = useState(user?.mobile || '');
   const [editAge, setEditAge] = useState(user?.age ? String(user.age) : '');
   const [selectedCurrency, setSelectedCurrency] = useState(user?.currency || 'INR');
-  const [selectedTheme, setSelectedTheme] = useState('Obsidian');
   const [supportSubject, setSupportSubject] = useState('');
   const [supportMessage, setSupportMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -61,9 +59,6 @@ const ProfileScreen = ({ navigation }) => {
   useEffect(() => {
     const loadPreferences = async () => {
       try {
-        const savedTheme = await AsyncStorage.getItem('user_theme');
-        if (savedTheme) setSelectedTheme(savedTheme);
-
         const savedNotif = await AsyncStorage.getItem('notif_enabled');
         if (savedNotif) setAllowNotifications(savedNotif === 'true');
 
@@ -193,17 +188,7 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
-  // Theme Save
-  const handleSelectTheme = async (themeName) => {
-    try {
-      await AsyncStorage.setItem('user_theme', themeName);
-      setSelectedTheme(themeName);
-      setThemeModalVisible(false);
-      showAlert('Theme Updated', `Theme successfully changed to ${themeName}.`, [{ text: 'OK' }]);
-    } catch (err) {
-      showAlert('Error', 'Failed to save theme choice.', [{ text: 'OK' }]);
-    }
-  };
+
 
   // Notifications Save
   const handleSaveNotifications = async () => {
@@ -342,12 +327,7 @@ const ProfileScreen = ({ navigation }) => {
             value={selectedCurrency}
             onPress={() => setCurrencyModalVisible(true)}
           />
-          <SettingRow
-            icon="color-palette-outline"
-            label="Theme"
-            value={selectedTheme}
-            onPress={() => setThemeModalVisible(true)}
-          />
+
           <SettingRow
             icon="card-outline"
             label="Pro Subscription"
@@ -478,35 +458,7 @@ const ProfileScreen = ({ navigation }) => {
         </View>
       </Modal>
 
-      {/* 3. Theme Selector Modal */}
-      <Modal visible={themeModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select App Theme</Text>
-              <TouchableOpacity onPress={() => setThemeModalVisible(false)}>
-                <Icon name="close" size={24} color={colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
 
-            <View style={styles.modalBody}>
-              {['Obsidian', 'Slate Midnight', 'Deep Navy'].map((themeName) => {
-                const isSelected = selectedTheme === themeName;
-                return (
-                  <TouchableOpacity 
-                    key={themeName} 
-                    style={[styles.selectionRow, isSelected && styles.selectedRow]}
-                    onPress={() => handleSelectTheme(themeName)}
-                  >
-                    <Text style={[styles.selectionLabel, isSelected && styles.selectedLabel]}>{themeName}</Text>
-                    {isSelected && <Icon name="checkmark-circle" size={20} color={colors.primary} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* 4. Notification Preferences Modal */}
       <Modal visible={notifyModalVisible} animationType="slide" transparent>

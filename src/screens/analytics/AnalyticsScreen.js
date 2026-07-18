@@ -433,6 +433,7 @@ const AnalyticsScreen = () => {
               pointerStripWidth={1.5}
               pointerStripColor={activeTab === 'EXPENSES' ? 'rgba(255, 77, 103, 0.35)' : 'rgba(0, 210, 106, 0.35)'}
               pointerStripUptoDataPoint={false}
+              pointerStripType="dashed"
               pointerColor={activeTab === 'EXPENSES' ? colors.danger : colors.success}
               pointerRadius={6}
               pointerWidth={2}
@@ -461,6 +462,7 @@ const AnalyticsScreen = () => {
                 pointerStripWidth: 1.5,
                 pointerStripColor: activeTab === 'EXPENSES' ? 'rgba(255, 77, 103, 0.35)' : 'rgba(0, 210, 106, 0.35)',
                 pointerStripUptoPoint: false,
+                pointerStripType: 'dashed',
                 pointerColor: activeTab === 'EXPENSES' ? colors.danger : colors.success,
                 pointerRadius: 6,
                 pointerWidth: 2,
