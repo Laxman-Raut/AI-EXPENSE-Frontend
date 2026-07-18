@@ -162,20 +162,20 @@ const AddTransactionScreen = ({ navigation, route }) => {
         {/* Toggle Selector for Expense vs Income */}
         <View style={styles.tabToggleContainer}>
           <TouchableOpacity
-            style={[styles.toggleTab, activeType === 'expense' ? styles.activeToggleTab : null]}
+            style={[styles.toggleTab, activeType === 'expense' ? styles.activeExpenseTab : null]}
             onPress={() => setActiveType('expense')}
             activeOpacity={0.8}
           >
-            <Text style={[styles.toggleTabText, activeType === 'expense' ? styles.activeToggleTabText : null]}>
+            <Text style={[styles.toggleTabText, activeType === 'expense' ? styles.activeExpenseTabText : null]}>
               Expense
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.toggleTab, activeType === 'income' ? styles.activeToggleTab : null]}
+            style={[styles.toggleTab, activeType === 'income' ? styles.activeIncomeTab : null]}
             onPress={() => setActiveType('income')}
             activeOpacity={0.8}
           >
-            <Text style={[styles.toggleTabText, activeType === 'income' ? styles.activeToggleTabText : null]}>
+            <Text style={[styles.toggleTabText, activeType === 'income' ? styles.activeIncomeTabText : null]}>
               Income
             </Text>
           </TouchableOpacity>
@@ -414,16 +414,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  activeToggleTab: {
-    backgroundColor: colors.secondary,
-  },
   toggleTabText: {
     color: colors.text.secondary,
     fontSize: typography.sizes.xs + 1,
     fontWeight: typography.weights.bold,
   },
-  activeToggleTabText: {
-    color: colors.text.primary,
+  activeExpenseTab: {
+    backgroundColor: 'rgba(255, 77, 103, 0.15)',
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  activeExpenseTabText: {
+    color: colors.danger,
+  },
+  activeIncomeTab: {
+    backgroundColor: 'rgba(0, 210, 106, 0.15)',
+    borderWidth: 1,
+    borderColor: colors.success,
+  },
+  activeIncomeTabText: {
+    color: colors.success,
   },
   amountSection: {
     paddingHorizontal: spacing.sm,

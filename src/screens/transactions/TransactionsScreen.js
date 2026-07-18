@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   },
   listScrollContent: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: 120, // pad list above floating button and tab bars
+    paddingBottom: 80, // pad list above floating button
   },
   dateGroup: {
     marginBottom: spacing.lg,
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
   },
   floatingFilterBtn: {
     position: 'absolute',
-    bottom: spacing.xxl + 60,
+    bottom: 16,
     left: '50%',
     transform: [{ translateX: -60 }], // center width 120
     width: 120,

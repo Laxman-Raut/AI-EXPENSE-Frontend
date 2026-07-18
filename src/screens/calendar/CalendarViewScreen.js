@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold,
   },
   listContent: {
-    paddingBottom: 80,
+    paddingBottom: spacing.xxl,
   },
   emptyState: {
     height: 180,

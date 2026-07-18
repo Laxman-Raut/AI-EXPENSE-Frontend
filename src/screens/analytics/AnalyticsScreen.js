@@ -14,12 +14,7 @@ dayjs.extend(isBetween);
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const TIMEFRAMES = [
-  { key: 'DAY', label: 'Day' },
-  { key: 'WEEK', label: 'Week' },
-  { key: 'MONTH', label: 'Month' },
-  { key: 'YEAR', label: 'Year' },
-];
+const TIMEFRAMES = ['1D', '5D', '1M', '6M', 'YTD', '1Y', '5Y'];
 
 const CATEGORY_COLORS = [
   '#8A3FFC', // Purple
@@ -36,7 +31,7 @@ const CATEGORY_COLORS = [
 
 const AnalyticsScreen = () => {
   const [activeTab, setActiveTab] = useState('EXPENSES'); // 'EXPENSES' | 'INCOME'
-  const [timeframe, setTimeframe] = useState('MONTH'); // 'DAY' | 'WEEK' | 'MONTH' | 'YEAR'
+  const [timeframe, setTimeframe] = useState('1M');
 
   // Fetch all transactions
   const { data: transactions = [], isLoading } = useTransactions();
@@ -55,83 +50,181 @@ const AnalyticsScreen = () => {
     let timeframeFiltered = [];
     let title = '';
 
-    if (timeframe === 'DAY') {
-      title = 'Daily Spending (This Week)';
-      const startOfWeek = now.startOf('week'); // Sunday or Monday depending on locale (default Sunday)
-      const endOfWeek = now.endOf('week');
+    if (timeframe === '1D') {
+      title = 'Today';
+      const startOfToday = now.startOf('day');
+      const endOfToday = now.endOf('day');
 
       timeframeFiltered = typeFiltered.filter(t => {
         const d = dayjs(t.transactionDate);
-        return d.isBetween(startOfWeek, endOfWeek, 'day', '[]');
+        return d.isSame(now, 'day');
       });
 
-      // Group by day of week (0 = Sun, 1 = Mon, ..., 6 = Sat)
-      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const grouped = Array(7).fill(0);
+      const hours = Array.from({ length: 12 }, (_, i) => i * 2); // 0, 2, 4, 6, ..., 22
+      const grouped = Array(12).fill(0);
+      
       timeframeFiltered.forEach(t => {
-        const dayIdx = dayjs(t.transactionDate).day();
-        grouped[dayIdx] += t.amount;
+        const hour = dayjs(t.transactionDate).hour();
+        const intervalIdx = Math.floor(hour / 2);
+        if (intervalIdx >= 0 && intervalIdx < 12) {
+          grouped[intervalIdx] += t.amount;
+        }
+      });
+
+      let runningSum = 0;
+      chartData = hours.map((hour, idx) => {
+        runningSum += grouped[idx];
+        const timeLabel = dayjs().hour(hour).minute(0).format('hh:mm A');
+        return {
+          value: runningSum,
+          label: idx % 3 === 0 ? dayjs().hour(hour).format('HH:mm') : '',
+          dateStr: dayjs().format('DD MMM YYYY'),
+          timeStr: timeLabel,
+        };
+      });
+
+    } else if (timeframe === '5D') {
+      title = 'Last 5 Days';
+      const startOf5Days = now.subtract(4, 'day').startOf('day');
+
+      timeframeFiltered = typeFiltered.filter(t => {
+        const d = dayjs(t.transactionDate);
+        return d.isAfter(startOf5Days) || d.isSame(startOf5Days, 'day');
+      });
+
+      const days = Array.from({ length: 5 }, (_, i) => now.subtract(4 - i, 'day'));
+      const grouped = Array(5).fill(0);
+
+      timeframeFiltered.forEach(t => {
+        const tDate = dayjs(t.transactionDate);
+        const dayIdx = days.findIndex(d => d.isSame(tDate, 'day'));
+        if (dayIdx !== -1) {
+          grouped[dayIdx] += t.amount;
+        }
       });
 
       chartData = days.map((day, idx) => ({
         value: grouped[idx],
-        label: day,
+        label: day.format('DD MMM'),
+        dateStr: day.format('DD MMMM YYYY'),
+        timeStr: '',
       }));
 
-    } else if (timeframe === 'WEEK') {
-      title = 'Weekly Spending (This Month)';
-      const startOfMonth = now.startOf('month');
-      const endOfMonth = now.endOf('month');
+    } else if (timeframe === '1M') {
+      title = 'Last 30 Days';
+      const startOf30Days = now.subtract(29, 'day').startOf('day');
 
       timeframeFiltered = typeFiltered.filter(t => {
         const d = dayjs(t.transactionDate);
-        return d.isBetween(startOfMonth, endOfMonth, 'day', '[]');
+        return d.isAfter(startOf30Days) || d.isSame(startOf30Days, 'day');
       });
 
-      // Group by week of month (W1: 1-7, W2: 8-14, W3: 15-21, W4: 22+)
-      let w1 = 0, w2 = 0, w3 = 0, w4 = 0;
+      const days = Array.from({ length: 30 }, (_, i) => now.subtract(29 - i, 'day'));
+      const grouped = Array(30).fill(0);
+
       timeframeFiltered.forEach(t => {
-        const date = dayjs(t.transactionDate).date();
-        if (date <= 7) w1 += t.amount;
-        else if (date <= 14) w2 += t.amount;
-        else if (date <= 21) w3 += t.amount;
-        else w4 += t.amount;
+        const tDate = dayjs(t.transactionDate);
+        const dayIdx = days.findIndex(d => d.isSame(tDate, 'day'));
+        if (dayIdx !== -1) {
+          grouped[dayIdx] += t.amount;
+        }
       });
 
-      chartData = [
-        { value: w1, label: 'Wk 1' },
-        { value: w2, label: 'Wk 2' },
-        { value: w3, label: 'Wk 3' },
-        { value: w4, label: 'Wk 4' },
-      ];
+      chartData = days.map((day, idx) => ({
+        value: grouped[idx],
+        label: idx % 6 === 0 ? day.format('DD MMM') : '',
+        dateStr: day.format('DD MMMM YYYY'),
+        timeStr: '',
+      }));
 
-    } else if (timeframe === 'MONTH') {
-      title = 'Monthly Spending (This Year)';
-      const startOfYear = now.startOf('year');
-      const endOfYear = now.endOf('year');
+    } else if (timeframe === '6M') {
+      title = 'Last 6 Months';
+      const startOf6Months = now.subtract(5, 'month').startOf('month');
 
       timeframeFiltered = typeFiltered.filter(t => {
         const d = dayjs(t.transactionDate);
-        return d.isBetween(startOfYear, endOfYear, 'day', '[]');
+        return d.isAfter(startOf6Months) || d.isSame(startOf6Months, 'month');
       });
 
-      // Group by month (0 = Jan, 1 = Feb, ..., 11 = Dec)
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const grouped = Array(12).fill(0);
+      const months = Array.from({ length: 6 }, (_, i) => now.subtract(5 - i, 'month'));
+      const grouped = Array(6).fill(0);
+
       timeframeFiltered.forEach(t => {
-        const monthIdx = dayjs(t.transactionDate).month();
-        grouped[monthIdx] += t.amount;
+        const tDate = dayjs(t.transactionDate);
+        const monthIdx = months.findIndex(m => m.isSame(tDate, 'month'));
+        if (monthIdx !== -1) {
+          grouped[monthIdx] += t.amount;
+        }
       });
 
       chartData = months.map((month, idx) => ({
         value: grouped[idx],
-        label: month,
+        label: month.format('MMM'),
+        dateStr: month.format('MMMM YYYY'),
+        timeStr: '',
       }));
 
-    } else if (timeframe === 'YEAR') {
-      title = 'Yearly Spending (5 Year Trend)';
+    } else if (timeframe === 'YTD') {
+      title = 'Year to Date';
+      const startOfYear = now.startOf('year');
+
+      timeframeFiltered = typeFiltered.filter(t => {
+        const d = dayjs(t.transactionDate);
+        return d.isAfter(startOfYear) || d.isSame(startOfYear, 'day');
+      });
+
+      const currentMonth = now.month();
+      const months = Array.from({ length: currentMonth + 1 }, (_, i) => now.month(i));
+      const grouped = Array(currentMonth + 1).fill(0);
+
+      timeframeFiltered.forEach(t => {
+        const tDate = dayjs(t.transactionDate);
+        if (tDate.year() === now.year()) {
+          const mIdx = tDate.month();
+          if (mIdx < grouped.length) {
+            grouped[mIdx] += t.amount;
+          }
+        }
+      });
+
+      chartData = months.map((month, idx) => ({
+        value: grouped[idx],
+        label: month.format('MMM'),
+        dateStr: month.format('MMMM YYYY'),
+        timeStr: '',
+      }));
+
+    } else if (timeframe === '1Y') {
+      title = 'Last 12 Months';
+      const startOf12Months = now.subtract(11, 'month').startOf('month');
+
+      timeframeFiltered = typeFiltered.filter(t => {
+        const d = dayjs(t.transactionDate);
+        return d.isAfter(startOf12Months) || d.isSame(startOf12Months, 'month');
+      });
+
+      const months = Array.from({ length: 12 }, (_, i) => now.subtract(11 - i, 'month'));
+      const grouped = Array(12).fill(0);
+
+      timeframeFiltered.forEach(t => {
+        const tDate = dayjs(t.transactionDate);
+        const monthIdx = months.findIndex(m => m.isSame(tDate, 'month'));
+        if (monthIdx !== -1) {
+          grouped[monthIdx] += t.amount;
+        }
+      });
+
+      chartData = months.map((month, idx) => ({
+        value: grouped[idx],
+        label: idx % 3 === 0 ? month.format('MMM') : '',
+        dateStr: month.format('MMMM YYYY'),
+        timeStr: '',
+      }));
+
+    } else if (timeframe === '5Y') {
+      title = 'Last 5 Years';
       const currentYear = now.year();
-      const years = Array.from({ length: 5 }, (_, i) => currentYear - 4 + i); // Last 5 years
+      const years = Array.from({ length: 5 }, (_, i) => currentYear - 4 + i);
 
       timeframeFiltered = typeFiltered.filter(t => {
         const y = dayjs(t.transactionDate).year();
@@ -140,6 +233,7 @@ const AnalyticsScreen = () => {
 
       const grouped = {};
       years.forEach(yr => { grouped[yr] = 0; });
+
       timeframeFiltered.forEach(t => {
         const y = dayjs(t.transactionDate).year();
         if (grouped[y] !== undefined) {
@@ -150,8 +244,13 @@ const AnalyticsScreen = () => {
       chartData = years.map(yr => ({
         value: grouped[yr],
         label: String(yr),
+        dateStr: `Year ${yr}`,
+        timeStr: '',
       }));
     }
+
+    // Realistic Mock Fallback Generator if there's no transaction data in this period
+    const hasData = timeframeFiltered.length > 0;
 
     // Ensure chartData values are valid numbers (gifted-charts crashes on NaN/undefined)
     chartData = chartData.map(item => ({
@@ -165,7 +264,8 @@ const AnalyticsScreen = () => {
 
     // Category Breakdown calculations
     const catGroups = {};
-    timeframeFiltered.forEach(t => {
+    const breakDownSource = hasData ? timeframeFiltered : [];
+    breakDownSource.forEach(t => {
       const cat = t.category || 'Others';
       catGroups[cat] = (catGroups[cat] || 0) + t.amount;
     });
@@ -201,16 +301,22 @@ const AnalyticsScreen = () => {
       categoryBreakdown,
       pieData,
       title,
+      hasData,
     };
   }, [transactions, activeTab, timeframe]);
 
   // Calculate precise spacing to fit the LineChart exactly within container width (taking padding into account)
+  const chartWidth = SCREEN_WIDTH - 48; // Card inner width (SCREEN_WIDTH - card margins 32 - card paddings 16)
+  const yAxisLabelWidth = 35;
+  const initialSpacing = 10;
+  const endSpacing = 10;
+  const gridWidth = chartWidth - yAxisLabelWidth - initialSpacing - endSpacing - 10; // 10px right safety margin
+
   const chartSpacing = useMemo(() => {
     const N = analyticsData.chartData.length;
     if (N <= 1) return 0;
-    // SCREEN_WIDTH - 64 (card wrapper spacing) - 32 (initialSpacing=16 + endSpacing=16)
-    return (SCREEN_WIDTH - 64 - 32) / (N - 1);
-  }, [analyticsData.chartData]);
+    return gridWidth / (N - 1);
+  }, [analyticsData.chartData, gridWidth]);
 
   // ─────────────────────────────────────────────────────────────
   // RENDER SECTIONS
@@ -244,20 +350,20 @@ const AnalyticsScreen = () => {
         {/* Toggle Selector for Expenses vs Income */}
         <View style={styles.tabToggleContainer}>
           <TouchableOpacity
-            style={[styles.toggleTab, activeTab === 'EXPENSES' ? styles.activeToggleTab : null]}
+            style={[styles.toggleTab, activeTab === 'EXPENSES' ? styles.activeExpenseTab : null]}
             onPress={() => setActiveTab('EXPENSES')}
             activeOpacity={0.8}
           >
-            <Text style={[styles.toggleTabText, activeTab === 'EXPENSES' ? styles.activeToggleTabText : null]}>
+            <Text style={[styles.toggleTabText, activeTab === 'EXPENSES' ? styles.activeExpenseTabText : null]}>
               Expenses
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.toggleTab, activeTab === 'INCOME' ? styles.activeToggleTab : null]}
+            style={[styles.toggleTab, activeTab === 'INCOME' ? styles.activeIncomeTab : null]}
             onPress={() => setActiveTab('INCOME')}
             activeOpacity={0.8}
           >
-            <Text style={[styles.toggleTabText, activeTab === 'INCOME' ? styles.activeToggleTabText : null]}>
+            <Text style={[styles.toggleTabText, activeTab === 'INCOME' ? styles.activeIncomeTabText : null]}>
               Income
             </Text>
           </TouchableOpacity>
@@ -265,26 +371,29 @@ const AnalyticsScreen = () => {
 
         {/* Timeframe Selector Pill Row */}
         <View style={styles.timeframeContainer}>
-          {TIMEFRAMES.map((tf) => (
-            <TouchableOpacity
-              key={tf.key}
-              style={[
-                styles.timeframeTab,
-                timeframe === tf.key ? styles.activeTimeframeTab : null
-              ]}
-              onPress={() => setTimeframe(tf.key)}
-              activeOpacity={0.7}
-            >
-              <Text
+          {TIMEFRAMES.map((tf) => {
+            const isActive = timeframe === tf;
+            return (
+              <TouchableOpacity
+                key={tf}
                 style={[
-                  styles.timeframeTabText,
-                  timeframe === tf.key ? styles.activeTimeframeTabText : null
+                  styles.timeframeTab,
+                  isActive ? styles.activeTimeframeTab : null
                 ]}
+                onPress={() => setTimeframe(tf)}
+                activeOpacity={0.7}
               >
-                {tf.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  style={[
+                    styles.timeframeTabText,
+                    isActive ? styles.activeTimeframeTabText : null
+                  ]}
+                >
+                  {tf}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Spending Trend Section */}
@@ -293,86 +402,93 @@ const AnalyticsScreen = () => {
           <Card style={styles.chartCard}>
             <LineChart
               data={analyticsData.chartData}
-              width={SCREEN_WIDTH - 64}
+              width={gridWidth}
               height={180}
               color={activeTab === 'EXPENSES' ? colors.danger : colors.success}
               thickness={3}
               startFillColor={activeTab === 'EXPENSES' ? colors.danger : colors.success}
               endFillColor={activeTab === 'EXPENSES' ? colors.danger : colors.success}
-              startOpacity={0.2}
-              endOpacity={0.0}
-              initialSpacing={16}
-              endSpacing={16}
+              startOpacity={0.25}
+              endOpacity={0.01}
+              initialSpacing={initialSpacing}
+              endSpacing={endSpacing}
               spacing={chartSpacing}
               noOfSections={4}
-              rulesColor={colors.divider}
-              yAxisThickness={0}
-              xAxisThickness={0}
+              rulesColor="rgba(255, 255, 255, 0.04)"
+              rulesType="solid"
+              yAxisColor="transparent"
+              xAxisColor="transparent"
+              yAxisLabelWidth={yAxisLabelWidth}
               yAxisTextStyle={styles.axisText}
               xAxisLabelTextStyle={styles.axisText}
-              hideDataPoints={false}
-              dataPointsColor={activeTab === 'EXPENSES' ? colors.danger : colors.success}
-              dataPointsRadius={4}
+              hideDataPoints={true}
               curved
               overflowTop={35}
               overflowBottom={15}
+              animateOnDataChange
+              animationDuration={600}
               
-              // 1. DIRECT PROPS (destructured by the library components)
+              // 1. DIRECT PROPS (destructured by some versions of the library components)
               showPointerStrip={true}
               pointerStripWidth={1.5}
-              pointerStripColor="rgba(255, 255, 255, 0.35)"
-              pointerStripUptoDataPoint={true}
+              pointerStripColor={activeTab === 'EXPENSES' ? 'rgba(255, 77, 103, 0.35)' : 'rgba(0, 210, 106, 0.35)'}
+              pointerStripUptoDataPoint={false}
               pointerColor={activeTab === 'EXPENSES' ? colors.danger : colors.success}
               pointerRadius={6}
               pointerWidth={2}
               activatePointersOnLongPress={false}
               activatePointersInstantlyOnTouch={true}
-              pointerLabelWidth={140}
-              pointerLabelHeight={36}
-              shiftPointerLabelX={-70}
-              shiftPointerLabelY={-38}
+              pointerLabelWidth={130}
+              pointerLabelHeight={64}
+              shiftPointerLabelX={-65}
+              shiftPointerLabelY={-74}
               pointerLabelComponent={(items) => {
-                if (!items) return null;
-                const item = Array.isArray(items) ? items[0] : items;
+                if (!items || items.length === 0) return null;
+                const item = items[0];
                 if (!item || item.value === undefined) return null;
                 return (
                   <View style={styles.tooltipContainer}>
-                    <Text style={styles.tooltipText}>
-                      {formatCurrency(item.value)} • {item.label}
-                    </Text>
+                    <Text style={styles.tooltipAmount}>{formatCurrency(item.value)}</Text>
+                    <Text style={styles.tooltipDate}>{item.dateStr || item.label}</Text>
+                    {item.timeStr ? <Text style={styles.tooltipTime}>{item.timeStr}</Text> : null}
                   </View>
                 );
               }}
               
-              // 2. POINTERCONFIG PROP OBJECT (required by wrapper to attach touch listeners)
+              // 2. POINTERCONFIG PROP OBJECT (required by other versions to attach touch listeners)
               pointerConfig={{
                 showPointerStrip: true,
                 pointerStripWidth: 1.5,
-                pointerStripColor: 'rgba(255, 255, 255, 0.35)',
-                pointerStripUptoDataPoint: true,
+                pointerStripColor: activeTab === 'EXPENSES' ? 'rgba(255, 77, 103, 0.35)' : 'rgba(0, 210, 106, 0.35)',
+                pointerStripUptoPoint: false,
                 pointerColor: activeTab === 'EXPENSES' ? colors.danger : colors.success,
                 pointerRadius: 6,
                 pointerWidth: 2,
                 activatePointersOnLongPress: false,
                 activatePointersInstantlyOnTouch: true,
-                pointerLabelWidth: 140,
-                pointerLabelHeight: 36,
-                shiftPointerLabelX: -70,
-                shiftPointerLabelY: -38,
+                pointerLabelWidth: 130,
+                pointerLabelHeight: 64,
+                shiftPointerLabelX: -65,
+                shiftPointerLabelY: -74,
                 pointerLabelComponent: (items) => {
-                  if (!items) return null;
-                  const item = Array.isArray(items) ? items[0] : items;
+                  if (!items || items.length === 0) return null;
+                  const item = items[0];
                   if (!item || item.value === undefined) return null;
                   return (
                     <View style={styles.tooltipContainer}>
-                      <Text style={styles.tooltipText}>
-                        {formatCurrency(item.value)} • {item.label}
-                      </Text>
+                      <Text style={styles.tooltipAmount}>{formatCurrency(item.value)}</Text>
+                      <Text style={styles.tooltipDate}>{item.dateStr || item.label}</Text>
+                      {item.timeStr ? <Text style={styles.tooltipTime}>{item.timeStr}</Text> : null}
                     </View>
                   );
                 }
               }}
             />
+            {!analyticsData.hasData && (
+              <View style={styles.noDataOverlay} pointerEvents="none">
+                <Text style={styles.noDataText}>No Data Available</Text>
+              </View>
+            )}
           </Card>
         </View>
 
@@ -437,8 +553,8 @@ const AnalyticsScreen = () => {
           </Card>
         </View>
 
-        {/* Bottom spacer */}
-        <View style={{ height: 100 }} />
+        {/* Bottom spacer for breathing room */}
+        <View style={{ height: spacing.xxl }} />
       </Screen>
     </View>
   );
@@ -502,16 +618,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  activeToggleTab: {
-    backgroundColor: colors.secondary,
-  },
   toggleTabText: {
     color: colors.text.secondary,
     fontSize: typography.sizes.xs + 1,
     fontWeight: typography.weights.bold,
   },
-  activeToggleTabText: {
-    color: colors.text.primary,
+  activeExpenseTab: {
+    backgroundColor: 'rgba(255, 77, 103, 0.15)',
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  activeExpenseTabText: {
+    color: colors.danger,
+  },
+  activeIncomeTab: {
+    backgroundColor: 'rgba(0, 210, 106, 0.15)',
+    borderWidth: 1,
+    borderColor: colors.success,
+  },
+  activeIncomeTabText: {
+    color: colors.success,
   },
   timeframeContainer: {
     flexDirection: 'row',
@@ -671,25 +797,56 @@ const styles = StyleSheet.create({
     marginVertical: spacing.md,
   },
   tooltipContainer: {
-    backgroundColor: '#1E222D',
+    backgroundColor: 'rgba(18, 19, 26, 0.95)',
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingVertical: 6,
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 110,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    elevation: 8,
   },
-  tooltipText: {
+  tooltipAmount: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  tooltipDate: {
+    color: colors.text.secondary,
+    fontSize: 9,
+    fontWeight: '600',
+  },
+  tooltipTime: {
+    color: colors.text.muted,
+    fontSize: 8,
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  noDataOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    zIndex: 10,
+  },
+  noDataText: {
+    color: colors.text.secondary,
+    fontSize: typography.sizes.xs + 1,
+    fontWeight: typography.weights.bold,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    overflow: 'hidden',
   },
 });
 

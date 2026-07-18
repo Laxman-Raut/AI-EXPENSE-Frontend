@@ -596,8 +596,8 @@ const DashboardScreen = ({ navigation }) => {
           )}
         </View>
 
-        {/* Padding for absolute tab bar */}
-        <View style={{ height: 100 }} />
+        {/* Padding for floating action buttons */}
+        <View style={{ height: 80 }} />
       </Screen>
 
       {/* Unified Floating Action Buttons (Voice & Chatbot) */}

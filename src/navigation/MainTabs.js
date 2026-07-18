@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, radius, typography } from '../theme';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import existing screens
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
@@ -114,6 +115,11 @@ const DummyComponent = () => null;
 
 const MainTabs = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+
+  // Dynamically calculate padding and height based on the device's safe area bottom inset
+  const bottomPadding = insets.bottom > 0 ? insets.bottom : (Platform.OS === 'ios' ? 20 : 10);
+  const tabBarHeight = (Platform.OS === 'ios' ? 60 : 56) + bottomPadding;
 
   return (
     <View style={{ flex: 1 }}>
@@ -124,7 +130,14 @@ const MainTabs = () => {
           tabBarLabelStyle: styles.tabBarLabel,
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.text.secondary,
-          tabBarStyle: styles.tabBar,
+          tabBarStyle: [
+            styles.tabBar,
+            {
+              height: tabBarHeight,
+              paddingBottom: bottomPadding,
+            }
+          ],
+          safeAreaInsets: { bottom: 0 },
         }}
       >
         <Tab.Screen
@@ -184,22 +197,15 @@ const MainTabs = () => {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: 'rgba(18, 19, 26, 0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    height: Platform.OS === 'ios' ? 88 : 72,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 14,
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
     paddingTop: spacing.xs,
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 24 : 16,
-    left: 16,
-    right: 16,
-    borderRadius: 24,
     elevation: 12,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
   },
   tabBarLabel: {
     fontSize: typography.sizes?.xs || 10,

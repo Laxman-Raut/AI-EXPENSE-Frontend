@@ -388,7 +388,7 @@ const ProfileScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         {/* Scroll footer padding */}
-        <View style={{ height: 100 }} />
+        <View style={{ height: spacing.xxl }} />
       </Screen>
 
       {/* ─────────────────────────────────────────────────────────────
