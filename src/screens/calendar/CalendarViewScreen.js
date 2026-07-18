@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Modal } from 'react-native';
 import dayjs from 'dayjs';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Screen from '../../components/templates/Screen';
@@ -16,6 +16,7 @@ const CalendarViewScreen = ({ navigation }) => {
   const [currentMonth, setCurrentMonth] = useState(dayjs());
   const [startDate, setStartDate] = useState(dayjs());
   const [endDate, setEndDate] = useState(null);
+  const [breakdownModalVisible, setBreakdownModalVisible] = useState(false);
 
   // Group transactions by date string (YYYY-MM-DD)
   const groupedTransactions = useMemo(() => {
@@ -90,6 +91,59 @@ const CalendarViewScreen = ({ navigation }) => {
     }
     return transactions || [];
   }, [transactions, startDate, endDate]);
+
+  const categoryBreakdown = useMemo(() => {
+    const groups = {};
+    dayTransactions.forEach(t => {
+      const cat = t.category || 'Others';
+      if (!groups[cat]) {
+        groups[cat] = {
+          name: cat,
+          total: 0,
+          transactions: []
+        };
+      }
+      groups[cat].transactions.push(t);
+      if (t.type === 'expense') {
+        groups[cat].total -= t.amount;
+      } else {
+        groups[cat].total += t.amount;
+      }
+    });
+    return Object.values(groups).sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+  }, [dayTransactions]);
+
+  const getCategoryIcon = (category) => {
+    switch (category) {
+      case 'Food': return 'fast-food';
+      case 'Shopping': return 'bag-handle';
+      case 'Travel': return 'car';
+      case 'Grocery': return 'cart';
+      case 'Rent': return 'home';
+      case 'Investments': return 'trending-up';
+      case 'Health': return 'heart';
+      case 'EMI/Bill':
+      case 'Bills': return 'receipt';
+      case 'Subscriptions': return 'tv';
+      default: return 'pricetag';
+    }
+  };
+
+  const getCategoryColor = (category) => {
+    switch (category) {
+      case 'Food': return '#FF9500';
+      case 'Shopping': return '#FF2D55';
+      case 'Travel': return '#5856D6';
+      case 'Grocery': return '#34C759';
+      case 'Rent': return '#AF52DE';
+      case 'Investments': return '#007AFF';
+      case 'Health': return '#FF3B30';
+      case 'EMI/Bill':
+      case 'Bills': return '#FFCC00';
+      case 'Subscriptions': return '#5AC8FA';
+      default: return colors.primary;
+    }
+  };
 
   const getListHeaderLabel = () => {
     if (startDate && endDate) {
@@ -247,7 +301,99 @@ const CalendarViewScreen = ({ navigation }) => {
               onPress={() => navigation.navigate('TransactionDetail', { id: item._id })}
             />
           )}
+          ListFooterComponent={
+            dayTransactions.length > 0 ? (
+              <TouchableOpacity
+                style={styles.viewMoreBtn}
+                activeOpacity={0.8}
+                onPress={() => setBreakdownModalVisible(true)}
+              >
+                <Text style={styles.viewMoreText}>View Category Breakdown</Text>
+                <Icon name="chevron-forward" size={16} color={colors.primary} />
+              </TouchableOpacity>
+            ) : null
+          }
         />
+
+        {/* Category-wise Breakdown Modal */}
+        <Modal
+          visible={breakdownModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setBreakdownModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <Card style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <View>
+                  <Text style={styles.modalTitle}>Category Breakdown</Text>
+                  <Text style={styles.modalSubTitle}>{getListHeaderLabel()}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setBreakdownModalVisible(false)} style={styles.closeBtn}>
+                  <Icon name="close" size={24} color={colors.text.primary} />
+                </TouchableOpacity>
+              </View>
+
+              <FlatList
+                data={categoryBreakdown}
+                keyExtractor={(item) => item.name}
+                contentContainerStyle={styles.modalListContent}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const totalVal = item.total;
+                  const isNegative = totalVal < 0;
+                  const formattedTotal = formatCurrency(Math.abs(totalVal));
+                  const catIcon = getCategoryIcon(item.name);
+                  const catColor = getCategoryColor(item.name);
+
+                  return (
+                    <View style={styles.categoryGroupCard}>
+                      {/* Category Header Row */}
+                      <View style={styles.categoryHeaderRow}>
+                        <View style={styles.categoryTitleCol}>
+                          <View style={[styles.categoryIconCircle, { backgroundColor: catColor + '15' }]}>
+                            <Icon name={catIcon} size={18} color={catColor} />
+                          </View>
+                          <Text style={styles.categoryNameText}>{item.name}</Text>
+                        </View>
+                        <Text style={[styles.categoryTotalText, { color: isNegative ? colors.danger : colors.success }]}>
+                          {isNegative ? '-' : '+'}{formattedTotal}
+                        </Text>
+                      </View>
+
+                      {/* Transactions under this category */}
+                      <View style={styles.categoryItemsList}>
+                        {item.transactions.map((txn) => (
+                          <TouchableOpacity
+                            key={txn._id}
+                            style={styles.subTxnRow}
+                            activeOpacity={0.7}
+                            onPress={() => {
+                              setBreakdownModalVisible(false);
+                              navigation.navigate('TransactionDetail', { id: txn._id });
+                            }}
+                          >
+                            <View style={styles.subTxnDetails}>
+                              <Text style={styles.subTxnDesc} numberOfLines={1}>
+                                {txn.description}
+                              </Text>
+                              <Text style={styles.subTxnMeta}>
+                                {dayjs(txn.transactionDate).format('hh:mm A')} • {txn.paymentMethod}
+                              </Text>
+                            </View>
+                            <Text style={[styles.subTxnAmount, { color: txn.type === 'expense' ? colors.danger : colors.success }]}>
+                              {txn.type === 'expense' ? '-' : '+'}{formatCurrency(txn.amount)}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  );
+                }}
+              />
+            </Card>
+          </View>
+        </Modal>
       </Screen>
     </View>
   );
@@ -388,6 +534,127 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
     fontSize: typography.sizes.base,
     fontWeight: typography.weights.medium,
+  },
+  viewMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border || '#1A1C26',
+  },
+  viewMoreText: {
+    color: colors.primary,
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    maxHeight: '85%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: spacing.lg,
+    backgroundColor: colors.card,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  modalTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+  },
+  modalSubTitle: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+  closeBtn: {
+    padding: spacing.xs,
+  },
+  modalListContent: {
+    paddingBottom: spacing.xxl,
+  },
+  categoryGroupCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border || '#1A1C26',
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  categoryHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+    marginBottom: spacing.sm,
+  },
+  categoryTitleCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  categoryIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryNameText: {
+    fontSize: typography.sizes.base - 1,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+  },
+  categoryTotalText: {
+    fontSize: typography.sizes.base - 1,
+    fontWeight: typography.weights.bold,
+  },
+  categoryItemsList: {
+    gap: spacing.xs,
+  },
+  subTxnRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  subTxnDetails: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  subTxnDesc: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
+    color: colors.text.primary,
+  },
+  subTxnMeta: {
+    fontSize: typography.sizes.xs - 1,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+  subTxnAmount: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
   },
 });
 

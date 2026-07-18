@@ -89,7 +89,7 @@ const RecurringTransactionsScreen = ({ navigation }) => {
         <Icon name="chevron-back" size={22} color={colors.text.primary} />
       </TouchableOpacity>
 
-      <Text style={styles.headerTitle}>Recurring Bills & Salary</Text>
+      <Text style={styles.headerTitle}>Recurring Bills</Text>
 
       <TouchableOpacity
         style={styles.addHeaderBtn}

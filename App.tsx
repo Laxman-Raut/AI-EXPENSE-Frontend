@@ -3,7 +3,7 @@
  * React Native CLI App
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -15,6 +15,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import { AlertProvider } from './src/context/AlertContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import NotificationService from './src/services/notificationService';
+import { initializeTheme, registerThemeListener } from './src/theme/ThemeManager';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,7 +28,17 @@ const queryClient = new QueryClient({
 });
 
 function App(): React.JSX.Element {
+  const [theme, setTheme] = useState('Dark');
+
   useEffect(() => {
+    // Initialize theme from AsyncStorage or default to Dark
+    initializeTheme();
+
+    // Listen for theme change events
+    const unsubscribe = registerThemeListener((newTheme: string) => {
+      setTheme(newTheme);
+    });
+
     const initNotifications = async () => {
       await NotificationService.initialize();
 
@@ -38,6 +49,8 @@ function App(): React.JSX.Element {
     };
 
     initNotifications();
+
+    return unsubscribe;
   }, []);
 
   return (
@@ -48,12 +61,12 @@ function App(): React.JSX.Element {
             <AuthProvider>
               <AlertProvider>
                 <StatusBar
-                  barStyle="light-content"
+                  barStyle={theme === 'Light' ? 'dark-content' : 'light-content'}
                   backgroundColor="transparent"
                   translucent
                 />
 
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1 }} key={theme}>
                   <AppNavigator />
                 </View>
               </AlertProvider>

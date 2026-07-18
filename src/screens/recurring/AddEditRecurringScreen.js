@@ -166,27 +166,7 @@ const AddEditRecurringScreen = ({ navigation, route }) => {
         style={styles.contentContainer}
         loading={fetchLoading}
       >
-        {/* Toggle Selector for Expense vs Income */}
-        <View style={styles.tabToggleContainer}>
-          <TouchableOpacity
-            style={[styles.toggleTab, activeType === 'expense' ? styles.activeToggleTab : null]}
-            onPress={() => setActiveType('expense')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleTabText, activeType === 'expense' ? styles.activeToggleTabText : null]}>
-              Expense
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleTab, activeType === 'income' ? styles.activeToggleTab : null]}
-            onPress={() => setActiveType('income')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleTabText, activeType === 'income' ? styles.activeToggleTabText : null]}>
-              Income
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Recurring transaction template defaults to Expense */}
 
         {/* Amount Input Section */}
         <View style={styles.amountSection}>

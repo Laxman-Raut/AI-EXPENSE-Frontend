@@ -190,8 +190,8 @@ const ChatbotDrawer = ({ visible, onClose }) => {
     return (
       <View style={[styles.messageRow, isUser ? styles.userRow : styles.assistantRow]}>
         {!isUser && (
-          <View style={styles.assistantAvatar}>
-            <Icon name="sparkles" size={14} color="#FFFFFF" />
+          <View style={styles.avatarGradient}>
+            <Icon name="sparkles" size={12} color="#FFFFFF" />
           </View>
         )}
         <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.assistantBubble]}>
@@ -229,8 +229,16 @@ const ChatbotDrawer = ({ visible, onClose }) => {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTitleBox}>
-            <Icon name="sparkles" size={18} color={colors.primary} />
-            <Text style={styles.headerTitle}>FinMate AI</Text>
+            <View style={styles.avatarGradient}>
+              <Icon name="sparkles" size={14} color="#FFFFFF" />
+            </View>
+            <View>
+              <Text style={styles.headerTitle}>FinMate AI</Text>
+              <View style={styles.statusRow}>
+                <View style={styles.onlineDot} />
+                <Text style={styles.statusText}>Online</Text>
+              </View>
+            </View>
           </View>
           <View style={styles.headerActions}>
             {messages.length > 0 && (
@@ -266,16 +274,24 @@ const ChatbotDrawer = ({ visible, onClose }) => {
               </Text>
               <View style={styles.promptSuggestions}>
                 <TouchableOpacity
-                  style={styles.suggestionPill}
+                  style={styles.suggestionCard}
                   onPress={() => setInputText('How much is my remaining budget?')}
                 >
-                  <Text style={styles.suggestionText}>"How much is my remaining budget?"</Text>
+                  <Icon name="wallet-outline" size={18} color={colors.primary} />
+                  <View style={styles.suggestionTextContainer}>
+                    <Text style={styles.suggestionTitle}>Remaining Budget</Text>
+                    <Text style={styles.suggestionSubtitle}>Check remaining monthly balance</Text>
+                  </View>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.suggestionPill}
+                  style={styles.suggestionCard}
                   onPress={() => setInputText('Give me money saving tips')}
                 >
-                  <Text style={styles.suggestionText}>"Give me money saving tips"</Text>
+                  <Icon name="trending-up-outline" size={18} color={colors.primary} />
+                  <View style={styles.suggestionTextContainer}>
+                    <Text style={styles.suggestionTitle}>Saving Tips</Text>
+                    <Text style={styles.suggestionSubtitle}>Get smart personal financial tips</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
             </View>
@@ -290,8 +306,8 @@ const ChatbotDrawer = ({ visible, onClose }) => {
               ListFooterComponent={
                 isSending ? (
                   <View style={[styles.messageRow, styles.assistantRow]}>
-                    <View style={styles.assistantAvatar}>
-                      <Icon name="sparkles" size={14} color="#FFFFFF" />
+                    <View style={styles.avatarGradient}>
+                      <Icon name="sparkles" size={12} color="#FFFFFF" />
                     </View>
                     <View style={[styles.messageBubble, styles.assistantBubble, styles.typingBubble]}>
                       <ActivityIndicator size="small" color={colors.text.secondary} />
@@ -308,7 +324,7 @@ const ChatbotDrawer = ({ visible, onClose }) => {
             {
               paddingBottom: keyboardVisible 
                 ? spacing.md 
-                : (Platform.OS === 'ios' ? 115 : 90)
+                : Math.max(insets.bottom, spacing.md)
             }
           ]}>
             <TextInput
@@ -365,6 +381,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderLeftWidth: 1,
     borderLeftColor: colors.border,
+    borderTopLeftRadius: 24,
+    borderBottomLeftRadius: 24,
+    overflow: 'hidden',
     ...shadow.lg,
   },
   header: {
@@ -372,19 +391,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.divider,
   },
   headerTitleBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   headerTitle: {
     fontSize: typography.sizes.base,
     fontWeight: typography.weights.bold,
     color: colors.text.primary,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 1,
+  },
+  onlineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#00D26A',
+  },
+  statusText: {
+    fontSize: 10,
+    color: colors.text.secondary,
   },
   headerActions: {
     flexDirection: 'row',
@@ -434,19 +469,29 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: spacing.sm,
   },
-  suggestionPill: {
+  suggestionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.surface,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.md,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
+    gap: spacing.sm + 2,
   },
-  suggestionText: {
+  suggestionTextContainer: {
+    flex: 1,
+  },
+  suggestionTitle: {
+    color: colors.text.primary,
+    fontSize: typography.sizes.xs + 1,
+    fontWeight: typography.weights.bold,
+  },
+  suggestionSubtitle: {
     color: colors.text.secondary,
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.semibold,
-    textAlign: 'center',
+    fontSize: 9,
+    marginTop: 1,
   },
   messageList: {
     padding: spacing.md,
@@ -462,9 +507,9 @@ const styles = StyleSheet.create({
   },
   assistantRow: {
     alignSelf: 'flex-start',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
-  assistantAvatar: {
+  avatarGradient: {
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -474,8 +519,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   messageBubble: {
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.md,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
@@ -485,11 +529,13 @@ const styles = StyleSheet.create({
   },
   userBubble: {
     backgroundColor: colors.primary,
-    borderBottomRightRadius: 2,
+    borderRadius: 18,
+    borderBottomRightRadius: 4,
   },
   assistantBubble: {
     backgroundColor: colors.surface,
-    borderBottomLeftRadius: 2,
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -523,7 +569,8 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
     borderTopWidth: 1,
     borderTopColor: colors.divider,
     backgroundColor: colors.card,
@@ -535,7 +582,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     color: colors.text.primary,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
+    paddingVertical: spacing.xs + 3,
     fontSize: typography.sizes.sm,
     maxHeight: 100,
     borderWidth: 1,
