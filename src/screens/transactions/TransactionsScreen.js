@@ -12,6 +12,7 @@ import { useTransactions, useDeleteTransaction } from '../../hooks/useTransactio
 import { formatCurrency } from '../../utils/formatCurrency';
 import { exportToExcel, exportToPDF } from '../../utils/exportUtils';
 import { useAlert } from '../../context/AlertContext';
+import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 
 const FILTER_CHIPS = ['All', 'Income', 'Expense', 'Food', 'Shopping', 'Bills', 'Travel'];
 
@@ -27,6 +28,7 @@ const TransactionsScreen = ({ navigation }) => {
   const { data: transactions, isLoading: txLoading, refetch } = useTransactions();
   const deleteTransaction = useDeleteTransaction();
   const { showAlert } = useAlert();
+  const { checkAccessAndExecute } = usePremiumAccess();
 
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,18 +69,26 @@ const TransactionsScreen = ({ navigation }) => {
       showAlert('No Data', 'There are no transactions to export.');
       return;
     }
-    setExporting(true);
-    setExportModalVisible(false);
-    try {
-      if (type === 'excel') {
-        await exportToExcel(filteredTxns);
-      } else {
-        await exportToPDF(filteredTxns);
+
+    // Restrict exports (Excel and PDF) to Pro subscribers
+    const hasAccess = checkAccessAndExecute(async () => {
+      setExporting(true);
+      setExportModalVisible(false);
+      try {
+        if (type === 'excel') {
+          await exportToExcel(filteredTxns);
+        } else {
+          await exportToPDF(filteredTxns);
+        }
+      } catch (err) {
+        showAlert('Export Failed', err?.message || 'Could not export. Please try again.');
+      } finally {
+        setExporting(false);
       }
-    } catch (err) {
-      showAlert('Export Failed', err?.message || 'Could not export. Please try again.');
-    } finally {
-      setExporting(false);
+    });
+
+    if (!hasAccess) {
+      setExportModalVisible(false);
     }
   };
 

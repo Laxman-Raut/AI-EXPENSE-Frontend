@@ -21,7 +21,7 @@ export const usePremiumAccess = () => {
         {
           text: 'Upgrade Now',
           onPress: () => {
-            navigation.navigate('Today', {
+            navigation.navigate('Profile', {
               screen: 'Subscription',
               initial: false,
             });

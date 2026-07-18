@@ -68,11 +68,11 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   );
 
   const benefits = [
-    { name: 'AI Chat Assistant', free: '3 queries / day', pro: 'Unlimited & Priority' },
-    { name: 'AI Receipt Scanner', free: '1 scan / day', pro: 'Unlimited scans' },
+    { name: 'AI Chat Assistant', free: '❌', pro: 'Unlimited & Priority' },
+    { name: 'AI Receipt Scanner', free: '❌', pro: 'Unlimited scans' },
     { name: 'Voice Transactions', free: '❌', pro: 'Unlimited' },
-    { name: 'Cloud Sync & Backup', free: 'Local Only', pro: 'Secure Cloud Vault' },
-    { name: 'Statement Exports', free: 'PDF Only', pro: 'PDF + Excel + Custom' },
+    { name: 'Cloud Sync & Backup', free: '❌', pro: 'Secure Cloud Vault' },
+    { name: 'Statement Exports', free: '❌', pro: 'PDF + Excel ' },
   ];
 
   return (
