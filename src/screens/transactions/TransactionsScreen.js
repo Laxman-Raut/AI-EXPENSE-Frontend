@@ -1,6 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Modal, ScrollView, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+  Modal,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
 import dayjs from 'dayjs';
 import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
@@ -13,8 +24,19 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { exportToExcel, exportToPDF } from '../../utils/exportUtils';
 import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
+import { useAuth } from '../../hooks/useAuth';
 
-const FILTER_CHIPS = ['All', 'Income', 'Expense', 'Food', 'Shopping', 'Bills', 'Travel'];
+const FILTER_CHIPS = [
+  'All',
+  'Income',
+  'Expense',
+  'Food',
+  'Shopping',
+  'Bills',
+  'Travel',
+  'Salary',
+  'Investments',
+];
 
 const formatDateGroup = (dateInput) => {
   const d = dayjs(dateInput);
@@ -24,7 +46,23 @@ const formatDateGroup = (dateInput) => {
   return d.format('DD MMMM YYYY');
 };
 
+const formatMobileDisplay = (mobile, email) => {
+  if (mobile && mobile.trim()) {
+    const raw = mobile.trim();
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length === 10) {
+      return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+    }
+    return raw;
+  }
+  if (email && email.trim()) {
+    return email.trim();
+  }
+  return '+91 ••••• •••••';
+};
+
 const TransactionsScreen = ({ navigation }) => {
+  const { user } = useAuth();
   const { data: transactions, isLoading: txLoading, refetch } = useTransactions();
   const deleteTransaction = useDeleteTransaction();
   const { showAlert } = useAlert();
@@ -33,7 +71,7 @@ const TransactionsScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
-  
+
   // Custom Filter Modal sheet
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'oldest' | 'amount_high'
@@ -54,11 +92,11 @@ const TransactionsScreen = ({ navigation }) => {
       'Are you sure you want to delete this transaction?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive', 
-          onPress: () => deleteTransaction.mutate(id) 
-        }
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteTransaction.mutate(id),
+        },
       ],
       'destructive'
     );
@@ -70,7 +108,6 @@ const TransactionsScreen = ({ navigation }) => {
       return;
     }
 
-    // Restrict exports (Excel and PDF) to Pro subscribers
     const hasAccess = checkAccessAndExecute(async () => {
       setExporting(true);
       setExportModalVisible(false);
@@ -92,6 +129,26 @@ const TransactionsScreen = ({ navigation }) => {
     }
   };
 
+  // Compute Total Income, Total Expense, Net Balance
+  const walletStats = useMemo(() => {
+    let totalIncome = 0;
+    let totalExpense = 0;
+    if (transactions && Array.isArray(transactions)) {
+      transactions.forEach((t) => {
+        if (t.type === 'income') {
+          totalIncome += Number(t.amount) || 0;
+        } else {
+          totalExpense += Number(t.amount) || 0;
+        }
+      });
+    }
+    return {
+      totalIncome,
+      totalExpense,
+      netBalance: totalIncome - totalExpense,
+    };
+  }, [transactions]);
+
   // Client-side search and filters
   const filteredTxns = useMemo(() => {
     let result = transactions ? [...transactions] : [];
@@ -99,28 +156,35 @@ const TransactionsScreen = ({ navigation }) => {
     // 1. Search Query filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(t => 
-        t.description.toLowerCase().includes(q) || 
-        t.category.toLowerCase().includes(q)
+      result = result.filter(
+        (t) =>
+          t.description.toLowerCase().includes(q) ||
+          t.category.toLowerCase().includes(q)
       );
     }
 
     // 2. Chip filter
     if (activeFilter !== 'All') {
       if (activeFilter === 'Income') {
-        result = result.filter(t => t.type === 'income');
+        result = result.filter((t) => t.type === 'income');
       } else if (activeFilter === 'Expense') {
-        result = result.filter(t => t.type === 'expense');
+        result = result.filter((t) => t.type === 'expense');
       } else {
-        result = result.filter(t => t.category.toLowerCase() === activeFilter.toLowerCase());
+        result = result.filter(
+          (t) => t.category.toLowerCase() === activeFilter.toLowerCase()
+        );
       }
     }
 
     // 3. Sorting
     if (sortBy === 'newest') {
-      result.sort((a, b) => dayjs(b.transactionDate).valueOf() - dayjs(a.transactionDate).valueOf());
+      result.sort(
+        (a, b) => dayjs(b.transactionDate).valueOf() - dayjs(a.transactionDate).valueOf()
+      );
     } else if (sortBy === 'oldest') {
-      result.sort((a, b) => dayjs(a.transactionDate).valueOf() - dayjs(b.transactionDate).valueOf());
+      result.sort(
+        (a, b) => dayjs(a.transactionDate).valueOf() - dayjs(b.transactionDate).valueOf()
+      );
     } else if (sortBy === 'amount_high') {
       result.sort((a, b) => b.amount - a.amount);
     }
@@ -131,7 +195,7 @@ const TransactionsScreen = ({ navigation }) => {
   // Group filtered transactions by formatted date
   const groupedTxns = useMemo(() => {
     const groups = {};
-    filteredTxns.forEach(t => {
+    filteredTxns.forEach((t) => {
       const dateStr = formatDateGroup(t.transactionDate);
       if (!groups[dateStr]) {
         groups[dateStr] = [];
@@ -139,84 +203,172 @@ const TransactionsScreen = ({ navigation }) => {
       groups[dateStr].push(t);
     });
 
-    return Object.keys(groups).map(dateGroupName => ({
+    return Object.keys(groups).map((dateGroupName) => ({
       date: dateGroupName,
-      data: groups[dateGroupName]
+      data: groups[dateGroupName],
     }));
   }, [filteredTxns]);
 
+  // Header Component featuring the Hero Digital Wallet Card
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      {/* App Header Bar */}
+      <View style={styles.titleRow}>
+        <View>
+          <Text style={styles.screenSubtitle}>MY DIGITAL WALLET</Text>
+          <Text style={styles.screenTitle}>Wallet & Passbook</Text>
+        </View>
+        <View style={styles.headerRightBtns}>
+          <TouchableOpacity
+            style={styles.headerIconBtn}
+            onPress={() => navigation.navigate('Calendar')}
+            activeOpacity={0.7}
+          >
+            <Icon name="calendar-outline" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.headerIconBtn, { backgroundColor: colors.primary }]}
+            onPress={() => setExportModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            {exporting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Icon name="download-outline" size={20} color="#FFFFFF" />
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Hero Glassmorphic Wallet Card */}
+      <LinearGradient
+        colors={['#8A3FFC', '#5E1BDB', '#1A1C29']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.walletCard}
+      >
+        <View style={styles.walletCardTop}>
+          <View style={styles.chipRow}>
+            <View style={styles.simChip}>
+              <View style={styles.chipLineHorizontal} />
+              <View style={styles.chipLineVertical} />
+            </View>
+            <Icon name="wifi-outline" size={20} color="rgba(255, 255, 255, 0.7)" />
+          </View>
+          <Text style={styles.walletBrandText}>AI WALLET</Text>
+        </View>
+
+        <Text style={styles.balanceLabel}>NET BALANCE</Text>
+        <Text style={styles.balanceAmount}>
+          {formatCurrency(walletStats.netBalance)}
+        </Text>
+
+        {/* User Mobile Number or Email */}
+        <View style={styles.cardMobileRow}>
+          <Icon name="call-outline" size={13} color="rgba(255, 255, 255, 0.6)" style={{ marginRight: 6 }} />
+          <Text style={styles.cardNumberText}>
+            {formatMobileDisplay(user?.mobile, user?.email)}
+          </Text>
+        </View>
+
+        {/* Income & Expense Badges */}
+        <View style={styles.walletBadgesRow}>
+          <View style={styles.statBadge}>
+            <View style={styles.incomeIconCircle}>
+              <Icon name="arrow-down-left" size={14} color="#00D26A" />
+            </View>
+            <View>
+              <Text style={styles.statBadgeLabel}>Income</Text>
+              <Text style={styles.incomeStatText}>
+                +{formatCurrency(walletStats.totalIncome)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.statDivider} />
+
+          <View style={styles.statBadge}>
+            <View style={styles.expenseIconCircle}>
+              <Icon name="arrow-up-right" size={14} color="#FF4D67" />
+            </View>
+            <View>
+              <Text style={styles.statBadgeLabel}>Expense</Text>
+              <Text style={styles.expenseStatText}>
+                -{formatCurrency(walletStats.totalExpense)}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Wallet Action Buttons Bar */}
+        <View style={styles.cardActionsRow}>
+          <TouchableOpacity
+            style={styles.cardActionBtn}
+            onPress={() => navigation.navigate('AddTransaction')}
+            activeOpacity={0.8}
+          >
+            <Icon name="add-circle" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={styles.cardActionText}>Add New</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cardActionBtn}
+            onPress={() => setExportModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Icon name="document-text" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={styles.cardActionText}>Statement</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+
+      {/* Search Input Bar */}
+      <View style={styles.searchRow}>
+        <Input
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search descriptions, categories..."
+          icon={<Icon name="search-outline" size={20} color={colors.text.muted} />}
+          style={styles.searchInput}
+        />
+      </View>
+
+      {/* Filter Chips Horizontal Scroll */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsScroll}
+      >
+        {FILTER_CHIPS.map((chip) => {
+          const isActive = activeFilter === chip;
+          return (
+            <TouchableOpacity
+              key={chip}
+              activeOpacity={0.8}
+              onPress={() => setActiveFilter(chip)}
+              style={[styles.chip, isActive && styles.chipActive]}
+            >
+              <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                {chip}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+
   return (
     <View style={styles.root}>
-      <Screen 
+      <Screen
         statusBarColor={colors.background}
         edges={['top', 'left', 'right']}
         safeAreaStyle={styles.safeArea}
       >
-        {/* Search Input, Calendar & Export Row */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.sm, marginBottom: spacing.xs }}>
-          <View style={{ flex: 1 }}>
-            <Input
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search transactions..."
-              icon={<Icon name="search-outline" size={20} color={colors.text.muted} />}
-              style={{ marginBottom: 0 }}
-            />
-          </View>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('Calendar')}
-          >
-            <Icon name="calendar-outline" size={22} color={colors.text.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.iconBtn, { backgroundColor: colors.primary }]}
-            activeOpacity={0.7}
-            onPress={() => setExportModalVisible(true)}
-          >
-            {exporting
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <Icon name="download-outline" size={22} color="#fff" />
-            }
-          </TouchableOpacity>
-        </View>
-
-        {/* Filter Chips list */}
-        <View style={styles.chipsContainer}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chipsScroll}
-          >
-            {FILTER_CHIPS.map(chip => {
-              const isActive = activeFilter === chip;
-              return (
-                <TouchableOpacity
-                  key={chip}
-                  activeOpacity={0.8}
-                  onPress={() => setActiveFilter(chip)}
-                  style={[
-                    styles.chip,
-                    isActive && styles.chipActive
-                  ]}
-                >
-                  <Text style={[
-                    styles.chipText,
-                    isActive && styles.chipTextActive
-                  ]}>
-                    {chip}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* Grouped Transaction History List */}
         <FlatList
           data={groupedTxns}
           keyExtractor={(item) => item.date}
+          ListHeaderComponent={renderHeader}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -228,7 +380,11 @@ const TransactionsScreen = ({ navigation }) => {
           contentContainerStyle={styles.listScrollContent}
           ListEmptyComponent={
             txLoading ? (
-              <ActivityIndicator color={colors.primary} size="large" style={{ marginTop: spacing.xl }} />
+              <ActivityIndicator
+                color={colors.primary}
+                size="large"
+                style={{ marginTop: spacing.xl }}
+              />
             ) : (
               <View style={styles.emptyContainer}>
                 <Icon name="receipt-outline" size={48} color={colors.text.muted} />
@@ -242,7 +398,7 @@ const TransactionsScreen = ({ navigation }) => {
               <Text style={styles.dateHeader}>{dateGroup.date}</Text>
 
               {/* Transactions in this date group */}
-              {dateGroup.data.map(txn => (
+              {dateGroup.data.map((txn) => (
                 <TransactionCard
                   key={txn._id}
                   title={txn.description}
@@ -261,12 +417,12 @@ const TransactionsScreen = ({ navigation }) => {
 
         {/* Floating Filter Button */}
         <TouchableOpacity
-          activeOpacity={0.8}
+          activeOpacity={0.85}
           onPress={() => setFilterModalVisible(true)}
           style={[styles.floatingFilterBtn, shadow.lg]}
         >
-          <Icon name="funnel" size={20} color="#FFFFFF" />
-          <Text style={styles.filterBtnText}>Filters</Text>
+          <Icon name="options-outline" size={20} color="#FFFFFF" />
+          <Text style={styles.filterBtnText}>Sort & Filter</Text>
         </TouchableOpacity>
 
         {/* Export Modal */}
@@ -279,13 +435,14 @@ const TransactionsScreen = ({ navigation }) => {
           <View style={styles.modalOverlay}>
             <Card style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Export Transactions</Text>
+                <Text style={styles.modalTitle}>Export Statement</Text>
                 <TouchableOpacity onPress={() => setExportModalVisible(false)}>
                   <Icon name="close" size={24} color={colors.text.primary} />
                 </TouchableOpacity>
               </View>
               <Text style={styles.exportSubtitle}>
-                {filteredTxns.length} transaction{filteredTxns.length !== 1 ? 's' : ''} will be exported
+                {filteredTxns.length} transaction{filteredTxns.length !== 1 ? 's' : ''} will be
+                exported
               </Text>
 
               <TouchableOpacity
@@ -293,12 +450,19 @@ const TransactionsScreen = ({ navigation }) => {
                 activeOpacity={0.8}
                 onPress={() => handleExport('excel')}
               >
-                <View style={[styles.exportIconBox, { backgroundColor: 'rgba(0, 196, 140, 0.12)' }]}>
+                <View
+                  style={[
+                    styles.exportIconBox,
+                    { backgroundColor: 'rgba(0, 196, 140, 0.12)' },
+                  ]}
+                >
                   <Icon name="grid-outline" size={24} color="#00C48C" />
                 </View>
                 <View style={styles.exportOptionText}>
-                  <Text style={styles.exportOptionTitle}>Export as Excel</Text>
-                  <Text style={styles.exportOptionDesc}>Spreadsheet (.xlsx) — open in Excel or Sheets</Text>
+                  <Text style={styles.exportOptionTitle}>Export Excel Sheet</Text>
+                  <Text style={styles.exportOptionDesc}>
+                    Spreadsheet (.xlsx) — open in Excel or Google Sheets
+                  </Text>
                 </View>
                 <Icon name="chevron-forward" size={18} color={colors.text.muted} />
               </TouchableOpacity>
@@ -308,12 +472,19 @@ const TransactionsScreen = ({ navigation }) => {
                 activeOpacity={0.8}
                 onPress={() => handleExport('pdf')}
               >
-                <View style={[styles.exportIconBox, { backgroundColor: 'rgba(255, 100, 124, 0.12)' }]}>
+                <View
+                  style={[
+                    styles.exportIconBox,
+                    { backgroundColor: 'rgba(255, 100, 124, 0.12)' },
+                  ]}
+                >
                   <Icon name="document-text-outline" size={24} color="#FF647C" />
                 </View>
                 <View style={styles.exportOptionText}>
-                  <Text style={styles.exportOptionTitle}>Export as PDF</Text>
-                  <Text style={styles.exportOptionDesc}>Printable report with summary stats</Text>
+                  <Text style={styles.exportOptionTitle}>Export PDF Statement</Text>
+                  <Text style={styles.exportOptionDesc}>
+                    Printable financial report with summaries
+                  </Text>
                 </View>
                 <Icon name="chevron-forward" size={18} color={colors.text.muted} />
               </TouchableOpacity>
@@ -321,7 +492,7 @@ const TransactionsScreen = ({ navigation }) => {
           </View>
         </Modal>
 
-        {/* Premium Filter modal bottom sheet */}
+        {/* Filter / Sort modal bottom sheet */}
         <Modal
           visible={filterModalVisible}
           transparent
@@ -337,40 +508,41 @@ const TransactionsScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.filterGroupLabel}>Sort By</Text>
-              
+              <Text style={styles.filterGroupLabel}>Sort Order</Text>
+
               <View style={styles.filterOptions}>
                 {[
                   { label: 'Newest First', value: 'newest' },
                   { label: 'Oldest First', value: 'oldest' },
                   { label: 'Highest Amount', value: 'amount_high' },
-                ].map(opt => {
+                ].map((opt) => {
                   const isSelected = sortBy === opt.value;
                   return (
                     <TouchableOpacity
                       key={opt.value}
                       activeOpacity={0.8}
                       onPress={() => setSortBy(opt.value)}
-                      style={[
-                        styles.filterOptRow,
-                        isSelected && styles.filterOptRowActive
-                      ]}
+                      style={[styles.filterOptRow, isSelected && styles.filterOptRowActive]}
                     >
-                      <Text style={[
-                        styles.filterOptText,
-                        isSelected && styles.filterOptTextActive
-                      ]}>
+                      <Text
+                        style={[
+                          styles.filterOptText,
+                          isSelected && styles.filterOptTextActive,
+                        ]}
+                      >
                         {opt.label}
                       </Text>
-                      {isSelected && <Icon name="checkmark" size={18} color={colors.primary} />}
+                      {isSelected && (
+                        <Icon name="checkmark" size={18} color={colors.primary} />
+                      )}
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
-              <PrimaryButton 
-                title="Apply Filters" 
-                onPress={() => setFilterModalVisible(false)} 
+              <PrimaryButton
+                title="Apply Filters"
+                onPress={() => setFilterModalVisible(false)}
                 style={styles.modalApplyBtn}
               />
             </Card>
@@ -390,35 +562,212 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingBottom: 0,
   },
-  searchContainer: {
+  headerContainer: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  screenSubtitle: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.primaryLight,
+    letterSpacing: 1.5,
+    marginBottom: 2,
+  },
+  screenTitle: {
+    fontSize: typography.sizes.xxl,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+  },
+  headerRightBtns: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  headerIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  walletCard: {
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    marginBottom: spacing.lg,
+    elevation: 8,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+  },
+  walletCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  simChip: {
+    width: 34,
+    height: 24,
+    borderRadius: 5,
+    backgroundColor: '#E6B800',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  chipLineHorizontal: {
+    position: 'absolute',
+    width: '100%',
+    height: 1,
+    backgroundColor: '#B38F00',
+  },
+  chipLineVertical: {
+    position: 'absolute',
+    height: '100%',
+    width: 1,
+    backgroundColor: '#B38F00',
+  },
+  walletBrandText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: typography.sizes.xs + 1,
+    fontWeight: typography.weights.bold,
+    letterSpacing: 1.5,
+  },
+  balanceLabel: {
+    fontSize: typography.sizes.xs,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontWeight: typography.weights.bold,
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  balanceAmount: {
+    fontSize: typography.sizes.display + 6,
+    fontWeight: typography.weights.bold,
+    color: '#FFFFFF',
+    marginBottom: spacing.xs,
+  },
+  cardMobileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  cardNumberText: {
+    fontSize: typography.sizes.xs + 1,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontWeight: typography.weights.semibold,
+    letterSpacing: 0.5,
+  },
+  walletBadgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  statBadge: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  incomeIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(0, 210, 106, 0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  expenseIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 77, 103, 0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statBadgeLabel: {
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: typography.weights.semibold,
+    textTransform: 'uppercase',
+  },
+  incomeStatText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: '#00D26A',
+  },
+  expenseStatText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: '#FF4D67',
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    marginHorizontal: spacing.sm,
+  },
+  cardActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  cardActionBtn: {
+    flex: 1,
+    height: 40,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  cardActionText: {
+    color: '#FFFFFF',
+    fontSize: typography.sizes.xs + 1,
+    fontWeight: typography.weights.bold,
+  },
+  searchRow: {
     marginBottom: spacing.xs,
   },
   searchInput: {
     marginBottom: 0,
   },
-  chipsContainer: {
-    marginBottom: spacing.md,
-  },
   chipsScroll: {
-    paddingHorizontal: spacing.lg,
     gap: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   chip: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     backgroundColor: colors.card,
     borderRadius: radius.full,
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: colors.border,
   },
   chipActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   chipText: {
-    fontSize: typography.sizes.sm,
+    fontSize: typography.sizes.xs + 1,
     color: colors.text.secondary,
     fontWeight: typography.weights.medium,
   },
@@ -427,22 +776,22 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
   },
   listScrollContent: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: 80, // pad list above floating button
+    paddingBottom: 90,
   },
   dateGroup: {
+    paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,
   },
   dateHeader: {
-    fontSize: typography.sizes.sm,
+    fontSize: typography.sizes.xs,
     fontWeight: typography.weights.bold,
     color: colors.text.secondary,
     marginBottom: spacing.sm,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
   emptyContainer: {
-    height: 300,
+    height: 250,
     justifyContent: 'center',
     alignItems: 'center',
     gap: spacing.md,
@@ -452,68 +801,21 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.base,
     fontWeight: typography.weights.medium,
   },
-  iconBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  exportSubtitle: {
-    fontSize: typography.sizes.sm,
-    color: colors.text.secondary,
-    marginBottom: spacing.lg,
-  },
-  exportOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.secondary,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    marginBottom: spacing.sm,
-  },
-  exportIconBox: {
-    width: 46,
-    height: 46,
-    borderRadius: radius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  exportOptionText: {
-    flex: 1,
-  },
-  exportOptionTitle: {
-    fontSize: typography.sizes.base,
-    fontWeight: typography.weights.bold,
-    color: colors.text.primary,
-    marginBottom: 2,
-  },
-  exportOptionDesc: {
-    fontSize: typography.sizes.xs,
-    color: colors.text.muted,
-  },
   floatingFilterBtn: {
     position: 'absolute',
-    bottom: 16,
-    left: '50%',
-    transform: [{ translateX: -60 }], // center width 120
-    width: 120,
-    height: 48,
+    bottom: 20,
+    alignSelf: 'center',
+    height: 46,
     borderRadius: radius.full,
     backgroundColor: colors.secondary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
     gap: spacing.xs,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    zIndex: 100,
+    borderColor: colors.primary,
+    elevation: 8,
   },
   filterBtnText: {
     fontSize: typography.sizes.sm,
@@ -543,12 +845,49 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.text.primary,
   },
-  filterGroupLabel: {
+  exportSubtitle: {
     fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
+    color: colors.text.secondary,
+    marginBottom: spacing.lg,
+  },
+  exportOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  exportIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  exportOptionText: {
+    flex: 1,
+  },
+  exportOptionTitle: {
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+    marginBottom: 2,
+  },
+  exportOptionDesc: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.muted,
+  },
+  filterGroupLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
     color: colors.text.secondary,
     marginBottom: spacing.sm,
     textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   filterOptions: {
     gap: spacing.sm,
@@ -559,14 +898,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     borderRadius: radius.md,
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
   filterOptRowActive: {
     borderColor: colors.primary,
+    backgroundColor: 'rgba(138, 63, 252, 0.12)',
   },
   filterOptText: {
     fontSize: typography.sizes.base,
@@ -574,7 +914,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.medium,
   },
   filterOptTextActive: {
-    color: colors.primary,
+    color: colors.primaryLight,
     fontWeight: typography.weights.bold,
   },
   modalApplyBtn: {
