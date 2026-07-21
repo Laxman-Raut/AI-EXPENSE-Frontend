@@ -1,19 +1,27 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 // ─────────────────────────────────────────────────────────────
-// CONNECTION SETTINGS
+// CONNECTION SETTINGS (LOCAL HOST)
 // ─────────────────────────────────────────────────────────────
-// Using adb reverse tcp:5000 tcp:5000 — tunnels USB so the phone
-// reaches your PC's localhost:5000 directly. No Wi-Fi IP needed.
+// - Android Emulator connects to host computer via 10.0.2.2:5000
+// - iOS Simulator / Web connects via localhost:5000
 // ─────────────────────────────────────────────────────────────
 
-const BASE_URL = 'http://localhost:5000/api';
-console.log('[API Client] Connecting to:', BASE_URL);
+// Host machine IP address on your local network
+// (Works for BOTH physical Android phone over Wi-Fi and Android Emulator)
+const LOCAL_IP = '10.116.159.195'; 
+
+const BASE_URL = Platform.OS === 'android'
+  ? `http://${LOCAL_IP}:5000/api`
+  : 'http://localhost:5000/api';
+
+console.log('[API Client] Target Base URL:', BASE_URL);
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
-  timeout: 60000, // 60s — allows Render cold-start to wake up
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },
