@@ -8,7 +8,7 @@ import PrimaryButton from '../../components/atoms/PrimaryButton';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAlert } from '../../context/AlertContext';
 
-const DEFAULT_CATEGORIES = [
+const DEFAULT_EXPENSE_CATEGORIES = [
   { name: 'Food', icon: 'fast-food-outline', color: '#FF9500' },
   { name: 'Shopping', icon: 'bag-handle-outline', color: '#FF2D55' },
   { name: 'Travel', icon: 'car-outline', color: '#5856D6' },
@@ -21,8 +21,21 @@ const DEFAULT_CATEGORIES = [
   { name: 'Others', icon: 'ellipsis-horizontal-outline', color: '#8E8E93' },
 ];
 
+const DEFAULT_INCOME_CATEGORIES = [
+  { name: 'Salary', icon: 'cash-outline', color: '#34C759' },
+  { name: 'Freelance / Business', icon: 'briefcase-outline', color: '#007AFF' },
+  { name: 'Investments', icon: 'trending-up-outline', color: '#5856D6' },
+  { name: 'Rental Income', icon: 'key-outline', color: '#AF52DE' },
+  { name: 'Gifts & Rewards', icon: 'gift-outline', color: '#FF9500' },
+  { name: 'Refunds & Cashback', icon: 'trophy-outline', color: '#FFCC00' },
+  { name: 'Dividends & Interest', icon: 'pie-chart-outline', color: '#5AC8FA' },
+  { name: 'Others', icon: 'ellipsis-horizontal-outline', color: '#8E8E93' },
+];
+
 const CategoriesScreen = ({ navigation, route }) => {
-  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const isIncomeType = route.params?.type === 'income';
+  const initialCategoryList = isIncomeType ? DEFAULT_INCOME_CATEGORIES : DEFAULT_EXPENSE_CATEGORIES;
+  const [categories, setCategories] = useState(initialCategoryList);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const { showAlert } = useAlert();
@@ -55,7 +68,9 @@ const CategoriesScreen = ({ navigation, route }) => {
   // Custom Header
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={styles.headerTitle}>Categories</Text>
+      <Text style={styles.headerTitle}>
+        {isIncomeType ? 'Income Categories' : 'Expense Categories'}
+      </Text>
       <TouchableOpacity style={styles.searchBtn} activeOpacity={0.7}>
         <Icon name="search-outline" size={22} color="#FFFFFF" />
       </TouchableOpacity>

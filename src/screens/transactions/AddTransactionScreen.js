@@ -24,7 +24,7 @@ import {
 import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 
-const CATEGORIES = [
+const EXPENSE_CATEGORIES = [
   { id: 'Food', name: 'Food', icon: 'fast-food', color: '#FF6B6B' },
   { id: 'Shopping', name: 'Shopping', icon: 'bag-handle', color: '#4ECDC4' },
   { id: 'Travel', name: 'Travel', icon: 'airplane', color: '#45B7D1' },
@@ -34,6 +34,17 @@ const CATEGORIES = [
   { id: 'Health', name: 'Health', icon: 'heart', color: '#FF9999' },
   { id: 'EMI/Bill', name: 'EMI/Bill', icon: 'receipt', color: '#99B898' },
   { id: 'Subscriptions', name: 'Subscriptions', icon: 'tv', color: '#FECEAB' },
+  { id: 'Others', name: 'Others', icon: 'ellipsis-horizontal', color: '#A8E6CF' },
+];
+
+const INCOME_CATEGORIES = [
+  { id: 'Salary', name: 'Salary', icon: 'cash', color: '#00D26A' },
+  { id: 'Freelance / Business', name: 'Freelance / Business', icon: 'briefcase', color: '#4B8CFF' },
+  { id: 'Investments', name: 'Investments', icon: 'trending-up', color: '#8A3FFC' },
+  { id: 'Rental Income', name: 'Rental Income', icon: 'key', color: '#FFB648' },
+  { id: 'Gifts & Rewards', name: 'Gifts & Rewards', icon: 'gift', color: '#FF6037' },
+  { id: 'Refunds & Cashback', name: 'Refunds & Cashback', icon: 'trophy', color: '#FFD700' },
+  { id: 'Dividends & Interest', name: 'Dividends & Interest', icon: 'pie-chart', color: '#00C9A7' },
   { id: 'Others', name: 'Others', icon: 'ellipsis-horizontal', color: '#A8E6CF' },
 ];
 
@@ -222,6 +233,18 @@ const AddTransactionScreen = ({ navigation, route }) => {
 
   const isExpense = activeType === 'expense';
   const themeColor = isExpense ? colors.danger : colors.success;
+  const categoriesList = isExpense ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+
+  const handleSwitchType = (type) => {
+    setActiveType(type);
+    if (!isEditing) {
+      if (type === 'income') {
+        setCategory('Salary');
+      } else {
+        setCategory('Food');
+      }
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -230,7 +253,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
         <View style={styles.segmentContainer}>
           <TouchableOpacity
             style={[styles.segmentTab, isExpense && styles.activeExpenseSegment]}
-            onPress={() => setActiveType('expense')}
+            onPress={() => handleSwitchType('expense')}
             activeOpacity={0.8}
           >
             <Icon
@@ -246,7 +269,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
 
           <TouchableOpacity
             style={[styles.segmentTab, !isExpense && styles.activeIncomeSegment]}
-            onPress={() => setActiveType('income')}
+            onPress={() => handleSwitchType('income')}
             activeOpacity={0.8}
           >
             <Icon
@@ -349,6 +372,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
             onPress={() =>
               navigation.navigate('Categories', {
                 isSelection: true,
+                type: activeType,
                 onCategorySelect: (selectedCat) => setCategory(selectedCat),
               })
             }
@@ -359,7 +383,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
         </View>
 
         <View style={styles.categoriesGrid}>
-          {CATEGORIES.map((item) => {
+          {categoriesList.map((item) => {
             const isSelected = category === item.name;
             return (
               <TouchableOpacity
