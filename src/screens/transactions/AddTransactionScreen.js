@@ -1,28 +1,52 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform, Modal } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  Platform,
+  Modal,
+  ScrollView,
+} from 'react-native';
 import dayjs from 'dayjs';
 import Icon from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
 import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
-import Input from '../../components/atoms/Input';
 import PrimaryButton from '../../components/atoms/PrimaryButton';
 import { colors, spacing, typography, radius } from '../../theme';
-import { useCreateTransaction, useUpdateTransaction, useTransaction } from '../../hooks/useTransactions';
+import {
+  useCreateTransaction,
+  useUpdateTransaction,
+  useTransaction,
+} from '../../hooks/useTransactions';
 import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 
 const CATEGORIES = [
-  { name: 'Food', icon: 'fast-food' },
-  { name: 'Shopping', icon: 'bag' },
-  { name: 'Travel', icon: 'airplane' },
-  { name: 'Grocery', icon: 'cart' },
-  { name: 'Rent', icon: 'home' },
-  { name: 'Investments', icon: 'trending-up' },
-  { name: 'Health', icon: 'heart' },
-  { name: 'EMI/Bill', icon: 'receipt' },
-  { name: 'Subscriptions', icon: 'tv' },
-  { name: 'Others', icon: 'ellipsis-horizontal' },
+  { id: 'Food', name: 'Food', icon: 'fast-food', color: '#FF6B6B' },
+  { id: 'Shopping', name: 'Shopping', icon: 'bag-handle', color: '#4ECDC4' },
+  { id: 'Travel', name: 'Travel', icon: 'airplane', color: '#45B7D1' },
+  { id: 'Grocery', name: 'Grocery', icon: 'cart', color: '#96CEB4' },
+  { id: 'Rent', name: 'Rent', icon: 'home', color: '#FFEEAD' },
+  { id: 'Investments', name: 'Investments', icon: 'trending-up', color: '#D4A5A5' },
+  { id: 'Health', name: 'Health', icon: 'heart', color: '#FF9999' },
+  { id: 'EMI/Bill', name: 'EMI/Bill', icon: 'receipt', color: '#99B898' },
+  { id: 'Subscriptions', name: 'Subscriptions', icon: 'tv', color: '#FECEAB' },
+  { id: 'Others', name: 'Others', icon: 'ellipsis-horizontal', color: '#A8E6CF' },
 ];
+
+const PAYMENT_METHODS = [
+  { id: 'UPI', label: 'UPI', icon: 'qr-code' },
+  { id: 'Cash', label: 'Cash', icon: 'cash' },
+  { id: 'Credit Card', label: 'Credit Card', icon: 'card' },
+  { id: 'Debit Card', label: 'Debit Card', icon: 'card-outline' },
+  { id: 'Wallet', label: 'Wallet', icon: 'wallet' },
+  { id: 'Bank Transfer', label: 'Bank', icon: 'business' },
+];
+
+const QUICK_AMOUNTS = [100, 500, 1000, 2000, 5000];
 
 const AddTransactionScreen = ({ navigation, route }) => {
   const transactionId = route.params?.id;
@@ -37,9 +61,12 @@ const AddTransactionScreen = ({ navigation, route }) => {
   const [activeType, setActiveType] = useState('expense'); // 'expense' | 'income'
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Food');
+  const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [notes, setNotes] = useState('');
   const [dateText, setDateText] = useState(dayjs().format('MMM DD, YYYY'));
   const [transactionDate, setTransactionDate] = useState(new Date());
+  const [dateShortcut, setDateShortcut] = useState('today'); // 'today' | 'yesterday' | 'custom'
+
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(dayjs());
 
@@ -49,11 +76,20 @@ const AddTransactionScreen = ({ navigation, route }) => {
       setActiveType(transactionDetails.type || 'expense');
       setAmount(String(transactionDetails.amount || ''));
       setCategory(transactionDetails.category || 'Food');
+      setPaymentMethod(transactionDetails.paymentMethod || 'UPI');
       setNotes(transactionDetails.description || '');
       if (transactionDetails.transactionDate) {
         const dateObj = new Date(transactionDetails.transactionDate);
         setTransactionDate(dateObj);
         setDateText(dayjs(dateObj).format('MMM DD, YYYY'));
+        
+        if (dayjs(dateObj).isSame(dayjs(), 'day')) {
+          setDateShortcut('today');
+        } else if (dayjs(dateObj).isSame(dayjs().subtract(1, 'day'), 'day')) {
+          setDateShortcut('yesterday');
+        } else {
+          setDateShortcut('custom');
+        }
       }
     }
   }, [transactionDetails, isEditing]);
@@ -65,6 +101,27 @@ const AddTransactionScreen = ({ navigation, route }) => {
     }
   }, [route.params?.selectedCategory]);
 
+  const handleQuickAmount = (val) => {
+    const currentNum = Number(amount) || 0;
+    setAmount(String(currentNum + val));
+  };
+
+  const handleShortcutDate = (shortcut) => {
+    setDateShortcut(shortcut);
+    if (shortcut === 'today') {
+      const today = new Date();
+      setTransactionDate(today);
+      setDateText(dayjs(today).format('MMM DD, YYYY'));
+    } else if (shortcut === 'yesterday') {
+      const yest = dayjs().subtract(1, 'day').toDate();
+      setTransactionDate(yest);
+      setDateText(dayjs(yest).format('MMM DD, YYYY'));
+    } else if (shortcut === 'custom') {
+      setPickerMonth(dayjs(transactionDate));
+      setDatePickerVisible(true);
+    }
+  };
+
   const handleSave = async () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       showAlert('Error', 'Please enter a valid amount.');
@@ -75,8 +132,8 @@ const AddTransactionScreen = ({ navigation, route }) => {
       type: activeType,
       category,
       amount: Number(amount),
-      description: (notes && notes.trim().length >= 3) ? notes : `${category} transaction`,
-      paymentMethod: activeType === 'expense' ? 'UPI' : 'Bank Transfer',
+      description: notes && notes.trim().length >= 2 ? notes.trim() : `${category} ${activeType}`,
+      paymentMethod,
       note: notes,
       transactionDate: transactionDate.toISOString(),
     };
@@ -85,12 +142,12 @@ const AddTransactionScreen = ({ navigation, route }) => {
       if (isEditing) {
         await updateMutation.mutateAsync({ id: transactionId, data: payload });
         showAlert('Success', 'Transaction updated successfully!', [
-          { text: 'OK', onPress: () => navigation.goBack() }
+          { text: 'OK', onPress: () => navigation.goBack() },
         ]);
       } else {
         await createMutation.mutateAsync(payload);
         showAlert('Success', 'Transaction saved successfully!', [
-          { text: 'OK', onPress: () => navigation.goBack() }
+          { text: 'OK', onPress: () => navigation.goBack() },
         ]);
       }
     } catch (error) {
@@ -114,30 +171,41 @@ const AddTransactionScreen = ({ navigation, route }) => {
     }
     setTransactionDate(date.toDate());
     setDateText(date.format('MMM DD, YYYY'));
+    setDateShortcut('custom');
     setDatePickerVisible(false);
   };
 
   // Custom Header
   const renderHeader = () => (
     <View style={styles.header}>
-      <TouchableOpacity 
-        style={styles.backBtn} 
+      <TouchableOpacity
+        style={styles.backBtn}
         onPress={() => navigation.goBack()}
         activeOpacity={0.7}
       >
-        <Icon name="chevron-back" size={24} color="#FFFFFF" />
+        <Icon name="close" size={22} color="#FFFFFF" />
       </TouchableOpacity>
-      <Text style={styles.headerTitle}>{isEditing ? 'Edit Transaction' : 'Add Transaction'}</Text>
-      <View style={{ width: 40 }} />
+      <Text style={styles.headerTitle}>
+        {isEditing ? 'Edit Transaction' : 'New Transaction'}
+      </Text>
+      <TouchableOpacity
+        style={styles.clearBtn}
+        onPress={() => {
+          setAmount('');
+          setNotes('');
+        }}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.clearBtnText}>Reset</Text>
+      </TouchableOpacity>
     </View>
   );
 
   const weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-  // Generate grid cells for pickerMonth
+  // Calendar cells
   const daysInMonth = pickerMonth.daysInMonth();
   const startDayOfWeek = pickerMonth.startOf('month').day();
-
   const cells = [];
   for (let i = 0; i < startDayOfWeek; i++) {
     cells.push({ id: `empty-${i}`, isPlaceholder: true });
@@ -152,38 +220,50 @@ const AddTransactionScreen = ({ navigation, route }) => {
     });
   }
 
+  const isExpense = activeType === 'expense';
+  const themeColor = isExpense ? colors.danger : colors.success;
+
   return (
     <View style={styles.root}>
-      <Screen
-        scrollable
-        header={renderHeader()}
-        style={styles.contentContainer}
-      >
-        {/* Toggle Selector for Expense vs Income */}
-        <View style={styles.tabToggleContainer}>
+      <Screen scrollable header={renderHeader()} style={styles.contentContainer}>
+        {/* Type Segmented Control (Expense vs Income) */}
+        <View style={styles.segmentContainer}>
           <TouchableOpacity
-            style={[styles.toggleTab, activeType === 'expense' ? styles.activeExpenseTab : null]}
+            style={[styles.segmentTab, isExpense && styles.activeExpenseSegment]}
             onPress={() => setActiveType('expense')}
             activeOpacity={0.8}
           >
-            <Text style={[styles.toggleTabText, activeType === 'expense' ? styles.activeExpenseTabText : null]}>
+            <Icon
+              name="arrow-down-circle"
+              size={18}
+              color={isExpense ? colors.danger : colors.text.secondary}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[styles.segmentText, isExpense && styles.activeExpenseText]}>
               Expense
             </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={[styles.toggleTab, activeType === 'income' ? styles.activeIncomeTab : null]}
+            style={[styles.segmentTab, !isExpense && styles.activeIncomeSegment]}
             onPress={() => setActiveType('income')}
             activeOpacity={0.8}
           >
-            <Text style={[styles.toggleTabText, activeType === 'income' ? styles.activeIncomeTabText : null]}>
+            <Icon
+              name="arrow-up-circle"
+              size={18}
+              color={!isExpense ? colors.success : colors.text.secondary}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[styles.segmentText, !isExpense && styles.activeIncomeText]}>
               Income
             </Text>
           </TouchableOpacity>
         </View>
- 
-        {/* Gemini AI Receipt Scanning Prompt Banner */}
+
+        {/* AI Receipt Scanner Card */}
         <TouchableOpacity
-          style={[styles.aiBanner, !hasPremiumAccess && { opacity: 0.7 }]}
+          style={[styles.aiBanner, !hasPremiumAccess && { opacity: 0.85 }]}
           activeOpacity={0.85}
           onPress={() => {
             if (hasPremiumAccess) {
@@ -194,96 +274,284 @@ const AddTransactionScreen = ({ navigation, route }) => {
           }}
         >
           <View style={styles.aiBannerLeft}>
-            <View style={styles.aiIconBox}>
+            <LinearGradient
+              colors={['#8A3FFC', '#5E1BDB']}
+              style={styles.aiIconBox}
+            >
               <Icon name="sparkles" size={16} color="#FFFFFF" />
-            </View>
+            </LinearGradient>
             <View style={styles.aiBannerTextContainer}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.aiBannerTitle}>Receipt / Invoice Scanner</Text>
+              <View style={styles.aiBannerTitleRow}>
+                <Text style={styles.aiBannerTitle}>Auto-Fill via AI Scanner</Text>
                 {!hasPremiumAccess && (
                   <View style={styles.proLabel}>
                     <Text style={styles.proLabelText}>PRO</Text>
                   </View>
                 )}
               </View>
-              <Text style={styles.aiBannerSubtitle}>Scan a receipt photo or sample invoice</Text>
+              <Text style={styles.aiBannerSubtitle}>
+                Scan paper receipt or PDF invoice to auto-extract details
+              </Text>
             </View>
           </View>
-          <Icon name={hasPremiumAccess ? "chevron-forward" : "lock-closed"} size={16} color={colors.primary} />
+          <Icon
+            name={hasPremiumAccess ? 'chevron-forward' : 'lock-closed'}
+            size={18}
+            color={colors.primary}
+          />
         </TouchableOpacity>
 
-        {/* Big Amount Section */}
-        <View style={styles.amountSection}>
-          <Text style={styles.amountLabel}>Amount</Text>
+        {/* Hero Amount Card */}
+        <View
+          style={[
+            styles.heroAmountCard,
+            { borderColor: isExpense ? 'rgba(255, 77, 103, 0.3)' : 'rgba(0, 210, 106, 0.3)' },
+          ]}
+        >
+          <Text style={styles.amountLabel}>AMOUNT</Text>
+
           <View style={styles.amountInputRow}>
-            <Text style={styles.amountCurrencySymbol}>₹</Text>
+            <Text style={[styles.amountSymbol, { color: themeColor }]}>₹</Text>
             <TextInput
               value={amount}
               onChangeText={setAmount}
-              placeholder="850"
-              placeholderTextColor="rgba(255, 255, 255, 0.3)"
+              placeholder="0"
+              placeholderTextColor="rgba(255, 255, 255, 0.2)"
               keyboardType="numeric"
-              style={styles.amountInput}
+              style={[styles.amountInput, { color: themeColor }]}
               autoFocus
             />
           </View>
+
+          {/* Quick Amount Addition Chips */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickChipsContainer}
+          >
+            {QUICK_AMOUNTS.map((val) => (
+              <TouchableOpacity
+                key={val}
+                style={styles.quickChip}
+                onPress={() => handleQuickAmount(val)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.quickChipText}>+₹{val}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
-        {/* Form Fields Card */}
-        <Card style={styles.formCard}>
-          {/* Category Dropdown Picker Selector */}
+        {/* Category Selection Section */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Category</Text>
           <TouchableOpacity
-            style={styles.fieldRow}
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('Categories', {
-              isSelection: true,
-              onCategorySelect: (selectedCat) => setCategory(selectedCat),
-            })}
+            onPress={() =>
+              navigation.navigate('Categories', {
+                isSelection: true,
+                onCategorySelect: (selectedCat) => setCategory(selectedCat),
+              })
+            }
+            activeOpacity={0.7}
           >
-            <Text style={styles.fieldLabel}>Category</Text>
-            <View style={styles.pickerWrapper}>
-              <Text style={styles.fieldValueText}>{category}</Text>
-              <Icon name="chevron-forward" size={16} color={colors.text.secondary} />
-            </View>
+            <Text style={styles.seeAllText}>All Categories ›</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.categoriesGrid}>
+          {CATEGORIES.map((item) => {
+            const isSelected = category === item.name;
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.categoryCard,
+                  isSelected && {
+                    borderColor: themeColor,
+                    backgroundColor: isExpense
+                      ? 'rgba(255, 77, 103, 0.12)'
+                      : 'rgba(0, 210, 106, 0.12)',
+                  },
+                ]}
+                onPress={() => setCategory(item.name)}
+                activeOpacity={0.75}
+              >
+                <View
+                  style={[
+                    styles.categoryIconBadge,
+                    { backgroundColor: isSelected ? themeColor : 'rgba(255, 255, 255, 0.06)' },
+                  ]}
+                >
+                  <Icon
+                    name={item.icon}
+                    size={18}
+                    color={isSelected ? '#FFFFFF' : item.color || colors.text.primary}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.categoryName,
+                    isSelected && { color: themeColor, fontWeight: typography.weights.bold },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Payment Method Section */}
+        <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Payment Method</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.paymentMethodsRow}
+        >
+          {PAYMENT_METHODS.map((pm) => {
+            const isSelected = paymentMethod === pm.id;
+            return (
+              <TouchableOpacity
+                key={pm.id}
+                style={[
+                  styles.paymentPill,
+                  isSelected && {
+                    borderColor: colors.primary,
+                    backgroundColor: 'rgba(138, 63, 252, 0.15)',
+                  },
+                ]}
+                onPress={() => setPaymentMethod(pm.id)}
+                activeOpacity={0.75}
+              >
+                <Icon
+                  name={pm.icon}
+                  size={16}
+                  color={isSelected ? colors.primaryLight : colors.text.secondary}
+                  style={{ marginRight: 6 }}
+                />
+                <Text
+                  style={[
+                    styles.paymentPillText,
+                    isSelected && { color: '#FFFFFF', fontWeight: typography.weights.bold },
+                  ]}
+                >
+                  {pm.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Date Selector Section */}
+        <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Transaction Date</Text>
+        <View style={styles.dateRow}>
+          <TouchableOpacity
+            style={[styles.dateChip, dateShortcut === 'today' && styles.activeDateChip]}
+            onPress={() => handleShortcutDate('today')}
+            activeOpacity={0.75}
+          >
+            <Text
+              style={[
+                styles.dateChipText,
+                dateShortcut === 'today' && styles.activeDateChipText,
+              ]}
+            >
+              Today
+            </Text>
           </TouchableOpacity>
 
-          {/* Date Picker Selector */}
-          <TouchableOpacity 
-            style={styles.fieldRow} 
-            activeOpacity={0.8}
-            onPress={() => {
-              setPickerMonth(dayjs(transactionDate));
-              setDatePickerVisible(true);
-            }}
+          <TouchableOpacity
+            style={[styles.dateChip, dateShortcut === 'yesterday' && styles.activeDateChip]}
+            onPress={() => handleShortcutDate('yesterday')}
+            activeOpacity={0.75}
           >
-            <Text style={styles.fieldLabel}>Date</Text>
-            <View style={styles.pickerWrapper}>
-              <Text style={styles.fieldValueText}>{dateText}</Text>
-              <Icon name="calendar-outline" size={16} color={colors.text.secondary} />
-            </View>
+            <Text
+              style={[
+                styles.dateChipText,
+                dateShortcut === 'yesterday' && styles.activeDateChipText,
+              ]}
+            >
+              Yesterday
+            </Text>
           </TouchableOpacity>
 
-          {/* Note Input */}
-          <View style={[styles.fieldRow, { borderBottomWidth: 0 }]}>
-            <Text style={styles.fieldLabel}>Note</Text>
-            <TextInput
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Lunch at Restaurant"
-              placeholderTextColor={colors.text.muted}
-              style={styles.fieldValueInput}
+          <TouchableOpacity
+            style={[
+              styles.dateChip,
+              styles.datePickerBtn,
+              dateShortcut === 'custom' && styles.activeDateChip,
+            ]}
+            onPress={() => handleShortcutDate('custom')}
+            activeOpacity={0.75}
+          >
+            <Icon
+              name="calendar-outline"
+              size={16}
+              color={dateShortcut === 'custom' ? '#FFFFFF' : colors.text.secondary}
+              style={{ marginRight: 6 }}
             />
-          </View>
+            <Text
+              style={[
+                styles.dateChipText,
+                dateShortcut === 'custom' && styles.activeDateChipText,
+              ]}
+            >
+              {dateText}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Notes & Description Card */}
+        <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Note / Description</Text>
+        <Card style={styles.notesCard}>
+          <Icon name="create-outline" size={20} color={colors.text.secondary} style={{ marginRight: 10 }} />
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="e.g. Dinner with friends, Uber to work..."
+            placeholderTextColor={colors.text.muted}
+            style={styles.notesInput}
+          />
+          {notes ? (
+            <TouchableOpacity onPress={() => setNotes('')}>
+              <Icon name="close-circle" size={18} color={colors.text.muted} />
+            </TouchableOpacity>
+          ) : null}
         </Card>
 
-        {/* Save Button */}
+        {/* Save Transaction Button */}
         <View style={styles.saveContainer}>
-          <PrimaryButton
-            title="Save Expense"
+          <TouchableOpacity
             onPress={handleSave}
-            loading={createMutation.isPending || updateMutation.isPending}
-            style={styles.saveBtn}
-          />
+            disabled={createMutation.isPending || updateMutation.isPending}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={
+                isExpense
+                  ? ['#FF4D67', '#FF6037']
+                  : ['#00D26A', '#00B853']
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.gradientSaveBtn}
+            >
+              <Icon
+                name={isEditing ? "checkmark-circle" : "add-circle"}
+                size={22}
+                color="#FFFFFF"
+                style={{ marginRight: 8 }}
+              />
+              <Text style={styles.saveBtnText}>
+                {isEditing
+                  ? 'Update Transaction'
+                  : isExpense
+                  ? 'Save Expense'
+                  : 'Save Income'}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
 
         {/* Custom Calendar Date Picker Modal */}
@@ -317,8 +585,10 @@ const AddTransactionScreen = ({ navigation, route }) => {
 
               {/* Weekdays Row */}
               <View style={styles.pickerWeekdaysRow}>
-                {weekdays.map(day => (
-                  <Text key={day} style={styles.pickerWeekdayText}>{day}</Text>
+                {weekdays.map((day) => (
+                  <Text key={day} style={styles.pickerWeekdayText}>
+                    {day}
+                  </Text>
                 ))}
               </View>
 
@@ -373,7 +643,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingTop: spacing.xs,
   },
   header: {
     flexDirection: 'row',
@@ -384,9 +654,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
@@ -398,132 +668,310 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.text.primary,
   },
-  tabToggleContainer: {
+  clearBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  clearBtnText: {
+    color: colors.text.secondary,
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+  },
+  segmentContainer: {
     flexDirection: 'row',
     backgroundColor: colors.card,
     borderRadius: radius.full,
     padding: 4,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: spacing.xl * 1.5,
+    marginBottom: spacing.md,
   },
-  toggleTab: {
+  segmentTab: {
     flex: 1,
-    height: 38,
+    height: 42,
     borderRadius: radius.full,
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  toggleTabText: {
+  segmentText: {
     color: colors.text.secondary,
-    fontSize: typography.sizes.xs + 1,
-    fontWeight: typography.weights.bold,
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
   },
-  activeExpenseTab: {
+  activeExpenseSegment: {
     backgroundColor: 'rgba(255, 77, 103, 0.15)',
     borderWidth: 1,
-    borderColor: colors.danger,
+    borderColor: 'rgba(255, 77, 103, 0.5)',
   },
-  activeExpenseTabText: {
+  activeExpenseText: {
     color: colors.danger,
+    fontWeight: typography.weights.bold,
   },
-  activeIncomeTab: {
+  activeIncomeSegment: {
     backgroundColor: 'rgba(0, 210, 106, 0.15)',
     borderWidth: 1,
-    borderColor: colors.success,
+    borderColor: 'rgba(0, 210, 106, 0.5)',
   },
-  activeIncomeTabText: {
+  activeIncomeText: {
     color: colors.success,
+    fontWeight: typography.weights.bold,
   },
-  amountSection: {
-    paddingHorizontal: spacing.sm,
-    marginBottom: spacing.xxl,
+  aiBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(138, 63, 252, 0.08)',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(138, 63, 252, 0.3)',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  aiBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  aiIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  aiBannerTextContainer: {
+    flex: 1,
+  },
+  aiBannerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  aiBannerTitle: {
+    fontSize: typography.sizes.sm + 1,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+  },
+  aiBannerSubtitle: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+  proLabel: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  proLabelText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: typography.weights.bold,
+  },
+  heroAmountCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.xl,
+    borderWidth: 1.5,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
   },
   amountLabel: {
-    fontSize: typography.sizes.sm,
+    fontSize: typography.sizes.xs,
     color: colors.text.secondary,
-    fontWeight: typography.weights.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontWeight: typography.weights.bold,
+    letterSpacing: 1.5,
     marginBottom: spacing.xs,
   },
   amountInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: spacing.xs,
   },
-  amountCurrencySymbol: {
-    fontSize: typography.sizes.display + 8,
-    fontWeight: typography.weights.bold,
-    color: colors.text.primary,
-    marginRight: spacing.xs,
-  },
-  amountInput: {
-    flex: 1,
+  amountSymbol: {
     fontSize: typography.sizes.display + 12,
     fontWeight: typography.weights.bold,
-    color: colors.text.primary,
-    paddingVertical: 0,
+    marginRight: 4,
   },
-  formCard: {
+  amountInput: {
+    fontSize: typography.sizes.display + 16,
+    fontWeight: typography.weights.bold,
+    paddingVertical: 0,
+    minWidth: 120,
+    textAlign: 'center',
+  },
+  quickChipsContainer: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.xs,
+  },
+  quickChip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickChipText: {
+    color: colors.text.primary,
+    fontSize: typography.sizes.xs + 1,
+    fontWeight: typography.weights.semibold,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
+  },
+  seeAllText: {
+    fontSize: typography.sizes.xs + 1,
+    color: colors.primaryLight,
+    fontWeight: typography.weights.semibold,
+  },
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs + 2,
+    marginBottom: spacing.sm,
+  },
+  categoryCard: {
+    width: '31%',
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  categoryName: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.secondary,
+    fontWeight: typography.weights.medium,
+    textAlign: 'center',
+  },
+  paymentMethodsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginVertical: spacing.sm,
+  },
+  paymentPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  paymentPillText: {
+    fontSize: typography.sizes.xs + 1,
+    color: colors.text.secondary,
+    fontWeight: typography.weights.medium,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginVertical: spacing.sm,
+  },
+  dateChip: {
+    flex: 1,
+    height: 42,
+    borderRadius: radius.md,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  datePickerBtn: {
+    flex: 1.4,
+  },
+  activeDateChip: {
+    backgroundColor: 'rgba(138, 63, 252, 0.15)',
+    borderColor: colors.primary,
+  },
+  dateChipText: {
+    fontSize: typography.sizes.xs + 1,
+    color: colors.text.secondary,
+    fontWeight: typography.weights.semibold,
+  },
+  activeDateChipText: {
+    color: colors.primaryLight,
+    fontWeight: typography.weights.bold,
+  },
+  notesCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.card,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xs,
-    marginBottom: spacing.xxl,
+    paddingVertical: spacing.md,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xl,
   },
-  fieldRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-  },
-  fieldLabel: {
-    fontSize: typography.sizes.base,
-    color: colors.text.secondary,
-    fontWeight: typography.weights.semibold,
-    width: 80,
-  },
-  pickerWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  notesInput: {
     flex: 1,
-    justifyContent: 'flex-end',
-  },
-  fieldValueInput: {
-    flex: 1,
-    textAlign: 'right',
     color: colors.text.primary,
     fontSize: typography.sizes.base,
-    fontWeight: typography.weights.semibold,
     paddingVertical: 0,
-    marginRight: spacing.xs,
-  },
-  fieldValueText: {
-    color: colors.text.primary,
-    fontSize: typography.sizes.base,
-    fontWeight: typography.weights.semibold,
-    marginRight: spacing.xs,
   },
   saveContainer: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
   },
-  saveBtn: {
+  gradientSaveBtn: {
     width: '100%',
+    height: 54,
     borderRadius: radius.full,
-    backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  saveBtnText: {
+    color: '#FFFFFF',
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.bold,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.lg,
@@ -531,8 +979,8 @@ const styles = StyleSheet.create({
   pickerModalContent: {
     width: '100%',
     backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -554,10 +1002,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   pickerNavBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.secondary,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -603,60 +1051,10 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
   },
   pickerDisabledCell: {
-    opacity: 0.25,
+    opacity: 0.2,
   },
   pickerDisabledCellText: {
     color: colors.text.muted,
-  },
-  aiBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(138, 63, 252, 0.06)',
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(138, 63, 252, 0.25)',
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  aiBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  aiIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  aiBannerTextContainer: {
-    justifyContent: 'center',
-  },
-  aiBannerTitle: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.bold,
-    color: colors.text.primary,
-  },
-  aiBannerSubtitle: {
-    fontSize: typography.sizes.xs - 1,
-    color: colors.text.secondary,
-    marginTop: 2,
-  },
-  proLabel: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  proLabelText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: typography.weights.bold,
   },
 });
 
