@@ -65,6 +65,10 @@ const DashboardStackScreen = () => (
     <DashboardStack.Screen name="Calendar" component={CalendarViewScreen} />
     <DashboardStack.Screen name="Budget" component={BudgetScreen} />
     <DashboardStack.Screen name="Notifications" component={NotificationScreen} />
+    <DashboardStack.Screen name="Subscription" component={SubscriptionScreen} />
+    <DashboardStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
+    <DashboardStack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
+    <DashboardStack.Screen name="PremiumFeatures" component={PremiumFeaturesScreen} />
   </DashboardStack.Navigator>
 );
 
@@ -94,6 +98,10 @@ const TransactionsStackScreen = () => (
     <TransactionsStack.Screen name="Categories" component={CategoriesScreen} />
     <TransactionsStack.Screen name="Calendar" component={CalendarViewScreen} />
     <TransactionsStack.Screen name="Notifications" component={NotificationScreen} />
+    <TransactionsStack.Screen name="Subscription" component={SubscriptionScreen} />
+    <TransactionsStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
+    <TransactionsStack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
+    <TransactionsStack.Screen name="PremiumFeatures" component={PremiumFeaturesScreen} />
   </TransactionsStack.Navigator>
 );
 

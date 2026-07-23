@@ -9,13 +9,20 @@ import { Platform } from 'react-native';
 // - iOS Simulator / Web connects via localhost:5000
 // ─────────────────────────────────────────────────────────────
 
-// Host machine IP address on your local network
-// (Works for BOTH physical Android phone over Wi-Fi and Android Emulator)
-const LOCAL_IP = '10.116.159.195'; 
+// Host machine IP address on your local Wi-Fi network
+// (Works for physical Android / iOS phone over Wi-Fi)
+const LOCAL_IP = '10.245.170.195';
 
-const BASE_URL = Platform.OS === 'android'
-  ? `http://${LOCAL_IP}:5000/api`
-  : 'http://localhost:5000/api';
+const getBaseUrl = () => {
+  if (process.env.API_URL) {
+    return process.env.API_URL;
+  }
+  return Platform.OS === 'android'
+    ? `http://${LOCAL_IP}:5000/api`
+    : 'http://localhost:5000/api';
+};
+
+const BASE_URL = getBaseUrl();
 
 console.log('[API Client] Target Base URL:', BASE_URL);
 

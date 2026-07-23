@@ -72,9 +72,35 @@ const TransactionsScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
 
-  // Custom Filter Modal sheet
+  // Custom Filter Modal sheet states
   const [filterModalVisible, setFilterModalVisible] = useState(false);
-  const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'oldest' | 'amount_high'
+  const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'oldest' | 'amount_high' | 'amount_low'
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('All'); // 'All' | 'UPI' | 'Card' | 'Cash' | 'Bank Transfer'
+  const [dateRangeFilter, setDateRangeFilter] = useState('All Time'); // 'All Time' | 'Today' | 'This Week' | 'This Month' | 'Last Month'
+
+  // Active filters count indicator
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (activeFilter !== 'All') count++;
+    if (selectedPaymentMethod !== 'All') count++;
+    if (minAmount.trim()) count++;
+    if (maxAmount.trim()) count++;
+    if (dateRangeFilter !== 'All Time') count++;
+    if (sortBy !== 'newest') count++;
+    return count;
+  }, [activeFilter, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy]);
+
+  const resetAllFilters = () => {
+    setSearchQuery('');
+    setActiveFilter('All');
+    setSelectedPaymentMethod('All');
+    setMinAmount('');
+    setMaxAmount('');
+    setDateRangeFilter('All Time');
+    setSortBy('newest');
+  };
 
   // Export modal
   const [exportModalVisible, setExportModalVisible] = useState(false);
@@ -149,21 +175,28 @@ const TransactionsScreen = ({ navigation }) => {
     };
   }, [transactions]);
 
-  // Client-side search and filters
+  // Client-side advanced multi-criteria search & filtering
   const filteredTxns = useMemo(() => {
     let result = transactions ? [...transactions] : [];
 
-    // 1. Search Query filter
+    // 1. Smart Multi-Field Search Query
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (t) =>
-          t.description.toLowerCase().includes(q) ||
-          t.category.toLowerCase().includes(q)
-      );
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((t) => {
+        const descMatch = (t.description || '').toLowerCase().includes(q);
+        const catMatch = (t.category || '').toLowerCase().includes(q);
+        const methodMatch = (t.paymentMethod || '').toLowerCase().includes(q);
+        const notesMatch = (t.notes || t.note || '').toLowerCase().includes(q);
+        const amountMatch = (t.amount ? String(t.amount) : '').includes(q);
+        const dateMatch = t.transactionDate
+          ? dayjs(t.transactionDate).format('DD MMMM YYYY MMMM dddd').toLowerCase().includes(q)
+          : false;
+
+        return descMatch || catMatch || methodMatch || notesMatch || amountMatch || dateMatch;
+      });
     }
 
-    // 2. Chip filter
+    // 2. Main Category / Type Filter Chip
     if (activeFilter !== 'All') {
       if (activeFilter === 'Income') {
         result = result.filter((t) => t.type === 'income');
@@ -171,12 +204,43 @@ const TransactionsScreen = ({ navigation }) => {
         result = result.filter((t) => t.type === 'expense');
       } else {
         result = result.filter(
-          (t) => t.category.toLowerCase() === activeFilter.toLowerCase()
+          (t) => (t.category || '').toLowerCase() === activeFilter.toLowerCase()
         );
       }
     }
 
-    // 3. Sorting
+    // 3. Payment Method Filter
+    if (selectedPaymentMethod !== 'All') {
+      result = result.filter(
+        (t) => (t.paymentMethod || '').toLowerCase().includes(selectedPaymentMethod.toLowerCase())
+      );
+    }
+
+    // 4. Amount Range Filter
+    if (minAmount.trim() && !isNaN(Number(minAmount))) {
+      result = result.filter((t) => Number(t.amount) >= Number(minAmount));
+    }
+    if (maxAmount.trim() && !isNaN(Number(maxAmount))) {
+      result = result.filter((t) => Number(t.amount) <= Number(maxAmount));
+    }
+
+    // 5. Date Range Filter Presets
+    if (dateRangeFilter !== 'All Time') {
+      const now = dayjs();
+      if (dateRangeFilter === 'Today') {
+        result = result.filter((t) => dayjs(t.transactionDate).isSame(now, 'day'));
+      } else if (dateRangeFilter === 'This Week') {
+        const startOfWeek = now.startOf('week');
+        result = result.filter((t) => dayjs(t.transactionDate).isAfter(startOfWeek));
+      } else if (dateRangeFilter === 'This Month') {
+        result = result.filter((t) => dayjs(t.transactionDate).isSame(now, 'month'));
+      } else if (dateRangeFilter === 'Last Month') {
+        const lastMonth = now.subtract(1, 'month');
+        result = result.filter((t) => dayjs(t.transactionDate).isSame(lastMonth, 'month'));
+      }
+    }
+
+    // 6. Sorting
     if (sortBy === 'newest') {
       result.sort(
         (a, b) => dayjs(b.transactionDate).valueOf() - dayjs(a.transactionDate).valueOf()
@@ -186,11 +250,13 @@ const TransactionsScreen = ({ navigation }) => {
         (a, b) => dayjs(a.transactionDate).valueOf() - dayjs(b.transactionDate).valueOf()
       );
     } else if (sortBy === 'amount_high') {
-      result.sort((a, b) => b.amount - a.amount);
+      result.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
+    } else if (sortBy === 'amount_low') {
+      result.sort((a, b) => (Number(a.amount) || 0) - (Number(b.amount) || 0));
     }
 
     return result;
-  }, [transactions, searchQuery, activeFilter, sortBy]);
+  }, [transactions, searchQuery, activeFilter, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy]);
 
   // Group filtered transactions by formatted date
   const groupedTxns = useMemo(() => {
@@ -275,7 +341,7 @@ const TransactionsScreen = ({ navigation }) => {
         <View style={styles.walletBadgesRow}>
           <View style={styles.statBadge}>
             <View style={styles.incomeIconCircle}>
-              <Icon name="arrow-down-left" size={14} color="#00D26A" />
+              <Icon name="arrow-down-circle" size={16} color="#00D26A" />
             </View>
             <View>
               <Text style={styles.statBadgeLabel}>Income</Text>
@@ -289,7 +355,7 @@ const TransactionsScreen = ({ navigation }) => {
 
           <View style={styles.statBadge}>
             <View style={styles.expenseIconCircle}>
-              <Icon name="arrow-up-right" size={14} color="#FF4D67" />
+              <Icon name="arrow-up-circle" size={16} color="#FF4D67" />
             </View>
             <View>
               <Text style={styles.statBadgeLabel}>Expense</Text>
@@ -322,16 +388,86 @@ const TransactionsScreen = ({ navigation }) => {
         </View>
       </LinearGradient>
 
-      {/* Search Input Bar */}
+      {/* Search Input Bar with Clear Button */}
       <View style={styles.searchRow}>
-        <Input
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Search descriptions, categories..."
-          icon={<Icon name="search-outline" size={20} color={colors.text.muted} />}
-          style={styles.searchInput}
-        />
+        <View style={styles.searchInputContainer}>
+          <Input
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search desc, amount (e.g. 500), category, method..."
+            icon={<Icon name="search-outline" size={20} color={colors.text.muted} />}
+            style={styles.searchInput}
+          />
+          {searchQuery.trim().length > 0 && (
+            <TouchableOpacity
+              style={styles.clearSearchBtn}
+              onPress={() => setSearchQuery('')}
+            >
+              <Icon name="close-circle" size={18} color={colors.text.muted} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
+
+      {/* Results Count & Quick Reset Row */}
+      {(searchQuery.trim().length > 0 || activeFiltersCount > 0) && (
+        <View style={styles.resultsBadgeRow}>
+          <Text style={styles.resultsCountText}>
+            {filteredTxns.length} transaction{filteredTxns.length !== 1 ? 's' : ''} found
+          </Text>
+          <TouchableOpacity onPress={resetAllFilters}>
+            <Text style={styles.resetAllBtnText}>Reset All</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Active Filter Removable Pills */}
+      {activeFiltersCount > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.activePillsScroll}
+        >
+          {activeFilter !== 'All' && (
+            <TouchableOpacity style={styles.activePill} onPress={() => setActiveFilter('All')}>
+              <Text style={styles.activePillText}>{activeFilter}</Text>
+              <Icon name="close" size={12} color="#FFFFFF" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+          )}
+          {selectedPaymentMethod !== 'All' && (
+            <TouchableOpacity style={styles.activePill} onPress={() => setSelectedPaymentMethod('All')}>
+              <Text style={styles.activePillText}>Method: {selectedPaymentMethod}</Text>
+              <Icon name="close" size={12} color="#FFFFFF" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+          )}
+          {minAmount.trim() !== '' && (
+            <TouchableOpacity style={styles.activePill} onPress={() => setMinAmount('')}>
+              <Text style={styles.activePillText}>Min: ₹{minAmount}</Text>
+              <Icon name="close" size={12} color="#FFFFFF" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+          )}
+          {maxAmount.trim() !== '' && (
+            <TouchableOpacity style={styles.activePill} onPress={() => setMaxAmount('')}>
+              <Text style={styles.activePillText}>Max: ₹{maxAmount}</Text>
+              <Icon name="close" size={12} color="#FFFFFF" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+          )}
+          {dateRangeFilter !== 'All Time' && (
+            <TouchableOpacity style={styles.activePill} onPress={() => setDateRangeFilter('All Time')}>
+              <Text style={styles.activePillText}>{dateRangeFilter}</Text>
+              <Icon name="close" size={12} color="#FFFFFF" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+          )}
+          {sortBy !== 'newest' && (
+            <TouchableOpacity style={styles.activePill} onPress={() => setSortBy('newest')}>
+              <Text style={styles.activePillText}>
+                Sort: {sortBy === 'oldest' ? 'Oldest' : sortBy === 'amount_high' ? 'High Amount' : 'Low Amount'}
+              </Text>
+              <Icon name="close" size={12} color="#FFFFFF" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      )}
 
       {/* Filter Chips Horizontal Scroll */}
       <ScrollView
@@ -422,7 +558,9 @@ const TransactionsScreen = ({ navigation }) => {
           style={[styles.floatingFilterBtn, shadow.lg]}
         >
           <Icon name="options-outline" size={20} color="#FFFFFF" />
-          <Text style={styles.filterBtnText}>Sort & Filter</Text>
+          <Text style={styles.filterBtnText}>
+            Sort & Filter{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}
+          </Text>
         </TouchableOpacity>
 
         {/* Export Modal */}
@@ -492,7 +630,7 @@ const TransactionsScreen = ({ navigation }) => {
           </View>
         </Modal>
 
-        {/* Filter / Sort modal bottom sheet */}
+        {/* Advanced Filter & Sort Modal Bottom Sheet */}
         <Modal
           visible={filterModalVisible}
           transparent
@@ -501,50 +639,116 @@ const TransactionsScreen = ({ navigation }) => {
         >
           <View style={styles.modalOverlay}>
             <Card style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Sort & Filter</Text>
-                <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
-                  <Icon name="close" size={24} color={colors.text.primary} />
-                </TouchableOpacity>
-              </View>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Advanced Filters</Text>
+                  <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                    <Icon name="close" size={24} color={colors.text.primary} />
+                  </TouchableOpacity>
+                </View>
 
-              <Text style={styles.filterGroupLabel}>Sort Order</Text>
-
-              <View style={styles.filterOptions}>
-                {[
-                  { label: 'Newest First', value: 'newest' },
-                  { label: 'Oldest First', value: 'oldest' },
-                  { label: 'Highest Amount', value: 'amount_high' },
-                ].map((opt) => {
-                  const isSelected = sortBy === opt.value;
-                  return (
-                    <TouchableOpacity
-                      key={opt.value}
-                      activeOpacity={0.8}
-                      onPress={() => setSortBy(opt.value)}
-                      style={[styles.filterOptRow, isSelected && styles.filterOptRowActive]}
-                    >
-                      <Text
-                        style={[
-                          styles.filterOptText,
-                          isSelected && styles.filterOptTextActive,
-                        ]}
+                {/* 1. Sort Order */}
+                <Text style={styles.filterGroupLabel}>Sort Order</Text>
+                <View style={styles.filterOptionsGrid}>
+                  {[
+                    { label: 'Newest First', value: 'newest' },
+                    { label: 'Oldest First', value: 'oldest' },
+                    { label: 'Highest Amount', value: 'amount_high' },
+                    { label: 'Lowest Amount', value: 'amount_low' },
+                  ].map((opt) => {
+                    const isSelected = sortBy === opt.value;
+                    return (
+                      <TouchableOpacity
+                        key={opt.value}
+                        activeOpacity={0.8}
+                        onPress={() => setSortBy(opt.value)}
+                        style={[styles.filterChipItem, isSelected && styles.filterChipItemActive]}
                       >
-                        {opt.label}
-                      </Text>
-                      {isSelected && (
-                        <Icon name="checkmark" size={18} color={colors.primary} />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                        <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
 
-              <PrimaryButton
-                title="Apply Filters"
-                onPress={() => setFilterModalVisible(false)}
-                style={styles.modalApplyBtn}
-              />
+                {/* 2. Date Range Presets */}
+                <Text style={styles.filterGroupLabel}>Date Period</Text>
+                <View style={styles.filterOptionsGrid}>
+                  {['All Time', 'Today', 'This Week', 'This Month', 'Last Month'].map((period) => {
+                    const isSelected = dateRangeFilter === period;
+                    return (
+                      <TouchableOpacity
+                        key={period}
+                        activeOpacity={0.8}
+                        onPress={() => setDateRangeFilter(period)}
+                        style={[styles.filterChipItem, isSelected && styles.filterChipItemActive]}
+                      >
+                        <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                          {period}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* 3. Payment Method */}
+                <Text style={styles.filterGroupLabel}>Payment Method</Text>
+                <View style={styles.filterOptionsGrid}>
+                  {['All', 'UPI', 'Card', 'Cash', 'Bank Transfer'].map((method) => {
+                    const isSelected = selectedPaymentMethod === method;
+                    return (
+                      <TouchableOpacity
+                        key={method}
+                        activeOpacity={0.8}
+                        onPress={() => setSelectedPaymentMethod(method)}
+                        style={[styles.filterChipItem, isSelected && styles.filterChipItemActive]}
+                      >
+                        <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                          {method}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* 4. Amount Range Inputs */}
+                <Text style={styles.filterGroupLabel}>Amount Range (₹)</Text>
+                <View style={styles.amountInputsRow}>
+                  <View style={{ flex: 1 }}>
+                    <Input
+                      value={minAmount}
+                      onChangeText={setMinAmount}
+                      placeholder="Min Amount (e.g. 100)"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <Text style={styles.dashText}>─</Text>
+                  <View style={{ flex: 1 }}>
+                    <Input
+                      value={maxAmount}
+                      onChangeText={setMaxAmount}
+                      placeholder="Max Amount (e.g. 5000)"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </View>
+
+                {/* Modal Action Buttons */}
+                <View style={styles.modalActionsRow}>
+                  <TouchableOpacity
+                    style={styles.modalResetBtn}
+                    onPress={resetAllFilters}
+                  >
+                    <Text style={styles.modalResetText}>Reset All</Text>
+                  </TouchableOpacity>
+                  <PrimaryButton
+                    title="Apply Filters"
+                    onPress={() => setFilterModalVisible(false)}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              </ScrollView>
             </Card>
           </View>
         </Modal>
@@ -919,6 +1123,109 @@ const styles = StyleSheet.create({
   },
   modalApplyBtn: {
     marginTop: spacing.md,
+  },
+  searchInputContainer: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  clearSearchBtn: {
+    position: 'absolute',
+    right: 14,
+    top: 14,
+    padding: 4,
+    zIndex: 10,
+  },
+  resultsBadgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  resultsCountText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.primaryLight,
+  },
+  resetAllBtnText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.danger || '#FF4D67',
+  },
+  activePillsScroll: {
+    gap: spacing.xs,
+    paddingBottom: spacing.xs,
+  },
+  activePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+  },
+  activePillText: {
+    color: '#FFFFFF',
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semibold,
+  },
+  filterOptionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  filterChipItem: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterChipItemActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterChipText: {
+    fontSize: typography.sizes.xs + 1,
+    color: colors.text.secondary,
+    fontWeight: typography.weights.medium,
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: typography.weights.bold,
+  },
+  amountInputsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  dashText: {
+    color: colors.text.muted,
+    fontWeight: 'bold',
+  },
+  modalActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  modalResetBtn: {
+    height: 48,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalResetText: {
+    color: colors.danger || '#FF4D67',
+    fontWeight: typography.weights.bold,
+    fontSize: typography.sizes.sm,
   },
 });
 

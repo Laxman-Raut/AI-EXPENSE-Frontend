@@ -71,13 +71,22 @@ export const usePayment = () => {
       })).unwrap();
 
       // ─── Step 5: Navigate to success screen ───────────────────────────────────
-      navigation.navigate('PaymentSuccess', {
+      const successParams = {
         planName: planNameFormatted,
         amount: amountFormatted,
         orderId: checkoutData.razorpay_order_id,
         paymentId: checkoutData.razorpay_payment_id,
         endDate: verifyResult?.subscription?.endDate || null,
-      });
+      };
+
+      try {
+        navigation.navigate('PaymentSuccess', successParams);
+      } catch {
+        navigation.navigate('Profile', {
+          screen: 'PaymentSuccess',
+          params: successParams,
+        });
+      }
 
     } catch (err: any) {
       // Razorpay checkout cancelled: err.code === 0 and err.description === 'Cancelled by user'
@@ -89,10 +98,19 @@ export const usePayment = () => {
       // Payment sheet opened but payment was declined/failed
       const isFailed = err?.description && err?.code !== 0;
       if (isFailed) {
-        navigation.navigate('PaymentFailed', {
+        const failedParams = {
           errorMessage: err.description || 'Payment declined by payment provider.',
           orderId: err?.metadata?.order_id || '',
-        });
+        };
+
+        try {
+          navigation.navigate('PaymentFailed', failedParams);
+        } catch {
+          navigation.navigate('Profile', {
+            screen: 'PaymentFailed',
+            params: failedParams,
+          });
+        }
         return;
       }
 
