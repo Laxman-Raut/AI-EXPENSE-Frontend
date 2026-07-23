@@ -8,7 +8,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import { AlertProvider } from './src/context/AlertContext';
 import { createTables } from './src/database/schema';
 import AppNavigator from './src/navigation/AppNavigator';
-
+import './src/config/googleSignin';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

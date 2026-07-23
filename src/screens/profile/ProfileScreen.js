@@ -635,7 +635,7 @@ const ProfileScreen = ({ navigation }) => {
               </Text>
 
               <Text style={styles.aboutFooter}>
-                Made with ❤️ by Deepmind Advanced Agentic Coding
+                    Developed by Laxman Raut
               </Text>
             </View>
           </View>
