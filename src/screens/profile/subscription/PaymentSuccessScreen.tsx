@@ -104,7 +104,7 @@ const PaymentSuccessScreen: React.FC<PaymentSuccessScreenProps> = ({ navigation,
           <PrimaryButton
             title="Go to Dashboard"
             type="outline"
-            onPress={() => navigation.navigate('TodayHome')}
+            onPress={() => navigation.navigate('Today', { screen: 'TodayHome' })}
             style={[styles.btn, styles.secondaryBtn]}
             textStyle={styles.secondaryBtnText}
           />

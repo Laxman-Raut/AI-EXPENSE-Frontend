@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import ScreenImport from '../../../components/templates/Screen';
@@ -74,21 +74,38 @@ const PremiumFeaturesScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     />
   );
 
+  const handleFeaturePress = (featureId: string) => {
+    switch (featureId) {
+      case 'receipt_scanner':
+        navigation.navigate('Today', { screen: 'ReceiptScanner' });
+        break;
+      case 'voice_transactions':
+        navigation.navigate('Today', { screen: 'AddTransaction' });
+        break;
+      default:
+        navigation.navigate('Today', { screen: 'TodayHome' });
+        break;
+    }
+  };
+
   const renderFeatureItem = ({ item }: { item: PremiumFeature }) => (
-    <Card style={styles.featureCard} variant="solid">
-      <View style={styles.cardHeader}>
-        <LinearGradient
-          colors={item.gradientColors}
-          style={styles.iconContainer}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Icon name={item.icon} size={28} color="#FFFFFF" />
-        </LinearGradient>
-        <Text style={styles.featureTitle}>{item.title}</Text>
-      </View>
-      <Text style={styles.featureDesc}>{item.desc}</Text>
-    </Card>
+    <TouchableOpacity activeOpacity={0.8} onPress={() => handleFeaturePress(item.id)}>
+      <Card style={styles.featureCard} variant="solid">
+        <View style={styles.cardHeader}>
+          <LinearGradient
+            colors={item.gradientColors}
+            style={styles.iconContainer}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Icon name={item.icon} size={28} color="#FFFFFF" />
+          </LinearGradient>
+          <Text style={styles.featureTitle}>{item.title}</Text>
+          <Icon name="chevron-forward" size={20} color={colors.text.secondary} />
+        </View>
+        <Text style={styles.featureDesc}>{item.desc}</Text>
+      </Card>
+    </TouchableOpacity>
   );
 
   return (

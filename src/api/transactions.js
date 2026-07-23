@@ -24,3 +24,9 @@ export const deleteTransaction = async (id) => {
   const response = await apiClient.delete(`transactions/${id}`);
   return response.data;
 };
+
+export const syncBulkTransactions = async (transactions) => {
+  const response = await apiClient.post('transactions/sync', { transactions });
+  return response.data;
+};
+

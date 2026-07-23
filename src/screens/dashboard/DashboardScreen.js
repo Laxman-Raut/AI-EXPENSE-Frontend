@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, RefreshControl, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import { useSelector } from 'react-redux';
 import { PieChart, LineChart } from 'react-native-gifted-charts';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -14,6 +15,9 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDate } from '../../utils/formatDate';
 import { useUnreadCount } from '../../hooks/useNotifications';
 import FloatingVoiceButton from '../../components/FloatingVoiceButton';
+import subscriptionService from '../../services/subscriptionService';
+import { checkAndIncrementDailyPromo } from '../../services/subscriptionPromoStorage';
+import SubscriptionPromoModal from '../../components/organisms/SubscriptionPromoModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -36,6 +40,26 @@ const DashboardScreen = ({ navigation }) => {
   const { data: summary, isLoading: summaryLoading, refetch: refetchSummary } = useDashboardSummary();
   const { data: recentTxns, isLoading: recentLoading, refetch: refetchRecent } = useRecentTransactions();
   const unreadCount = useUnreadCount();
+
+  const subscription = useSelector((state) => state.subscription);
+  const isPro = subscriptionService.isSubscriptionPro(subscription);
+  const [showPromoModal, setShowPromoModal] = useState(false);
+
+  useEffect(() => {
+    let timer;
+    const checkPromo = async () => {
+      const shouldShow = await checkAndIncrementDailyPromo(isPro);
+      if (shouldShow) {
+        timer = setTimeout(() => {
+          setShowPromoModal(true);
+        }, 1200);
+      }
+    };
+    checkPromo();
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isPro]);
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('ALL'); // 'ALL' | 'EXPENSES' | 'INCOME'
@@ -602,6 +626,12 @@ const DashboardScreen = ({ navigation }) => {
 
       {/* Unified Floating Action Buttons (Voice & Chatbot) */}
       <FloatingVoiceButton />
+
+      {/* Daily 5-times Subscription Promo Modal for Free Users */}
+      <SubscriptionPromoModal
+        visible={showPromoModal}
+        onClose={() => setShowPromoModal(false)}
+      />
     </View>
   );
 };

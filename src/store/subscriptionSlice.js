@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import subscriptionService from '../services/subscriptionService';
+import syncService from '../services/syncService';
 
 // Async Thunks
 export const fetchSubscription = createAsyncThunk(
@@ -19,6 +20,12 @@ export const upgradeUserSubscription = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const data = await subscriptionService.upgradeUserSubscription();
+      // Auto sync offline SQLite data to MongoDB Cloud upon upgrade
+      try {
+        await syncService.syncOfflineDataToCloud();
+      } catch (syncError) {
+        console.error('Auto sync after upgrade failed:', syncError);
+      }
       return data;
     } catch (error) {
       return rejectWithValue(error.message || 'Failed to upgrade subscription');
@@ -55,6 +62,12 @@ export const verifyPayment = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const data = await subscriptionService.verifyPayment(payload);
+      // Auto sync offline SQLite data to MongoDB Cloud upon payment verification
+      try {
+        await syncService.syncOfflineDataToCloud();
+      } catch (syncError) {
+        console.error('Auto sync after payment failed:', syncError);
+      }
       return data;
     } catch (error) {
       return rejectWithValue(error.message || 'Payment verification failed');
