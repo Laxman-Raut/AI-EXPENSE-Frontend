@@ -7,6 +7,43 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:876018790047:android:f860e1c56c097b8c3d3caa",
+        "android_client_info": {
+          "package_name": "com.aiexpensetracker"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "876018790047-ql6h7o36p1gqtm1l908ts5rbmgef0hvh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aiexpensetracker",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "876018790047-e6tute5i7vo2vhmfqoh59k9a0go8ltlm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3I3IhWJ0-XPzdCb-Nm6livPY996_46bA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "876018790047-e6tute5i7vo2vhmfqoh59k9a0go8ltlm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:876018790047:android:4d5d2af2f9c51f6d3d3caa",
         "android_client_info": {
           "package_name": "com.frontend"

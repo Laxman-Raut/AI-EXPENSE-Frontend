@@ -1,4 +1,4 @@
-package com.frontend
+package com.aiexpensetracker
 
 import android.content.ComponentName
 import android.content.Intent
