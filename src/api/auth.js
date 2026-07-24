@@ -17,6 +17,11 @@ export const loginUser = async (email, password) => {
   return response.data;
 };
 
+export const googleLoginUser = async (googleData) => {
+  const response = await apiClient.post('auth/google', googleData);
+  return response.data;
+};
+
 export const getProfile = async () => {
   const response = await apiClient.get('auth/me');
   return response.data;

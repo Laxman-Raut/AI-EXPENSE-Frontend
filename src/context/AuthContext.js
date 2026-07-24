@@ -4,6 +4,7 @@ import { setGlobalCurrency } from '../utils/formatCurrency';
 import {
   checkStoredAuth,
   login as loginThunk,
+  googleLogin as googleLoginThunk,
   register as registerThunk,
   logout as logoutThunk,
   updateUser as updateUserThunk,
@@ -28,6 +29,11 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const result = await dispatch(loginThunk({ email, password })).unwrap();
+    return result;
+  };
+
+  const googleLogin = async (googleData) => {
+    const result = await dispatch(googleLoginThunk(googleData)).unwrap();
     return result;
   };
 
@@ -57,6 +63,7 @@ export const AuthProvider = ({ children }) => {
         isLoading,
         isAuthenticated,
         login,
+        googleLogin,
         register,
         logout,
         refreshProfile,

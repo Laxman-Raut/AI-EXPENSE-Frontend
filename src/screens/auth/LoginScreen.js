@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -8,6 +8,7 @@ import Input from '../../components/atoms/Input';
 import PrimaryButton from '../../components/atoms/PrimaryButton';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../hooks/useAuth';
+import { configureGoogleSignIn, signInWithGoogle } from '../../services/googleAuthService';
 
 const LoginScreen = ({ navigation }) => {
   const auth = useAuth();
@@ -18,6 +19,10 @@ const LoginScreen = ({ navigation }) => {
   const [passwordError, setPasswordError] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    configureGoogleSignIn();
+  }, []);
 
   const validate = () => {
     let isValid = true;
@@ -50,6 +55,24 @@ const LoginScreen = ({ navigation }) => {
     } catch (err) {
       const message =
         err.response?.data?.message || err.message || 'Login failed. Please try again.';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const googleData = await signInWithGoogle();
+      await auth.googleLogin(googleData);
+    } catch (err) {
+      if (err?.code === 'SIGN_IN_CANCELLED' || err?.message?.includes('cancelled')) {
+        return;
+      }
+      const message =
+        err.response?.data?.message || err.message || 'Google Sign-In failed. Please try again.';
       setError(message);
     } finally {
       setLoading(false);
@@ -127,7 +150,7 @@ const LoginScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.socialButtonsContainer}>
-            <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8} onPress={handleGoogleSignIn}>
               <Icon name="logo-google" size={22} color="#FFFFFF" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8}>

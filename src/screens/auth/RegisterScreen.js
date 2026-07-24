@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -8,6 +8,7 @@ import Input from '../../components/atoms/Input';
 import PrimaryButton from '../../components/atoms/PrimaryButton';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../hooks/useAuth';
+import { configureGoogleSignIn, signInWithGoogle } from '../../services/googleAuthService';
 
 const RegisterScreen = ({ navigation }) => {
   const auth = useAuth();
@@ -20,6 +21,10 @@ const RegisterScreen = ({ navigation }) => {
   const [passwordError, setPasswordError] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    configureGoogleSignIn();
+  }, []);
 
   const validate = () => {
     let isValid = true;
@@ -60,6 +65,24 @@ const RegisterScreen = ({ navigation }) => {
         err.response?.data?.message ||
         err.message ||
         'Registration failed. Please try again.';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const googleData = await signInWithGoogle();
+      await auth.googleLogin(googleData);
+    } catch (err) {
+      if (err?.code === 'SIGN_IN_CANCELLED' || err?.message?.includes('cancelled')) {
+        return;
+      }
+      const message =
+        err.response?.data?.message || err.message || 'Google Sign-In failed. Please try again.';
       setError(message);
     } finally {
       setLoading(false);
@@ -128,6 +151,24 @@ const RegisterScreen = ({ navigation }) => {
             style={styles.signUpBtn}
           />
         </Card>
+
+        {/* Social Logins */}
+        <View style={styles.socialSection}>
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or continue with</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <View style={styles.socialButtonsContainer}>
+            <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8} onPress={handleGoogleSignIn}>
+              <Icon name="logo-google" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8}>
+              <Icon name="logo-apple" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Footer Actions */}
         <View style={styles.footer}>
@@ -212,6 +253,40 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  socialSection: {
+    alignItems: 'center',
+    marginVertical: spacing.xl,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: spacing.lg,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.divider,
+  },
+  dividerText: {
+    marginHorizontal: spacing.md,
+    color: colors.text.muted,
+    fontSize: typography.sizes.sm,
+  },
+  socialButtonsContainer: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+  },
+  socialBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   footer: {
     flexDirection: 'row',

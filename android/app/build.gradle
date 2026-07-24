@@ -112,7 +112,7 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-implementation platform("com.google.firebase:firebase-bom:34.2.0")
+implementation platform("com.google.firebase:firebase-bom:${rootProject.ext.firebaseBomVersion}")
 implementation "com.google.firebase:firebase-auth"
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
