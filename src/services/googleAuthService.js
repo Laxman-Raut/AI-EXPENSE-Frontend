@@ -1,16 +1,16 @@
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import auth from '@react-native-firebase/auth';
 
 /**
- * Configure Google Sign-In options.
- * Call this once when app mounts or before sign in.
+ * Configure Google Sign-In
+ * Call once when app starts.
  */
 export const configureGoogleSignIn = () => {
   try {
     GoogleSignin.configure({
       scopes: ['email', 'profile'],
-      // webClientId is optional if google-services.json is configured, but recommended
-      offlineAccess: true,
+      webClientId: '876018790047-e6tute5i7vo2vhmfqoh59k9a0go8ltlm.apps.googleusercontent.com',
+      offlineAccess: false,
     });
   } catch (err) {
     console.warn('[GoogleAuthService] Config warning:', err.message);
@@ -18,59 +18,71 @@ export const configureGoogleSignIn = () => {
 };
 
 /**
- * Triggers Google Sign-In flow via Google Play Services & Firebase Auth.
- * Returns { email, fullName, photoUrl, googleId, firebaseToken }
+ * Google Sign-In + Firebase Authentication
  */
 export const signInWithGoogle = async () => {
   try {
-    // 1. Ensure Play Services are available on Android
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    // Ensure GoogleSignin is configured
+    configureGoogleSignIn();
 
-    // 2. Perform Google Sign In
+    // Check Google Play Services
+    await GoogleSignin.hasPlayServices({
+      showPlayServicesUpdateDialog: true,
+    });
+
+    // Safely attempt to sign out any previous session
+    try {
+      await GoogleSignin.signOut();
+    } catch (signOutErr) {
+      console.log('[GoogleAuthService] Previous session sign out notice:', signOutErr.message);
+    }
+
+    // Start Google Sign-In
     const signInResult = await GoogleSignin.signIn();
-    console.log('[GoogleAuthService] Google Sign-In result:', signInResult);
 
-    const userObj = signInResult.data?.user || signInResult.user || {};
-    let idToken = signInResult.data?.idToken || signInResult.idToken;
+    console.log('Google Sign-In Result:', signInResult);
+
+    // Get ID Token
+    let idToken =
+      signInResult.data?.idToken || signInResult.idToken;
 
     if (!idToken) {
       const tokens = await GoogleSignin.getTokens();
       idToken = tokens.idToken;
     }
 
-    let firebaseToken = null;
-    let firebaseUser = null;
-
-    // 3. Link with Firebase Auth if idToken is available
-    if (idToken) {
-      try {
-        const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-        const userCredential = await auth().signInWithCredential(googleCredential);
-        firebaseUser = userCredential.user;
-        firebaseToken = await firebaseUser.getIdToken();
-      } catch (fbErr) {
-        console.warn('[GoogleAuthService] Firebase credential link warning:', fbErr.message);
-      }
+    if (!idToken) {
+      throw new Error('No ID Token received from Google.');
     }
 
-    const email = firebaseUser?.email || userObj.email;
-    const fullName = firebaseUser?.displayName || userObj.name || (userObj.givenName ? `${userObj.givenName} ${userObj.familyName || ''}` : 'Google User');
-    const photoUrl = firebaseUser?.photoURL || userObj.photo;
-    const googleId = firebaseUser?.uid || userObj.id;
+    // Firebase Authentication
+    const googleCredential =
+      auth.GoogleAuthProvider.credential(idToken);
 
-    if (!email) {
-      throw new Error('Could not retrieve email from Google Account.');
-    }
+    const userCredential =
+      await auth().signInWithCredential(googleCredential);
+
+    const firebaseUser = userCredential.user;
+
+    const firebaseToken = await firebaseUser.getIdToken();
 
     return {
-      email,
-      fullName: fullName.trim(),
-      photoUrl: photoUrl || '',
-      googleId: googleId || '',
-      firebaseToken: firebaseToken || '',
+      email: firebaseUser.email,
+      fullName: firebaseUser.displayName,
+      photoUrl: firebaseUser.photoURL,
+      googleId: firebaseUser.uid,
+      firebaseToken,
     };
   } catch (error) {
-    console.error('[GoogleAuthService] Error during Google Sign-In:', error);
+    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+      console.log('[GoogleAuthService] User cancelled the login flow');
+    } else if (error.code === statusCodes.IN_PROGRESS) {
+      console.log('[GoogleAuthService] Operation (e.g. sign in) is in progress already');
+    } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+      console.log('[GoogleAuthService] Play services not available or outdated');
+    } else {
+      console.error('[GoogleAuthService] Detailed error:', error.code, error.message, error);
+    }
     throw error;
   }
 };

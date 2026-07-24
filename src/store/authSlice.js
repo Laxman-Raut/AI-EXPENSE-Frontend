@@ -47,6 +47,11 @@ export const login = createAsyncThunk(
       return rejectWithValue(response.message || 'Login failed');
     } catch (error) {
       const msg = error.response?.data?.message || error.message || 'Login failed';
+      return rejectWithValue(msg);
+    }
+  }
+);
+
 export const googleLogin = createAsyncThunk(
   'auth/googleLogin',
   async (googleData, { rejectWithValue }) => {
