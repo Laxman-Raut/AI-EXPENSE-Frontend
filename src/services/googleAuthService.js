@@ -42,13 +42,14 @@ export const signInWithGoogle = async () => {
 
     console.log('Google Sign-In Result:', signInResult);
 
-    // Get ID Token
-    let idToken =
-      signInResult.data?.idToken || signInResult.idToken;
+    // Get Tokens (ID Token & Access Token)
+    let idToken = signInResult.data?.idToken || signInResult.idToken;
+    let accessToken = signInResult.data?.accessToken || signInResult.accessToken;
 
-    if (!idToken) {
+    if (!idToken || !accessToken) {
       const tokens = await GoogleSignin.getTokens();
-      idToken = tokens.idToken;
+      idToken = idToken || tokens.idToken;
+      accessToken = accessToken || tokens.accessToken;
     }
 
     if (!idToken) {
@@ -57,7 +58,7 @@ export const signInWithGoogle = async () => {
 
     // Firebase Authentication
     const googleCredential =
-      auth.GoogleAuthProvider.credential(idToken);
+      auth.GoogleAuthProvider.credential(idToken, accessToken);
 
     const userCredential =
       await auth().signInWithCredential(googleCredential);
