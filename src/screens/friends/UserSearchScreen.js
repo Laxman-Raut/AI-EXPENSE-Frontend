@@ -57,8 +57,8 @@ const UserSearchScreen = ({ navigation }) => {
     return (
       <Animated.View style={styles.userCard}>
         <View style={styles.avatarContainer}>
-          {item.avatar ? (
-            <Image source={{ uri: item.avatar }} style={styles.avatarImage} />
+          {item.avatar?.url ? (
+            <Image source={{ uri: item.avatar.url }} style={styles.avatarImage} />
           ) : (
             <View style={styles.avatarFallback}>
               <Text style={styles.avatarInitials}>{getInitials(item.fullName)}</Text>

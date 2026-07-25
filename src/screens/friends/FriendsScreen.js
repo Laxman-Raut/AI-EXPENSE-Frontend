@@ -27,10 +27,11 @@ const getInitials = (name = '') =>
     .toUpperCase();
 
 const AvatarCircle = ({ name, avatar, size = 50 }) => {
-  if (avatar) {
+  const avatarUrl = typeof avatar === 'string' ? avatar : avatar?.url;
+  if (avatarUrl) {
     return (
       <Image
-        source={{ uri: avatar }}
+        source={{ uri: avatarUrl }}
         style={{ width: size, height: size, borderRadius: size / 2 }}
       />
     );
