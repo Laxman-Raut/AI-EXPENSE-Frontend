@@ -83,7 +83,8 @@ export const register = createAsyncThunk(
       }
       return rejectWithValue(response.message || 'Registration failed');
     } catch (error) {
-      return rejectWithValue(error.message || 'Registration failed');
+      const msg = error.response?.data?.message || error.message || 'Registration failed';
+      return rejectWithValue(msg);
     }
   }
 );

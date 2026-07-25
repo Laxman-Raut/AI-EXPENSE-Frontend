@@ -11,7 +11,7 @@ import { Platform } from 'react-native';
 
 // Host machine IP address on your local Wi-Fi network
 // (Works for physical Android / iOS phone over Wi-Fi)
-const LOCAL_IP = '10.245.170.195';
+const LOCAL_IP = '10.216.21.181';
 
 const getBaseUrl = () => {
   if (process.env.API_URL) {
