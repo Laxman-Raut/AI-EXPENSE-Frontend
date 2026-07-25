@@ -26,11 +26,14 @@ import SubscriptionScreen from '../screens/profile/subscription/SubscriptionScre
 import PaymentSuccessScreen from '../screens/profile/subscription/PaymentSuccessScreen';
 import PaymentFailedScreen from '../screens/profile/subscription/PaymentFailedScreen';
 import PremiumFeaturesScreen from '../screens/profile/subscription/PremiumFeaturesScreen';
+import FriendsScreen from '../screens/friends/FriendsScreen';
+import UserSearchScreen from '../screens/friends/UserSearchScreen';
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
 const TransactionsStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
+const FriendsStack = createNativeStackNavigator();
 
 // Animated tab icon component for smooth spring animations
 const AnimatedTabIcon = ({ name, color, focused }) => {
@@ -70,6 +73,14 @@ const DashboardStackScreen = () => (
     <DashboardStack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
     <DashboardStack.Screen name="PremiumFeatures" component={PremiumFeaturesScreen} />
   </DashboardStack.Navigator>
+);
+
+// Stack navigation for Friends tab
+const FriendsStackScreen = () => (
+  <FriendsStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+    <FriendsStack.Screen name="FriendsHome" component={FriendsScreen} />
+    <FriendsStack.Screen name="UserSearch" component={UserSearchScreen} />
+  </FriendsStack.Navigator>
 );
 
 // Stack navigation for Profile tab
@@ -186,6 +197,15 @@ const MainTabs = () => {
           options={{
             tabBarIcon: ({ color, focused }) => (
               <AnimatedTabIcon name={focused ? 'wallet' : 'wallet-outline'} color={color} focused={focused} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Friends"
+          component={FriendsStackScreen}
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <AnimatedTabIcon name={focused ? 'people' : 'people-outline'} color={color} focused={focused} />
             ),
           }}
         />
