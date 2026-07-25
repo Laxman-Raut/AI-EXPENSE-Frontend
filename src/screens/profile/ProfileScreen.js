@@ -12,7 +12,8 @@ import {
   Clipboard,
   Alert,
   Image,
-  Platform
+  Platform,
+  KeyboardAvoidingView
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -376,8 +377,11 @@ const ProfileScreen = ({ navigation }) => {
           ───────────────────────────────────────────────────────────── */}
 
       {/* 1. Profile Settings Modal */}
-      <Modal visible={profileModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+      <Modal visible={profileModalVisible} animationType="slide" transparent onRequestClose={() => setProfileModalVisible(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Profile Settings</Text>
@@ -386,7 +390,7 @@ const ProfileScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody}>
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               <Text style={styles.inputLabel}>Full Name</Text>
               <TextInput
                 style={styles.textInput}
@@ -425,7 +429,7 @@ const ProfileScreen = ({ navigation }) => {
               )}
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* 2. Currency Selector Modal */}
@@ -570,8 +574,11 @@ const ProfileScreen = ({ navigation }) => {
       </Modal>
 
       {/* 6. Help & Support Modal */}
-      <Modal visible={supportModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+      <Modal visible={supportModalVisible} animationType="slide" transparent onRequestClose={() => setSupportModalVisible(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Help & Support</Text>
@@ -580,7 +587,7 @@ const ProfileScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody}>
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               <Text style={styles.inputLabel}>Subject</Text>
               <TextInput
                 style={styles.textInput}
@@ -609,7 +616,7 @@ const ProfileScreen = ({ navigation }) => {
               )}
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* 7. About App Modal */}

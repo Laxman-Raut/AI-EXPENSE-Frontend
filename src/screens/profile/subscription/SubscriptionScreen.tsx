@@ -36,6 +36,30 @@ const PLAN_COLOR_MAP: Record<string, string> = {
   enterprise: '#FFB648',
 };
 
+// Map user currency symbol → ISO code
+const SYMBOL_TO_CODE: Record<string, string> = {
+  '₹': 'INR',
+  '$': 'USD',
+  '€': 'EUR',
+  '£': 'GBP',
+};
+
+// Map ISO code → symbol
+const CODE_TO_SYMBOL: Record<string, string> = {
+  INR: '₹',
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+};
+
+// Rough conversion rates relative to INR (fallback if plan doesn't have user's currency)
+const INR_RATES: Record<string, number> = {
+  INR: 1,
+  USD: 0.012,
+  EUR: 0.011,
+  GBP: 0.0095,
+};
+
 const getBillingLabel = (cycle: string): string => {
   switch (cycle) {
     case 'monthly': return '/month';
@@ -45,15 +69,26 @@ const getBillingLabel = (cycle: string): string => {
   }
 };
 
-const formatPrice = (price: number, currency?: string): string => {
-  if (price === 0) return '₹0';
-  const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : '₹';
-  return `${symbol}${price.toLocaleString('en-IN')}`;
+const formatPrice = (price: number, planCurrency: string, userCurrencySymbol: string): string => {
+  if (price === 0) return 'Free';
+  const userCode = SYMBOL_TO_CODE[userCurrencySymbol] || 'INR';
+  const symbol = CODE_TO_SYMBOL[userCode] || userCurrencySymbol;
+
+  // If plan currency matches user currency — show directly
+  if (planCurrency === userCode) {
+    return `${symbol}${price.toLocaleString('en-IN')}`;
+  }
+
+  // Convert: assume plan price is always in INR from backend
+  const rate = INR_RATES[userCode] || 1;
+  const converted = Math.round(price * rate);
+  return `${symbol}${converted.toLocaleString('en-IN')}`;
 };
 
 const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const dispatch = useDispatch<any>();
   const subscription = useSelector((state: any) => state.subscription);
+  const userCurrency = useSelector((state: any) => state.app?.currency || '₹');
   const { startSubscriptionPayment, isLoading } = usePayment();
   const { data: plans, isLoading: plansLoading, error: plansError, refetch } = usePublicPlans();
 
@@ -79,7 +114,7 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     if (plan.price <= 0) return;
     Alert.alert(
       'Confirm Subscription',
-      `Subscribe to ${plan.name} for ${formatPrice(plan.price, plan.currency)}${getBillingLabel(plan.billingCycle)}?`,
+      `Subscribe to ${plan.name} for ${formatPrice(plan.price, plan.currency, userCurrency)}${getBillingLabel(plan.billingCycle)}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -151,10 +186,16 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <Text style={styles.planName}>{plan.name}</Text>
             <View style={styles.priceRow}>
               <Text style={[styles.planPrice, { color: planColor }]}>
-                {formatPrice(plan.price, plan.currency)}
+                {formatPrice(plan.price, plan.currency, userCurrency)}
               </Text>
               <Text style={styles.billingCycle}>{getBillingLabel(plan.billingCycle)}</Text>
             </View>
+          </View>
+          {/* Currency badge */}
+          <View style={[styles.currencyBadge, { backgroundColor: `${planColor}20` }]}>
+            <Text style={[styles.currencyBadgeText, { color: planColor }]}>
+              {SYMBOL_TO_CODE[userCurrency] || 'INR'}
+            </Text>
           </View>
           {isCurrentPlan && (
             <View style={[styles.currentBadge, { backgroundColor: `${colors.success}20` }]}>
@@ -217,7 +258,7 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           >
             <Icon name="flash" size={16} color="#FFFFFF" />
             <Text style={styles.subscribeBtnText}>
-              Subscribe — {formatPrice(plan.price, plan.currency)}
+              Subscribe — {formatPrice(plan.price, plan.currency, userCurrency)}{getBillingLabel(plan.billingCycle)}
             </Text>
           </TouchableOpacity>
         )}
@@ -473,6 +514,17 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: typography.weights.bold,
     letterSpacing: 0.5,
+  },
+  currencyBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    marginLeft: spacing.xs,
+  },
+  currencyBadgeText: {
+    fontSize: 9,
+    fontWeight: typography.weights.bold,
+    letterSpacing: 0.8,
   },
   planDescription: {
     fontSize: typography.sizes.sm - 1,
