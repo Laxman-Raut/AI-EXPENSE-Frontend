@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/Ionicons';
 import ScreenImport from '../../../components/templates/Screen';
@@ -10,6 +10,7 @@ import { colors, spacing, typography as themeTypography, radius } from '../../..
 import { usePayment } from '../../../hooks/usePayment';
 import { fetchSubscription } from '../../../store/subscriptionSlice';
 import subscriptionService from '../../../services/subscriptionService';
+import { usePublicPlans } from '../../../hooks/usePlans';
 
 // Cast JS components as any to avoid fontWeight / prop type conflicts
 const Screen = ScreenImport as any;
@@ -18,15 +19,49 @@ const Card = CardImport as any;
 const PrimaryButton = PrimaryButtonImport as any;
 const typography = themeTypography as any;
 
+// Icon mapping for plan icons from backend
+const PLAN_ICON_MAP: Record<string, string> = {
+  crown: 'trophy',
+  zap: 'flash',
+  layers: 'layers',
+  server: 'server',
+  shield: 'shield-checkmark',
+};
+
+// Color mapping for plan accent colors
+const PLAN_COLOR_MAP: Record<string, string> = {
+  free: '#8E949A',
+  basic: '#4B8CFF',
+  pro: '#8A3FFC',
+  enterprise: '#FFB648',
+};
+
+const getBillingLabel = (cycle: string): string => {
+  switch (cycle) {
+    case 'monthly': return '/month';
+    case 'yearly': return '/year';
+    case 'lifetime': return '/forever';
+    default: return '';
+  }
+};
+
+const formatPrice = (price: number, currency?: string): string => {
+  if (price === 0) return '₹0';
+  const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : '₹';
+  return `${symbol}${price.toLocaleString('en-IN')}`;
+};
+
 const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const dispatch = useDispatch<any>();
   const subscription = useSelector((state: any) => state.subscription);
   const { startSubscriptionPayment, isLoading } = usePayment();
+  const { data: plans, isLoading: plansLoading, error: plansError, refetch } = usePublicPlans();
 
-  const [selectedPlan, setSelectedPlan] = useState<'pro_monthly' | 'pro_yearly'>('pro_yearly');
+  const [selectedPlanSlug, setSelectedPlanSlug] = useState<string | null>(null);
   const fadeAnim = useState(new Animated.Value(0))[0];
 
-  const isPro = subscriptionService.isSubscriptionPro(subscription);
+  const isPremium = subscriptionService.isSubscriptionPro(subscription);
+  const currentPlanSlug = subscription?.plan || 'free';
 
   useEffect(() => {
     // Fetch latest subscription status on mount
@@ -40,8 +75,19 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }).start();
   }, [dispatch, fadeAnim]);
 
-  const handleSubscribe = () => {
-    startSubscriptionPayment(selectedPlan);
+  const handleSubscribe = (plan: any) => {
+    if (plan.price <= 0) return;
+    Alert.alert(
+      'Confirm Subscription',
+      `Subscribe to ${plan.name} for ${formatPrice(plan.price, plan.currency)}${getBillingLabel(plan.billingCycle)}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Subscribe',
+          onPress: () => startSubscriptionPayment(plan.slug, plan.name, plan.price),
+        },
+      ]
+    );
   };
 
   const handleRestorePurchase = () => {
@@ -61,144 +107,215 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const renderHeader = () => (
     <Header
-      title="Upgrade Premium"
+      title="Subscription Plans"
       leftIcon={<Icon name="chevron-back" size={24} color={colors.text.primary} />}
       onLeftPress={() => navigation.goBack()}
     />
   );
 
-  const benefits = [
-    { name: 'AI Chat Assistant', free: '❌', pro: 'Unlimited & Priority' },
-    { name: 'AI Receipt Scanner', free: '❌', pro: 'Unlimited scans' },
-    { name: 'Voice Transactions', free: '❌', pro: 'Unlimited' },
-    { name: 'Cloud Sync & Backup', free: '❌', pro: 'Secure Cloud Vault' },
-    { name: 'Statement Exports', free: '❌', pro: 'PDF + Excel ' },
-  ];
+  // Sort plans: free last, paid plans by price ascending
+  const sortedPlans = React.useMemo(() => {
+    if (!plans || !Array.isArray(plans)) return [];
+    return [...plans].sort((a: any, b: any) => {
+      if (a.price === 0 && b.price > 0) return 1;
+      if (a.price > 0 && b.price === 0) return -1;
+      return (a.displayOrder ?? a.price) - (b.displayOrder ?? b.price);
+    });
+  }, [plans]);
+
+  const renderPlanCard = (plan: any) => {
+    const isCurrentPlan = currentPlanSlug === plan.slug || 
+      (currentPlanSlug === 'pro' && plan.slug === 'pro') ||
+      (currentPlanSlug === 'basic' && plan.slug === 'basic');
+    const isSelected = selectedPlanSlug === plan.slug;
+    const isFree = plan.price === 0;
+    const planColor = PLAN_COLOR_MAP[plan.slug] || plan.color || colors.primary;
+    const planIcon = PLAN_ICON_MAP[plan.icon] || 'diamond';
+
+    return (
+      <Card
+        key={plan._id}
+        style={[
+          styles.planCard,
+          isSelected && { borderColor: planColor, backgroundColor: `${planColor}10` },
+          isCurrentPlan && styles.currentPlanCard,
+        ]}
+        variant="solid"
+      >
+        {/* Plan Header */}
+        <View style={styles.planHeader}>
+          <View style={[styles.planIconContainer, { backgroundColor: `${planColor}20` }]}>
+            <Icon name={planIcon} size={22} color={planColor} />
+          </View>
+          <View style={styles.planTitleContainer}>
+            <Text style={styles.planName}>{plan.name}</Text>
+            <View style={styles.priceRow}>
+              <Text style={[styles.planPrice, { color: planColor }]}>
+                {formatPrice(plan.price, plan.currency)}
+              </Text>
+              <Text style={styles.billingCycle}>{getBillingLabel(plan.billingCycle)}</Text>
+            </View>
+          </View>
+          {isCurrentPlan && (
+            <View style={[styles.currentBadge, { backgroundColor: `${colors.success}20` }]}>
+              <Text style={[styles.currentBadgeText, { color: colors.success }]}>CURRENT</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Description */}
+        {plan.description ? (
+          <Text style={styles.planDescription}>{plan.description}</Text>
+        ) : null}
+
+        {/* Quota Limits */}
+        {plan.limits && (
+          <View style={styles.limitsContainer}>
+            <Text style={styles.limitsTitle}>Plan Quota Limits</Text>
+            <View style={styles.limitRow}>
+              <Icon name="chatbubbles-outline" size={14} color={colors.text.secondary} />
+              <Text style={styles.limitLabel}>Chatbot Queries</Text>
+              <Text style={[styles.limitValue, { color: planColor }]}>
+                {plan.limits.chatbotLimit === 0 ? '—' : plan.limits.chatbotLimit}
+              </Text>
+            </View>
+            <View style={styles.limitRow}>
+              <Icon name="scan-outline" size={14} color={colors.text.secondary} />
+              <Text style={styles.limitLabel}>Receipt Scans</Text>
+              <Text style={[styles.limitValue, { color: planColor }]}>
+                {plan.limits.receiptScannerLimit === 0 ? '—' : plan.limits.receiptScannerLimit}
+              </Text>
+            </View>
+            <View style={styles.limitRow}>
+              <Icon name="mic-outline" size={14} color={colors.text.secondary} />
+              <Text style={styles.limitLabel}>Voice Scanner</Text>
+              <Text style={[styles.limitValue, { color: planColor }]}>
+                {plan.limits.voiceScannerLimit === 0 ? '—' : plan.limits.voiceScannerLimit}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Features */}
+        {plan.features && plan.features.length > 0 && (
+          <View style={styles.featuresContainer}>
+            {plan.features.map((feature: string, index: number) => (
+              <View key={index} style={styles.featureRow}>
+                <Icon name="checkmark-circle" size={16} color={planColor} />
+                <Text style={styles.featureText}>{feature}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Action Button */}
+        {!isCurrentPlan && !isFree && (
+          <TouchableOpacity
+            style={[styles.subscribeBtnCard, { backgroundColor: planColor }]}
+            onPress={() => handleSubscribe(plan)}
+            activeOpacity={0.8}
+          >
+            <Icon name="flash" size={16} color="#FFFFFF" />
+            <Text style={styles.subscribeBtnText}>
+              Subscribe — {formatPrice(plan.price, plan.currency)}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {isCurrentPlan && isPremium && subscription.endDate && (
+          <View style={styles.expiryRow}>
+            <Icon name="time-outline" size={14} color={colors.text.secondary} />
+            <Text style={styles.expiryText}>
+              Expires: {subscriptionService.formatRenewalDate(subscription.endDate)}
+            </Text>
+          </View>
+        )}
+
+        {isCurrentPlan && isFree && (
+          <View style={styles.freeInfoRow}>
+            <Icon name="information-circle-outline" size={14} color={colors.text.secondary} />
+            <Text style={styles.freeInfoText}>Your current plan</Text>
+          </View>
+        )}
+      </Card>
+    );
+  };
 
   return (
     <Screen header={renderHeader()} scrollable={true} loading={isLoading}>
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         
         {/* Current Subscription Status */}
-        <Card style={[styles.statusCard, isPro ? styles.proStatus : styles.freeStatus]} variant="solid">
+        <Card style={[styles.statusCard, isPremium ? styles.proStatus : styles.freeStatus]} variant="solid">
           <View style={styles.statusHeader}>
             <View style={styles.statusTitleRow}>
               <Icon
-                name={isPro ? 'ribbon' : 'person-circle-outline'}
+                name={isPremium ? 'ribbon' : 'person-circle-outline'}
                 size={28}
-                color={isPro ? '#FFD700' : colors.text.secondary}
+                color={isPremium ? '#FFD700' : colors.text.secondary}
               />
               <Text style={styles.statusTitle}>
-                {isPro ? 'Premium Pro' : 'Free Basic Plan'}
+                {isPremium ? `${subscription.plan?.charAt(0).toUpperCase()}${subscription.plan?.slice(1)} Plan` : 'Free Plan'}
               </Text>
             </View>
-            <View style={[styles.badge, isPro ? styles.badgePro : styles.badgeFree]}>
-              <Text style={styles.badgeText}>{isPro ? 'ACTIVE' : 'BASIC'}</Text>
+            <View style={[styles.badge, isPremium ? styles.badgePro : styles.badgeFree]}>
+              <Text style={styles.badgeText}>{isPremium ? 'ACTIVE' : 'FREE'}</Text>
             </View>
           </View>
 
           <Text style={styles.statusDesc}>
-            {isPro
-              ? 'Thank you for supporting us! You have complete, unrestricted access to all smart features in the ledger.'
-              : 'Unlock advanced AI scanning, unlimited voice commands, and automatic cross-device cloud backups.'}
+            {isPremium
+              ? 'Thank you for supporting us! You have access to premium features based on your plan.'
+              : 'Upgrade to a paid plan to unlock AI scanning, voice commands, cloud backups and more.'}
           </Text>
 
-          {isPro && subscription.endDate && (
-            <View style={styles.expiryRow}>
+          {isPremium && subscription.endDate && (
+            <View style={styles.statusExpiryRow}>
               <Icon name="time-outline" size={16} color={colors.text.secondary} />
-              <Text style={styles.expiryText}>
+              <Text style={styles.statusExpiryText}>
                 Renews/Expires on: {subscriptionService.formatRenewalDate(subscription.endDate)}
               </Text>
             </View>
           )}
         </Card>
 
-        {/* Pricing Toggles */}
-        {!isPro && (
-          <View style={styles.pricingSection}>
-            <Text style={styles.sectionTitle}>Choose a subscription plan</Text>
-            
-            <View style={styles.plansContainer}>
-              {/* Yearly Card */}
-              <TouchableOpacity
-                activeOpacity={0.9}
-                style={[
-                  styles.planCard,
-                  selectedPlan === 'pro_yearly' ? styles.selectedPlanCard : null,
-                ]}
-                onPress={() => setSelectedPlan('pro_yearly')}
-              >
-                {selectedPlan === 'pro_yearly' && (
-                  <View style={styles.selectedTick}>
-                    <Icon name="checkmark-circle" size={20} color={colors.primary} />
-                  </View>
-                )}
-                <View style={styles.planDiscountBadge}>
-                  <Text style={styles.discountText}>Save 16%</Text>
-                </View>
-                <Text style={styles.planPeriod}>Yearly Access</Text>
-                <Text style={styles.planPrice}>₹1,999</Text>
-                <Text style={styles.planSubprice}>Equivalent to ₹166/month</Text>
-              </TouchableOpacity>
+        {/* Plans List */}
+        <Text style={styles.sectionTitle}>Available Plans</Text>
 
-              {/* Monthly Card */}
-              <TouchableOpacity
-                activeOpacity={0.9}
-                style={[
-                  styles.planCard,
-                  selectedPlan === 'pro_monthly' ? styles.selectedPlanCard : null,
-                ]}
-                onPress={() => setSelectedPlan('pro_monthly')}
-              >
-                {selectedPlan === 'pro_monthly' && (
-                  <View style={styles.selectedTick}>
-                    <Icon name="checkmark-circle" size={20} color={colors.primary} />
-                  </View>
-                )}
-                <Text style={styles.planPeriod}>Monthly Access</Text>
-                <Text style={styles.planPrice}>₹199</Text>
-                <Text style={styles.planSubprice}>Billed monthly, cancel anytime</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Subscribe Actions */}
-            <PrimaryButton
-              title={`Subscribe Now - ${selectedPlan === 'pro_yearly' ? '₹1,999/yr' : '₹199/mo'}`}
-              type="primary"
-              onPress={handleSubscribe}
-              style={styles.subscribeBtn}
-              icon={<Icon name="flash" size={18} color="#FFFFFF" />}
-            />
-
-            <TouchableOpacity onPress={handleRestorePurchase} style={styles.restoreBtn}>
-              <Text style={styles.restoreBtnText}>Restore Previous Purchase</Text>
-            </TouchableOpacity>
+        {plansLoading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Loading plans...</Text>
           </View>
         )}
 
-        {/* Feature Comparison List */}
-        <Text style={styles.sectionTitle}>Feature Comparison</Text>
-        <Card style={styles.comparisonCard} variant="solid">
-          <View style={[styles.comparisonRow, styles.comparisonHeaderRow]}>
-            <Text style={[styles.comparisonCol, styles.comparisonHeaderCol, styles.colFeature]}>Feature</Text>
-            <Text style={[styles.comparisonCol, styles.comparisonHeaderCol, styles.colFree]}>Free</Text>
-            <Text style={[styles.comparisonCol, styles.comparisonHeaderCol, styles.colPro]}>Pro</Text>
-          </View>
+        {plansError && (
+          <Card style={styles.errorCard} variant="solid">
+            <Icon name="cloud-offline-outline" size={32} color={colors.danger} />
+            <Text style={styles.errorText}>Could not load plans</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
+              <Text style={styles.retryBtnText}>Tap to Retry</Text>
+            </TouchableOpacity>
+          </Card>
+        )}
 
-          {benefits.map((item, index) => (
-            <View
-              key={index}
-              style={[
-                styles.comparisonRow,
-                index === benefits.length - 1 ? styles.lastComparisonRow : null,
-              ]}
-            >
-              <Text style={[styles.comparisonCol, styles.colFeature, styles.featureName]}>{item.name}</Text>
-              <Text style={[styles.comparisonCol, styles.colFree, styles.colText]}>{item.free}</Text>
-              <Text style={[styles.comparisonCol, styles.colPro, styles.colTextHighlight]}>{item.pro}</Text>
-            </View>
-          ))}
-        </Card>
+        {!plansLoading && !plansError && sortedPlans.length > 0 && (
+          <View style={styles.plansList}>
+            {sortedPlans.map((plan: any) => renderPlanCard(plan))}
+          </View>
+        )}
+
+        {!plansLoading && !plansError && sortedPlans.length === 0 && (
+          <Card style={styles.emptyCard} variant="solid">
+            <Icon name="albums-outline" size={32} color={colors.text.muted} />
+            <Text style={styles.emptyText}>No plans available at the moment</Text>
+          </Card>
+        )}
+
+        {/* Restore Purchase */}
+        <TouchableOpacity onPress={handleRestorePurchase} style={styles.restoreBtn}>
+          <Text style={styles.restoreBtnText}>Restore Previous Purchase</Text>
+        </TouchableOpacity>
 
         {/* Legal Links Footer */}
         <View style={styles.footer}>
@@ -222,6 +339,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
   },
+  // ─── Current Status Card ─────────────────────────────
   statusCard: {
     padding: spacing.lg,
     borderRadius: radius.lg,
@@ -274,7 +392,7 @@ const styles = StyleSheet.create({
     lineHeight: typography.lineHeights.sm + 2,
     marginBottom: spacing.md,
   },
-  expiryRow: {
+  statusExpiryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
@@ -282,13 +400,11 @@ const styles = StyleSheet.create({
     borderTopColor: colors.divider,
     paddingTop: spacing.sm,
   },
-  expiryText: {
+  statusExpiryText: {
     fontSize: typography.sizes.xs,
     color: colors.text.secondary,
   },
-  pricingSection: {
-    marginBottom: spacing.lg,
-  },
+  // ─── Section Title ────────────────────────────────────
   sectionTitle: {
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.bold,
@@ -297,127 +413,222 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: spacing.sm,
   },
-  plansContainer: {
-    flexDirection: 'row',
+  // ─── Plans List ───────────────────────────────────────
+  plansList: {
     gap: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   planCard: {
-    flex: 1,
+    padding: spacing.lg,
     backgroundColor: colors.card,
     borderRadius: radius.lg,
     borderWidth: 1.5,
     borderColor: colors.divider,
-    padding: spacing.md,
-    position: 'relative',
-    minHeight: 140,
-    justifyContent: 'center',
   },
-  selectedPlanCard: {
+  currentPlanCard: {
     borderColor: colors.primary,
-    backgroundColor: 'rgba(138, 63, 252, 0.05)',
+    backgroundColor: 'rgba(138, 63, 252, 0.06)',
   },
-  selectedTick: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
+  planHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
   },
-  planDiscountBadge: {
-    position: 'absolute',
-    top: -10,
-    left: spacing.sm,
-    backgroundColor: colors.warning,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
+  planIconContainer: {
+    width: 42,
+    height: 42,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
   },
-  discountText: {
-    fontSize: 9,
+  planTitleContainer: {
+    flex: 1,
+  },
+  planName: {
+    fontSize: typography.sizes.base,
     fontWeight: typography.weights.bold,
-    color: colors.background,
-    textTransform: 'uppercase',
-  },
-  planPeriod: {
-    fontSize: typography.sizes.xs,
-    color: colors.text.secondary,
-    fontWeight: typography.weights.medium,
-    marginBottom: 4,
-  },
-  planPrice: {
-    fontSize: typography.sizes.lg + 4,
-    fontWeight: typography.weights.heavy,
     color: colors.text.primary,
     marginBottom: 2,
   },
-  planSubprice: {
-    fontSize: 9,
-    color: colors.text.secondary,
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
   },
-  subscribeBtn: {
-    width: '100%',
+  planPrice: {
+    fontSize: typography.sizes.lg + 2,
+    fontWeight: typography.weights.heavy,
+  },
+  billingCycle: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.secondary,
+    marginLeft: 2,
+  },
+  currentBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+  },
+  currentBadgeText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    letterSpacing: 0.5,
+  },
+  planDescription: {
+    fontSize: typography.sizes.sm - 1,
+    color: colors.text.secondary,
+    lineHeight: typography.lineHeights.sm,
     marginBottom: spacing.md,
   },
+  // ─── Quota Limits ─────────────────────────────────────
+  limitsContainer: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
+  },
+  limitsTitle: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
+  },
+  limitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    gap: spacing.sm,
+  },
+  limitLabel: {
+    flex: 1,
+    fontSize: typography.sizes.xs,
+    color: colors.text.secondary,
+  },
+  limitValue: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+  },
+  // ─── Features ─────────────────────────────────────────
+  featuresContainer: {
+    marginBottom: spacing.md,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: 3,
+  },
+  featureText: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.primary,
+    flex: 1,
+  },
+  // ─── Subscribe Button ─────────────────────────────────
+  subscribeBtnCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    marginTop: spacing.xs,
+  },
+  subscribeBtnText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: '#FFFFFF',
+  },
+  // ─── Expiry / Info Rows ───────────────────────────────
+  expiryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    paddingTop: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  expiryText: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.secondary,
+  },
+  freeInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+  },
+  freeInfoText: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.muted,
+  },
+  // ─── Loading / Error / Empty ──────────────────────────
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl * 2,
+    gap: spacing.md,
+  },
+  loadingText: {
+    fontSize: typography.sizes.sm,
+    color: colors.text.secondary,
+  },
+  errorCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.md,
+    borderColor: colors.danger,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(255, 77, 103, 0.05)',
+    marginBottom: spacing.lg,
+  },
+  errorText: {
+    fontSize: typography.sizes.sm,
+    color: colors.danger,
+    fontWeight: typography.weights.medium,
+  },
+  retryBtn: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.danger,
+    borderRadius: radius.md,
+  },
+  retryBtnText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: '#FFFFFF',
+  },
+  emptyCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.md,
+    borderRadius: radius.lg,
+    marginBottom: spacing.lg,
+  },
+  emptyText: {
+    fontSize: typography.sizes.sm,
+    color: colors.text.muted,
+  },
+  // ─── Footer ───────────────────────────────────────────
   restoreBtn: {
     alignSelf: 'center',
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.lg,
   },
   restoreBtnText: {
     fontSize: typography.sizes.xs,
     color: colors.text.secondary,
     textDecorationLine: 'underline',
-  },
-  comparisonCard: {
-    padding: spacing.md,
-    backgroundColor: colors.card,
-    borderColor: colors.divider,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    marginBottom: spacing.xl,
-  },
-  comparisonRow: {
-    flexDirection: 'row',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-    alignItems: 'center',
-  },
-  lastComparisonRow: {
-    borderBottomWidth: 0,
-  },
-  comparisonHeaderRow: {
-    borderBottomWidth: 1.5,
-    borderBottomColor: colors.divider,
-    paddingBottom: spacing.sm,
-  },
-  comparisonCol: {
-    fontSize: typography.sizes.xs,
-    color: colors.text.secondary,
-  },
-  comparisonHeaderCol: {
-    fontWeight: typography.weights.bold,
-    color: colors.text.primary,
-  },
-  colFeature: {
-    flex: 1.8,
-  },
-  colFree: {
-    flex: 1.2,
-    textAlign: 'center',
-  },
-  colPro: {
-    flex: 1.5,
-    textAlign: 'center',
-  },
-  featureName: {
-    fontWeight: typography.weights.semibold,
-    color: colors.text.primary,
-  },
-  colText: {
-    color: colors.text.secondary,
-  },
-  colTextHighlight: {
-    color: colors.primaryLight,
-    fontWeight: typography.weights.bold,
   },
   footer: {
     flexDirection: 'row',
