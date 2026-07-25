@@ -16,20 +16,20 @@ export const usePayment = () => {
   const user = useSelector((state: any) => state.auth.user);
   const subscription = useSelector((state: any) => state.subscription);
 
-  const startSubscriptionPayment = async (plan: 'pro_monthly' | 'pro_yearly') => {
+  const startSubscriptionPayment = async (planSlug: string, planName?: string, planPrice?: number) => {
     try {
       // ─── Step 1: Create a Razorpay order on our backend ───────────────────────
       // POST /api/payment/create-order  { plan }
       // Returns: { order: { id, amount, currency, ... }, payment: { _id, ... } }
-      const orderResult = await dispatch((createPaymentOrder as any)(plan)).unwrap();
+      const orderResult = await dispatch((createPaymentOrder as any)(planSlug)).unwrap();
 
       if (!orderResult?.order?.id) {
         throw new Error('Failed to retrieve order details from backend. Please try again.');
       }
 
       const { order } = orderResult;
-      const amountFormatted = plan === 'pro_monthly' ? '₹199' : '₹1,999';
-      const planNameFormatted = plan === 'pro_monthly' ? 'Pro Monthly Plan' : 'Pro Yearly Plan';
+      const amountFormatted = planPrice ? `₹${planPrice.toLocaleString('en-IN')}` : '';
+      const planNameFormatted = planName || planSlug;
 
       // ─── Step 2: Open the Razorpay native checkout sheet ──────────────────────
       // The native SDK accepts `order_id` correctly as a body field — this is

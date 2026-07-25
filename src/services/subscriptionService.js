@@ -83,8 +83,8 @@ class SubscriptionService {
    */
   isSubscriptionPro(subscription) {
     if (!subscription) return false;
-    const isProPlan = ['pro', 'pro_monthly', 'pro_yearly'].includes(subscription.plan);
-    return isProPlan && subscription.status === 'active';
+    const isFreePlan = !subscription.plan || subscription.plan === 'free';
+    return !isFreePlan && subscription.status === 'active';
   }
 
   /**

@@ -6,7 +6,7 @@ import { ApiResponse, CreateOrderResponse, VerifyPaymentPayload } from '../types
  * POST /api/payment/create-order
  */
 export const createPaymentOrder = async (
-  plan: 'pro_monthly' | 'pro_yearly'
+  plan: string
 ): Promise<ApiResponse<CreateOrderResponse>> => {
   const response = await apiClient.post('payment/create-order', { plan });
   return response.data;
