@@ -9,9 +9,10 @@ import { Platform } from 'react-native';
 // - iOS Simulator / Web connects via localhost:5000
 // ─────────────────────────────────────────────────────────────
 
-// Host machine IP address on your local Wi-Fi network
-// (Works for physical Android / iOS phone over Wi-Fi)
-const LOCAL_IP = '10.216.21.181';
+// Host machine IP address on your local Wi-Fi network (for physical phone)
+const LOCAL_IP = '10.245.170.195';
+// Android Emulator special loopback IP to host machine
+const EMULATOR_IP = '10.0.2.2';
 
 const getBaseUrl = () => {
   if (process.env.API_URL) {

@@ -42,6 +42,11 @@ const CreateEditGroupScreen = ({ route, navigation }) => {
       return;
     }
 
+    if (name.trim().length < 3) {
+      Alert.alert('Validation Error', 'Group name must be at least 3 characters long.');
+      return;
+    }
+
     setSaving(true);
     try {
       if (isEditing && existingGroup?._id) {
