@@ -28,6 +28,9 @@ import PaymentFailedScreen from '../screens/profile/subscription/PaymentFailedSc
 import PremiumFeaturesScreen from '../screens/profile/subscription/PremiumFeaturesScreen';
 import FriendsScreen from '../screens/friends/FriendsScreen';
 import UserSearchScreen from '../screens/friends/UserSearchScreen';
+import GroupsListScreen from '../screens/groups/GroupsListScreen';
+import GroupDetailsScreen from '../screens/groups/GroupDetailsScreen';
+import CreateEditGroupScreen from '../screens/groups/CreateEditGroupScreen';
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
@@ -80,6 +83,9 @@ const FriendsStackScreen = () => (
   <FriendsStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
     <FriendsStack.Screen name="FriendsHome" component={FriendsScreen} />
     <FriendsStack.Screen name="UserSearch" component={UserSearchScreen} />
+    <FriendsStack.Screen name="GroupsList" component={GroupsListScreen} />
+    <FriendsStack.Screen name="GroupDetails" component={GroupDetailsScreen} />
+    <FriendsStack.Screen name="CreateEditGroup" component={CreateEditGroupScreen} />
   </FriendsStack.Navigator>
 );
 

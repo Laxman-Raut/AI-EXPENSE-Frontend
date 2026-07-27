@@ -15,8 +15,10 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useFriends } from '../../hooks/useFriends';
+import { useGroups } from '../../hooks/useGroups';
+import GroupsListScreen from '../groups/GroupsListScreen';
 
-const TABS = ['Friends', 'Requests'];
+const TABS = ['Friends', 'Groups', 'Requests'];
 
 const getInitials = (name = '') =>
   name
@@ -210,7 +212,9 @@ const FriendsScreen = ({ navigation }) => {
       </View>
 
       {/* ── Content ───────────────────────────────────────────────────────── */}
-      {loading ? (
+      {activeTab === 'Groups' ? (
+        <GroupsListScreen navigation={navigation} />
+      ) : loading ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} size="large" />
           <Text style={styles.loadingText}>Loading...</Text>
