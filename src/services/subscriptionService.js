@@ -44,7 +44,8 @@ class SubscriptionService {
       }
       throw new Error(response?.message || 'Failed to create payment order');
     } catch (error) {
-      throw new Error(error.message || 'Failed to create payment order');
+      const msg = error.response?.data?.message || error.message || 'Failed to create payment order';
+      throw new Error(msg);
     }
   }
 
@@ -59,7 +60,8 @@ class SubscriptionService {
       }
       throw new Error(response?.message || 'Failed to verify payment');
     } catch (error) {
-      throw new Error(error.message || 'Failed to verify payment');
+      const msg = error.response?.data?.message || error.message || 'Failed to verify payment';
+      throw new Error(msg);
     }
   }
 
