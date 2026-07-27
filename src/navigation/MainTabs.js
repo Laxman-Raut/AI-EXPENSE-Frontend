@@ -31,6 +31,8 @@ import UserSearchScreen from '../screens/friends/UserSearchScreen';
 import GroupsListScreen from '../screens/groups/GroupsListScreen';
 import GroupDetailsScreen from '../screens/groups/GroupDetailsScreen';
 import CreateEditGroupScreen from '../screens/groups/CreateEditGroupScreen';
+import CreateSplitRequestScreen from '../screens/groups/CreateSplitRequestScreen';
+import SplitRequestDetailScreen from '../screens/groups/SplitRequestDetailScreen';
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
@@ -86,6 +88,8 @@ const FriendsStackScreen = () => (
     <FriendsStack.Screen name="GroupsList" component={GroupsListScreen} />
     <FriendsStack.Screen name="GroupDetails" component={GroupDetailsScreen} />
     <FriendsStack.Screen name="CreateEditGroup" component={CreateEditGroupScreen} />
+    <FriendsStack.Screen name="CreateSplitRequest" component={CreateSplitRequestScreen} />
+    <FriendsStack.Screen name="SplitRequestDetail" component={SplitRequestDetailScreen} />
   </FriendsStack.Navigator>
 );
 

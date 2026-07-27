@@ -17,6 +17,9 @@ import LinearGradient from 'react-native-linear-gradient';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useGroupDetails, useGroups } from '../../hooks/useGroups';
 import { useFriends } from '../../hooks/useFriends';
+import { useGroupSplitRequests } from '../../hooks/useSplitRequests';
+import { formatCurrency } from '../../utils/formatCurrency';
+import dayjs from 'dayjs';
 
 const getInitials = (name = '') =>
   name
@@ -54,18 +57,32 @@ const AvatarCircle = ({ name, avatar, size = 44 }) => {
 
 const GroupDetailsScreen = ({ route, navigation }) => {
   const { groupId, groupName } = route.params || {};
-  const { group, loading, error, refetch } = useGroupDetails(groupId);
+  const [activeTab, setActiveTab] = useState('Splits'); // 'Splits' or 'Members'
+
+  const { group, loading, error, refetch: refetchGroup } = useGroupDetails(groupId);
   const { addMember, removeMember, leaveGroup, deleteGroup } = useGroups();
   const { friends } = useFriends();
-
-  const [addModalVisible, setAddModalVisible] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
 
   const createdBy = group?.createdBy || {};
   const createdById = typeof createdBy === 'object' ? createdBy._id || createdBy.id : createdBy;
   const members = group?.members || [];
 
-  // Helper to check if a friend is already in group
+  const {
+    splitRequests,
+    loading: splitsLoading,
+    refetch: refetchSplits,
+    balanceSummary,
+    updateSplit,
+  } = useGroupSplitRequests(groupId, createdById);
+
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const handleRefresh = () => {
+    refetchGroup();
+    refetchSplits();
+  };
+
   const isMemberAlready = (friendUserId) => {
     return members.some((m) => {
       const mId = typeof m === 'object' ? m._id || m.id : m;
@@ -79,7 +96,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
       await addMember(groupId, friendId);
       Alert.alert('Success', 'Member added to group');
       setAddModalVisible(false);
-      refetch();
+      handleRefresh();
     } catch (err) {
       Alert.alert('Error', err?.response?.data?.message || 'Failed to add member');
     } finally {
@@ -101,7 +118,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
             try {
               await removeMember(groupId, member._id);
               Alert.alert('Success', 'Member removed');
-              refetch();
+              handleRefresh();
             } catch (err) {
               Alert.alert('Error', err?.response?.data?.message || 'Failed to remove member');
             }
@@ -157,6 +174,58 @@ const GroupDetailsScreen = ({ route, navigation }) => {
     );
   };
 
+  const handleQuickPay = async (item) => {
+    // Quick pay my share for this split request
+    const myParticipant = item.participants?.find((p) => {
+      const pId = typeof p.user === 'object' ? p.user._id || p.user.id : p.user;
+      return String(pId) === String(createdById);
+    });
+
+    if (!myParticipant) {
+      navigation.navigate('SplitRequestDetail', { splitId: item._id, title: item.title });
+      return;
+    }
+
+    if (myParticipant.status === 'paid') {
+      Alert.alert('Info', 'You have already paid your share for this split expense.');
+      return;
+    }
+
+    Alert.alert(
+      'Pay Share (Google Pay style)',
+      `Pay ${formatCurrency(myParticipant.amount)} for "${item.title}"? Income & Expense transactions will be recorded automatically!`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Pay Now',
+          onPress: async () => {
+            try {
+              const updatedParticipants = item.participants.map((p) => {
+                const pId = typeof p.user === 'object' ? p.user._id || p.user.id : p.user;
+                const isMe = String(pId) === String(createdById);
+                return {
+                  user: pId,
+                  amount: p.amount,
+                  status: isMe ? 'paid' : p.status,
+                };
+              });
+
+              const allPaid = updatedParticipants.every((p) => p.status === 'paid');
+              await updateSplit(item._id, {
+                participants: updatedParticipants,
+                status: allPaid ? 'completed' : 'pending',
+              });
+              Alert.alert('Payment Successful', 'Your payment was processed & recorded in your transactions!');
+              handleRefresh();
+            } catch (err) {
+              Alert.alert('Error', 'Failed to record payment');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderMemberItem = ({ item }) => {
     const memberObj = typeof item === 'object' ? item : { _id: item, fullName: 'User' };
     const isOwner = memberObj._id === createdById;
@@ -184,6 +253,79 @@ const GroupDetailsScreen = ({ route, navigation }) => {
             <Icon name="person-remove-outline" size={18} color={colors.danger} />
           </TouchableOpacity>
         )}
+      </View>
+    );
+  };
+
+  const renderGooglePaySplitItem = ({ item }) => {
+    const paidByObj = typeof item.paidBy === 'object' ? item.paidBy : {};
+    const isCompleted = item.status === 'completed';
+    const total = Number(item.totalAmount || item.amount || 0);
+
+    // Calculate due date status
+    const dueDate = item.dueDate ? dayjs(item.dueDate) : dayjs().add(7, 'day');
+    const isOverdue = !isCompleted && dayjs().isAfter(dueDate);
+    const dueText = isCompleted
+      ? 'Settled'
+      : isOverdue
+      ? 'Overdue (Auto-Expense)'
+      : `Due ${dueDate.format('MMM D')}`;
+
+    return (
+      <View style={styles.timelineRow}>
+        {/* Timeline connector dot */}
+        <View style={styles.timelineDotContainer}>
+          <View style={[styles.timelineDot, isCompleted ? styles.timelineDotSuccess : isOverdue ? styles.timelineDotDanger : styles.timelineDotPrimary]} />
+          <View style={styles.timelineLine} />
+        </View>
+
+        {/* Google Pay Style Card */}
+        <TouchableOpacity
+          style={styles.gpayCard}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('SplitRequestDetail', { splitId: item._id, title: item.title })}
+        >
+          <View style={styles.gpayCardHeader}>
+            <AvatarCircle name={paidByObj.fullName || 'User'} avatar={paidByObj.avatar} size={38} />
+
+            <View style={styles.gpayCardTitleBox}>
+              <Text style={styles.gpayTitle} numberOfLines={1}>{item.title}</Text>
+              <Text style={styles.gpayPayerText}>
+                Requested by <Text style={{ fontWeight: '700', color: colors.text.primary }}>{paidByObj.fullName || 'Member'}</Text>
+              </Text>
+            </View>
+
+            <View style={styles.gpayAmountBox}>
+              <Text style={styles.gpayAmount}>{formatCurrency(total)}</Text>
+              <Text style={styles.gpayMethodTag}>{(item.splitType || 'equal').toUpperCase()}</Text>
+            </View>
+          </View>
+
+          {/* Due date & status footer */}
+          <View style={styles.gpayCardFooter}>
+            <View style={[styles.dueBadge, isOverdue ? styles.dueBadgeOverdue : isCompleted ? styles.dueBadgeSettled : styles.dueBadgePending]}>
+              <Icon
+                name={isCompleted ? 'checkmark-circle' : isOverdue ? 'alert-circle' : 'time-outline'}
+                size={12}
+                color={isCompleted ? colors.success : isOverdue ? colors.danger : colors.warning}
+              />
+              <Text style={[styles.dueBadgeText, isCompleted ? styles.dueBadgeTextSettled : isOverdue ? styles.dueBadgeTextOverdue : styles.dueBadgeTextPending]}>
+                {dueText}
+              </Text>
+            </View>
+
+            {!isCompleted && (
+              <TouchableOpacity
+                style={styles.gpayPayBtn}
+                onPress={() => handleQuickPay(item)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.gpayPayBtnText}>Pay Share</Text>
+                <Icon name="chevron-forward" size={14} color="#fff" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -246,52 +388,131 @@ const GroupDetailsScreen = ({ route, navigation }) => {
         <View style={styles.centered}>
           <Icon name="cloud-offline-outline" size={48} color={colors.danger} />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={refetch}>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
             <Text style={styles.retryText}>Try Again</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <FlatList
-          data={members}
+          data={activeTab === 'Members' ? members : splitRequests}
           keyExtractor={(item, index) => item._id || String(index)}
-          renderItem={renderMemberItem}
+          renderItem={activeTab === 'Members' ? renderMemberItem : renderGooglePaySplitItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={loading}
-              onRefresh={refetch}
+              refreshing={loading || splitsLoading}
+              onRefresh={handleRefresh}
               tintColor={colors.primary}
             />
           }
           ListHeaderComponent={
-            <View style={styles.detailsBanner}>
-              <View style={styles.bannerAvatarWrapper}>
-                <AvatarCircle name={group?.name} avatar={group?.avatar} size={70} />
-              </View>
-              <Text style={styles.bannerTitle}>{group?.name}</Text>
-              {group?.description ? (
-                <Text style={styles.bannerDesc}>{group.description}</Text>
-              ) : null}
+            <View>
+              {/* Group Banner */}
+              <View style={styles.detailsBanner}>
+                <AvatarCircle name={group?.name} avatar={group?.avatar} size={64} />
+                <Text style={styles.bannerTitle}>{group?.name}</Text>
+                {group?.description ? (
+                  <Text style={styles.bannerDesc}>{group.description}</Text>
+                ) : null}
 
-              <View style={styles.statsRow}>
-                <View style={styles.statCard}>
-                  <Icon name="people-outline" size={20} color={colors.primary} />
-                  <Text style={styles.statNumber}>{members.length}</Text>
-                  <Text style={styles.statLabel}>Members</Text>
+                {/* Balance Cards Summary */}
+                <View style={styles.balanceRow}>
+                  <View style={styles.balanceCard}>
+                    <Icon name="arrow-down-circle" size={18} color={colors.success} />
+                    <Text style={styles.balanceAmountSuccess}>{formatCurrency(balanceSummary.owedToMe)}</Text>
+                    <Text style={styles.balanceLabel}>Owed to You</Text>
+                  </View>
+                  <View style={styles.balanceCard}>
+                    <Icon name="arrow-up-circle" size={18} color={colors.danger} />
+                    <Text style={styles.balanceAmountDanger}>{formatCurrency(balanceSummary.iOwe)}</Text>
+                    <Text style={styles.balanceLabel}>You Owe</Text>
+                  </View>
                 </View>
               </View>
 
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>Group Members</Text>
+              {/* Sub Tabs */}
+              <View style={styles.tabToggleRow}>
                 <TouchableOpacity
-                  style={styles.addMemberBtn}
-                  onPress={() => setAddModalVisible(true)}
+                  style={[styles.tabToggle, activeTab === 'Splits' && styles.tabToggleActive]}
+                  onPress={() => setActiveTab('Splits')}
                 >
-                  <Icon name="person-add-outline" size={16} color="#fff" />
-                  <Text style={styles.addMemberBtnText}>Add Member</Text>
+                  <Icon
+                    name="receipt-outline"
+                    size={16}
+                    color={activeTab === 'Splits' ? '#fff' : colors.text.secondary}
+                  />
+                  <Text style={[styles.tabToggleText, activeTab === 'Splits' && styles.tabToggleTextActive]}>
+                    Activity Feed ({splitRequests.length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.tabToggle, activeTab === 'Members' && styles.tabToggleActive]}
+                  onPress={() => setActiveTab('Members')}
+                >
+                  <Icon
+                    name="people-outline"
+                    size={16}
+                    color={activeTab === 'Members' ? '#fff' : colors.text.secondary}
+                  />
+                  <Text style={[styles.tabToggleText, activeTab === 'Members' && styles.tabToggleTextActive]}>
+                    Members ({members.length})
+                  </Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Action Buttons Row */}
+              <View style={styles.actionRow}>
+                {activeTab === 'Splits' ? (
+                  <TouchableOpacity
+                    style={styles.primaryActionBtn}
+                    onPress={() => navigation.navigate('CreateSplitRequest', { group })}
+                  >
+                    <LinearGradient
+                      colors={[colors.primary, colors.primaryDark || '#5E1BDB']}
+                      style={styles.actionGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <Icon name="add" size={18} color="#fff" />
+                      <Text style={styles.actionText}>Split a Bill (Google Pay style)</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.primaryActionBtn}
+                    onPress={() => setAddModalVisible(true)}
+                  >
+                    <LinearGradient
+                      colors={[colors.primary, colors.primaryDark || '#5E1BDB']}
+                      style={styles.actionGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <Icon name="person-add" size={16} color="#fff" />
+                      <Text style={styles.actionText}>Add Member</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyView}>
+              <Icon
+                name={activeTab === 'Splits' ? 'receipt-outline' : 'people-outline'}
+                size={40}
+                color={colors.primary}
+              />
+              <Text style={styles.emptyTitle}>
+                {activeTab === 'Splits' ? 'No Split Expenses Yet' : 'No Members'}
+              </Text>
+              <Text style={styles.emptySub}>
+                {activeTab === 'Splits'
+                  ? 'Tap "Split a Bill" to divide expenses with automatic transaction tracking'
+                  : 'Add friends to this group to start splitting bills'}
+              </Text>
             </View>
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -406,17 +627,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: radius.xl || 20,
     padding: spacing.lg,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  bannerAvatarWrapper: {
-    marginBottom: spacing.sm,
   },
   bannerTitle: {
     fontSize: typography.sizes?.lg || 20,
     fontWeight: '800',
     color: colors.text.primary,
+    marginTop: spacing.xs,
   },
   bannerDesc: {
     fontSize: typography.sizes?.sm || 13,
@@ -424,51 +643,210 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
   },
-  statsRow: {
+  balanceRow: {
     flexDirection: 'row',
+    gap: spacing.md,
+    width: '100%',
     marginTop: spacing.md,
   },
-  statCard: {
+  balanceCard: {
+    flex: 1,
     alignItems: 'center',
     backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm + 2,
     borderRadius: radius.lg || 14,
+    paddingVertical: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  statNumber: {
-    fontSize: typography.sizes?.lg || 18,
+  balanceAmountSuccess: {
+    fontSize: typography.sizes?.md || 16,
     fontWeight: '800',
-    color: colors.text.primary,
+    color: colors.success,
     marginTop: 2,
   },
-  statLabel: {
+  balanceAmountDanger: {
+    fontSize: typography.sizes?.md || 16,
+    fontWeight: '800',
+    color: colors.danger,
+    marginTop: 2,
+  },
+  balanceLabel: {
     fontSize: 11,
     color: colors.text.secondary,
+    marginTop: 2,
   },
-  sectionHeaderRow: {
+  tabToggleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginTop: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg || 14,
+    padding: 4,
+    marginBottom: spacing.md,
   },
-  sectionTitle: {
-    fontSize: typography.sizes?.md || 16,
+  tabToggle: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md || 10,
+    gap: 6,
+  },
+  tabToggleActive: {
+    backgroundColor: colors.primary,
+  },
+  tabToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text.secondary,
+  },
+  tabToggleTextActive: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  actionRow: {
+    marginBottom: spacing.md,
+  },
+  primaryActionBtn: {
+    borderRadius: radius.lg || 14,
+    overflow: 'hidden',
+  },
+  actionGradient: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: spacing.sm + 4,
+    gap: 6,
+  },
+  actionText: {
+    color: '#fff',
+    fontSize: typography.sizes?.sm || 14,
+    fontWeight: '700',
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    marginBottom: spacing.xs,
+  },
+  timelineDotContainer: {
+    alignItems: 'center',
+    marginRight: 10,
+    paddingTop: 16,
+  },
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  timelineDotPrimary: {
+    backgroundColor: colors.primary,
+  },
+  timelineDotSuccess: {
+    backgroundColor: colors.success,
+  },
+  timelineDotDanger: {
+    backgroundColor: colors.danger,
+  },
+  timelineLine: {
+    flex: 1,
+    width: 2,
+    backgroundColor: colors.border,
+    marginTop: 4,
+  },
+  gpayCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg || 16,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  gpayCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  gpayCardTitleBox: {
+    flex: 1,
+    marginLeft: spacing.sm,
+  },
+  gpayTitle: {
+    fontSize: typography.sizes?.md || 15,
     fontWeight: '700',
     color: colors.text.primary,
   },
-  addMemberBtn: {
+  gpayPayerText: {
+    fontSize: 11,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+  gpayAmountBox: {
+    alignItems: 'flex-end',
+  },
+  gpayAmount: {
+    fontSize: typography.sizes?.md || 15,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  gpayMethodTag: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.text.muted,
+    marginTop: 2,
+  },
+  gpayCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    paddingTop: spacing.xs + 2,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  dueBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    gap: 4,
+  },
+  dueBadgePending: {
+    backgroundColor: colors.warning + '18',
+  },
+  dueBadgeSettled: {
+    backgroundColor: colors.success + '18',
+  },
+  dueBadgeOverdue: {
+    backgroundColor: colors.danger + '18',
+  },
+  dueBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  dueBadgeTextPending: {
+    color: colors.warning,
+  },
+  dueBadgeTextSettled: {
+    color: colors.success,
+  },
+  dueBadgeTextOverdue: {
+    color: colors.danger,
+  },
+  gpayPayBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
+    paddingVertical: 4,
     borderRadius: radius.full,
-    gap: 4,
+    gap: 2,
   },
-  addMemberBtnText: {
+  gpayPayBtnText: {
     color: '#fff',
-    fontSize: typography.sizes?.xs || 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   memberCard: {
@@ -522,6 +900,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger + '15',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyView: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+    gap: spacing.xs,
+  },
+  emptyTitle: {
+    fontSize: typography.sizes?.md || 16,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  emptySub: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    maxWidth: 240,
   },
   separator: {
     height: spacing.sm,

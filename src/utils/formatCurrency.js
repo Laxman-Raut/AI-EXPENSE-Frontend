@@ -18,6 +18,12 @@ export const setGlobalCurrency = (currencyCode) => {
   cachedCurrency = currencyCode;
 };
 
+export const getCurrencySymbol = (currency = null) => {
+  const activeCurrency = currency || cachedCurrency || 'INR';
+  const symbolMap = { USD: '$', EUR: '€', GBP: '£', INR: '₹' };
+  return symbolMap[activeCurrency] || '₹';
+};
+
 export const formatCurrency = (amount, currency = null) => {
   const activeCurrency = currency || cachedCurrency || 'INR';
   
