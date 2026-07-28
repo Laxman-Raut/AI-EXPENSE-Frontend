@@ -15,7 +15,13 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useSplitDetail, useGroupSplitRequests } from '../../hooks/useSplitRequests';
+import { useGroupDetails } from '../../hooks/useGroups';
+import { useAuth } from '../../hooks/useAuth';
 import { formatCurrency } from '../../utils/formatCurrency';
+
+const WHATSAPP_GREEN = '#25D366';
+const WHATSAPP_DARK_GREEN = '#128C7E';
+const WHATSAPP_HEADER_GREEN = '#075E54';
 
 const getInitials = (name = '') =>
   name
@@ -38,7 +44,7 @@ const AvatarCircle = ({ name, avatar, size = 44 }) => {
   }
   return (
     <LinearGradient
-      colors={[colors.primary, colors.primaryDark || '#5E1BDB']}
+      colors={[WHATSAPP_DARK_GREEN, WHATSAPP_HEADER_GREEN]}
       style={[
         styles.avatarFallback,
         { width: size, height: size, borderRadius: size / 2 },
@@ -53,8 +59,12 @@ const AvatarCircle = ({ name, avatar, size = 44 }) => {
 
 const SplitRequestDetailScreen = ({ route, navigation }) => {
   const { splitId, title: routeTitle } = route.params || {};
+  const { user } = useAuth();
+  const currentUserId = String(user?._id || user?.id || '');
+
   const { splitRequest, loading, error, refetch } = useSplitDetail(splitId);
   const { updateSplit, deleteSplit } = useGroupSplitRequests(splitRequest?.group);
+  const { group } = useGroupDetails(splitRequest?.group);
 
   const [updating, setUpdating] = useState(false);
 
@@ -62,17 +72,36 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
   const participants = splitRequest?.participants || [];
   const isCompleted = splitRequest?.status === 'completed';
 
+  // Authorization checks
+  const groupAdminId = String(group?.createdBy?._id || group?.createdBy || '');
+  const splitPayerId = String(paidByObj._id || paidByObj.id || splitRequest?.paidBy || '');
+
+  const isGroupAdmin = Boolean(groupAdminId && groupAdminId === currentUserId);
+  const isSplitCreator = Boolean(splitPayerId && splitPayerId === currentUserId);
+  const canManageAll = isGroupAdmin || isSplitCreator;
+
   const toggleParticipantStatus = async (participant) => {
-    const pUserId = typeof participant.user === 'object' ? participant.user._id || participant.user.id : participant.user;
+    const pUserId = String(typeof participant.user === 'object' ? participant.user._id || participant.user.id : participant.user);
+    const isMe = pUserId === currentUserId;
+
+    // Strict validation check: only group admin or creator can tap other members as paid
+    if (!canManageAll && !isMe) {
+      Alert.alert(
+        'Action Restricted',
+        'Only the group admin or expense creator can mark other members as paid.'
+      );
+      return;
+    }
+
     const currentStatus = participant.status || 'pending';
     const newStatus = currentStatus === 'paid' ? 'pending' : 'paid';
 
     const updatedParticipants = participants.map((p) => {
-      const id = typeof p.user === 'object' ? p.user._id || p.user.id : p.user;
+      const id = String(typeof p.user === 'object' ? p.user._id || p.user.id : p.user);
       if (id === pUserId) {
         return { ...p, user: id, status: newStatus };
       }
-      return { ...p, user: typeof p.user === 'object' ? p.user._id || p.user.id : p.user };
+      return { ...p, user: id };
     });
 
     const allPaid = updatedParticipants.every((p) => p.status === 'paid');
@@ -92,6 +121,11 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
   };
 
   const handleDelete = () => {
+    if (!canManageAll) {
+      Alert.alert('Permission Denied', 'Only the group admin or expense creator can delete this expense.');
+      return;
+    }
+
     Alert.alert(
       'Delete Expense',
       'Are you sure you want to delete this split expense?',
@@ -116,29 +150,51 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
 
   const renderParticipantItem = ({ item }) => {
     const userObj = typeof item.user === 'object' ? item.user : { fullName: 'Participant' };
+    const pUserId = String(userObj._id || userObj.id || item.user);
     const isPaid = item.status === 'paid';
+    const isMe = pUserId === currentUserId;
+    const canTap = canManageAll || isMe;
+    const isItemAdmin = pUserId === groupAdminId;
 
     return (
       <View style={styles.participantCard}>
-        <AvatarCircle name={userObj.fullName} avatar={userObj.avatar} size={42} />
+        <AvatarCircle name={userObj.fullName} avatar={userObj.avatar} size={44} />
         
         <View style={styles.participantInfo}>
-          <Text style={styles.participantName}>{userObj.fullName || 'User'}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.participantName}>
+              {isMe ? 'You' : userObj.fullName || 'User'}
+            </Text>
+            {isItemAdmin && (
+              <View style={styles.adminBadge}>
+                <Text style={styles.adminBadgeText}>Group Admin</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.participantAmount}>{formatCurrency(item.amount || 0)}</Text>
         </View>
 
         <TouchableOpacity
-          style={[styles.statusBadge, isPaid ? styles.statusBadgePaid : styles.statusBadgePending]}
+          style={[
+            styles.statusBadge,
+            isPaid ? styles.statusBadgePaid : styles.statusBadgePending,
+            !canTap && styles.statusBadgeDisabled,
+          ]}
           onPress={() => toggleParticipantStatus(item)}
           disabled={updating}
           activeOpacity={0.8}
         >
           <Icon
-            name={isPaid ? 'checkmark-circle' : 'time-outline'}
+            name={isPaid ? 'checkmark-done' : canTap ? 'time-outline' : 'lock-closed-outline'}
             size={14}
-            color={isPaid ? colors.success : colors.warning}
+            color={isPaid ? WHATSAPP_GREEN : canTap ? colors.warning : colors.text.muted}
           />
-          <Text style={[styles.statusText, isPaid ? styles.statusTextPaid : styles.statusTextPending]}>
+          <Text
+            style={[
+              styles.statusText,
+              isPaid ? styles.statusTextPaid : canTap ? styles.statusTextPending : styles.statusTextDisabled,
+            ]}
+          >
             {isPaid ? 'Paid' : 'Pending'}
           </Text>
         </TouchableOpacity>
@@ -148,27 +204,36 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Header */}
+      {/* Header - WhatsApp Style */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => navigation.goBack()}
         >
-          <Icon name="arrow-back" size={22} color={colors.text.primary} />
+          <Icon name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {splitRequest?.title || routeTitle || 'Split Details'}
-        </Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {splitRequest?.title || routeTitle || 'Split Details'}
+          </Text>
+          <Text style={styles.headerSubtitle}>
+            {group?.name ? `Group: ${group.name}` : 'Expense Breakdown'}
+          </Text>
+        </View>
 
-        <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-          <Icon name="trash-outline" size={20} color={colors.danger} />
-        </TouchableOpacity>
+        {canManageAll ? (
+          <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
+            <Icon name="trash-outline" size={20} color="#ff6b6b" />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.primary} size="large" />
+          <ActivityIndicator color={WHATSAPP_GREEN} size="large" />
           <Text style={styles.loadingText}>Loading expense details...</Text>
         </View>
       ) : error ? (
@@ -190,13 +255,13 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
             <RefreshControl
               refreshing={loading}
               onRefresh={refetch}
-              tintColor={colors.primary}
+              tintColor={WHATSAPP_GREEN}
             />
           }
           ListHeaderComponent={
             <View style={styles.summaryCard}>
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total Expense</Text>
+                <Text style={styles.totalLabel}>TOTAL EXPENSE AMOUNT</Text>
                 <Text style={styles.totalAmount}>
                   {formatCurrency(splitRequest?.totalAmount || splitRequest?.amount || 0)}
                 </Text>
@@ -206,39 +271,55 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
 
               <View style={styles.metaRow}>
                 <View style={styles.metaItem}>
-                  <Text style={styles.metaLabel}>Paid By</Text>
+                  <Text style={styles.metaLabel}>PAID BY</Text>
                   <View style={styles.payerInfoRow}>
-                    <AvatarCircle name={paidByObj.fullName} avatar={paidByObj.avatar} size={24} />
-                    <Text style={styles.payerName}>{paidByObj.fullName || 'Member'}</Text>
+                    <AvatarCircle name={paidByObj.fullName} avatar={paidByObj.avatar} size={22} />
+                    <Text style={styles.payerName}>
+                      {String(paidByObj._id || paidByObj.id) === currentUserId ? 'You' : paidByObj.fullName || 'Member'}
+                    </Text>
                   </View>
                 </View>
 
                 <View style={styles.metaItem}>
-                  <Text style={styles.metaLabel}>Split Method</Text>
+                  <Text style={styles.metaLabel}>SPLIT METHOD</Text>
                   <Text style={styles.metaValue}>
                     {(splitRequest?.splitType || 'equal').toUpperCase()}
                   </Text>
                 </View>
 
                 <View style={styles.metaItem}>
-                  <Text style={styles.metaLabel}>Status</Text>
+                  <Text style={styles.metaLabel}>STATUS</Text>
                   <View
                     style={[
                       styles.overallBadge,
                       isCompleted ? styles.overallBadgeCompleted : styles.overallBadgePending,
                     ]}
                   >
+                    <Icon
+                      name={isCompleted ? 'checkmark-done' : 'time-outline'}
+                      size={12}
+                      color={isCompleted ? WHATSAPP_GREEN : colors.warning}
+                    />
                     <Text
                       style={[
                         styles.overallBadgeText,
                         isCompleted ? styles.overallBadgeTextCompleted : styles.overallBadgeTextPending,
                       ]}
                     >
-                      {isCompleted ? 'Completed' : 'Pending'}
+                      {isCompleted ? 'Settled' : 'Pending'}
                     </Text>
                   </View>
                 </View>
               </View>
+
+              {!canManageAll && (
+                <View style={styles.infoBanner}>
+                  <Icon name="information-circle-outline" size={16} color={WHATSAPP_DARK_GREEN} />
+                  <Text style={styles.infoBannerText}>
+                    Only group admin or creator can mark other members as paid. You can mark your own share.
+                  </Text>
+                </View>
+              )}
 
               <Text style={styles.sectionHeaderTitle}>Participant Breakdown</Text>
             </View>
@@ -259,60 +340,73 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: WHATSAPP_HEADER_GREEN,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
   },
   deleteBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.danger + '15',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,107,107,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: {
+  headerTitleContainer: {
     flex: 1,
-    textAlign: 'center',
-    fontSize: typography.sizes?.md || 16,
-    fontWeight: '700',
-    color: colors.text.primary,
+    alignItems: 'center',
     marginHorizontal: spacing.sm,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#aebac1',
+    marginTop: 1,
   },
   listContent: {
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: spacing.xxl || 40,
   },
   summaryCard: {
     backgroundColor: colors.card,
-    borderRadius: radius.xl || 20,
+    borderRadius: 16,
     padding: spacing.lg,
     marginBottom: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   totalRow: {
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   totalLabel: {
-    fontSize: typography.sizes?.xs || 12,
+    fontSize: 11,
+    fontWeight: '700',
     color: colors.text.secondary,
-    textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   totalAmount: {
     fontSize: 32,
     fontWeight: '800',
-    color: colors.primary,
-    marginTop: 2,
+    color: WHATSAPP_GREEN,
+    marginTop: 4,
   },
   divider: {
     height: 1,
@@ -323,15 +417,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
   },
   metaItem: {
     alignItems: 'center',
   },
   metaLabel: {
-    fontSize: 11,
+    fontSize: 10,
+    fontWeight: '700',
     color: colors.text.secondary,
     marginBottom: 4,
+    letterSpacing: 0.5,
   },
   payerInfoRow: {
     flexDirection: 'row',
@@ -339,47 +434,65 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   payerName: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: colors.text.primary,
   },
   metaValue: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: colors.text.primary,
   },
   overallBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: radius.full,
   },
   overallBadgeCompleted: {
-    backgroundColor: colors.success + '20',
+    backgroundColor: WHATSAPP_GREEN + '1A',
   },
   overallBadgePending: {
-    backgroundColor: colors.warning + '20',
+    backgroundColor: colors.warning + '1A',
   },
   overallBadgeText: {
     fontSize: 11,
     fontWeight: '700',
   },
   overallBadgeTextCompleted: {
-    color: colors.success,
+    color: WHATSAPP_GREEN,
   },
   overallBadgeTextPending: {
     color: colors.warning,
   },
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: WHATSAPP_GREEN + '12',
+    padding: spacing.md,
+    borderRadius: radius.md,
+    marginTop: spacing.md,
+    gap: 8,
+  },
+  infoBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.text.primary,
+    lineHeight: 16,
+  },
   sectionHeaderTitle: {
-    fontSize: typography.sizes?.md || 15,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.text.primary,
-    marginTop: spacing.sm,
+    marginTop: spacing.lg,
   },
   participantCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: radius.lg || 14,
+    borderRadius: 14,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -396,39 +509,63 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.md,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   participantName: {
-    fontSize: typography.sizes?.md || 15,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.text.primary,
   },
+  adminBadge: {
+    backgroundColor: WHATSAPP_GREEN + '20',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  adminBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: WHATSAPP_DARK_GREEN,
+  },
   participantAmount: {
-    fontSize: typography.sizes?.xs || 13,
+    fontSize: 13,
     color: colors.text.secondary,
     marginTop: 2,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: radius.full,
     gap: 4,
   },
   statusBadgePaid: {
-    backgroundColor: colors.success + '18',
+    backgroundColor: WHATSAPP_GREEN + '1F',
   },
   statusBadgePending: {
-    backgroundColor: colors.warning + '18',
+    backgroundColor: colors.warning + '1F',
+  },
+  statusBadgeDisabled: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   statusText: {
     fontSize: 12,
     fontWeight: '700',
   },
   statusTextPaid: {
-    color: colors.success,
+    color: WHATSAPP_GREEN,
   },
   statusTextPending: {
     color: colors.warning,
+  },
+  statusTextDisabled: {
+    color: colors.text.muted,
   },
   separator: {
     height: spacing.sm,
@@ -441,18 +578,18 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   loadingText: {
-    fontSize: typography.sizes?.sm || 13,
+    fontSize: 13,
     color: colors.text.secondary,
   },
   errorText: {
-    fontSize: typography.sizes?.sm || 13,
+    fontSize: 13,
     color: colors.danger,
     textAlign: 'center',
   },
   retryButton: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.primary,
+    backgroundColor: WHATSAPP_HEADER_GREEN,
     borderRadius: radius.full,
     marginTop: spacing.sm,
   },

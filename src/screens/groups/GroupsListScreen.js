@@ -16,6 +16,10 @@ import LinearGradient from 'react-native-linear-gradient';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useGroups } from '../../hooks/useGroups';
 
+const WHATSAPP_GREEN = '#25D366';
+const WHATSAPP_DARK_GREEN = '#128C7E';
+const WHATSAPP_HEADER_GREEN = '#075E54';
+
 const getInitials = (name = '') =>
   name
     .trim()
@@ -37,7 +41,7 @@ const GroupAvatarCircle = ({ name, avatar, size = 52 }) => {
   }
   return (
     <LinearGradient
-      colors={[colors.primary, colors.primaryDark || '#5E1BDB']}
+      colors={[WHATSAPP_DARK_GREEN, WHATSAPP_HEADER_GREEN]}
       style={[
         styles.avatarFallback,
         { width: size, height: size, borderRadius: size / 2 },
@@ -87,22 +91,22 @@ const GroupsListScreen = ({ navigation }) => {
 
           <View style={styles.metaRow}>
             <View style={styles.memberBadge}>
-              <Icon name="people-outline" size={13} color={colors.primary} />
+              <Icon name="people-outline" size={12} color={WHATSAPP_DARK_GREEN} />
               <Text style={styles.memberBadgeText}>
-                {memberCount} member{memberCount !== 1 ? 's' : ''}
+                {memberCount} participant{memberCount !== 1 ? 's' : ''}
               </Text>
             </View>
           </View>
         </View>
 
-        <Icon name="chevron-forward" size={20} color={colors.text.muted} />
+        <Icon name="chevron-forward" size={18} color={colors.text.muted} />
       </TouchableOpacity>
     );
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Header */}
+      {/* Header - WhatsApp Style */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Groups</Text>
@@ -114,16 +118,11 @@ const GroupsListScreen = ({ navigation }) => {
         <TouchableOpacity
           style={styles.createButton}
           onPress={() => navigation.navigate('CreateEditGroup')}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
         >
-          <LinearGradient
-            colors={[colors.primary, colors.primaryDark || '#5E1BDB']}
-            style={styles.createButtonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
+          <View style={styles.createButtonContent}>
             <Icon name="add" size={22} color="#fff" />
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -147,7 +146,7 @@ const GroupsListScreen = ({ navigation }) => {
       {/* Content */}
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.primary} size="large" />
+          <ActivityIndicator color={WHATSAPP_GREEN} size="large" />
           <Text style={styles.loadingText}>Loading groups...</Text>
         </View>
       ) : error ? (
@@ -161,7 +160,7 @@ const GroupsListScreen = ({ navigation }) => {
       ) : filteredGroups.length === 0 ? (
         <View style={styles.centered}>
           <View style={styles.emptyCircle}>
-            <Icon name="people-circle-outline" size={56} color={colors.primary} />
+            <Icon name="people-circle-outline" size={56} color={WHATSAPP_DARK_GREEN} />
           </View>
           <Text style={styles.emptyTitle}>
             {searchQuery ? 'No groups found' : 'No Groups Yet'}
@@ -192,7 +191,7 @@ const GroupsListScreen = ({ navigation }) => {
             <RefreshControl
               refreshing={loading}
               onRefresh={refetch}
-              tintColor={colors.primary}
+              tintColor={WHATSAPP_GREEN}
             />
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -211,30 +210,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: WHATSAPP_HEADER_GREEN,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.md,
   },
   headerTitle: {
-    fontSize: typography.sizes?.xl || 22,
+    fontSize: 22,
     fontWeight: '800',
-    color: colors.text.primary,
+    color: '#fff',
   },
   headerSubtitle: {
-    fontSize: typography.sizes?.sm || 13,
-    color: colors.text.secondary,
+    fontSize: 13,
+    color: '#aebac1',
     marginTop: 2,
   },
   createButton: {
     borderRadius: radius.full,
     overflow: 'hidden',
   },
-  createButtonGradient: {
+  createButtonContent: {
     width: 44,
     height: 44,
     borderRadius: 22,
+    backgroundColor: WHATSAPP_GREEN,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -243,6 +249,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg || 14,
     paddingHorizontal: spacing.md,
     marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
     marginBottom: spacing.md,
     height: 44,
     borderWidth: 1,
@@ -254,7 +261,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     color: colors.text.primary,
-    fontSize: typography.sizes?.sm || 14,
+    fontSize: 14,
   },
   listContent: {
     paddingHorizontal: spacing.lg,
@@ -264,7 +271,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.card,
-    borderRadius: radius.lg || 14,
+    borderRadius: 14,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -287,12 +294,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   groupName: {
-    fontSize: typography.sizes?.md || 16,
+    fontSize: 16,
     fontWeight: '700',
     color: colors.text.primary,
   },
   groupDesc: {
-    fontSize: typography.sizes?.xs || 12,
+    fontSize: 12,
     color: colors.text.secondary,
     marginTop: 2,
   },
@@ -304,7 +311,7 @@ const styles = StyleSheet.create({
   memberBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary + '18',
+    backgroundColor: WHATSAPP_GREEN + '1A',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radius.full,
@@ -312,8 +319,8 @@ const styles = StyleSheet.create({
   },
   memberBadgeText: {
     fontSize: 11,
-    color: colors.primary,
-    fontWeight: '600',
+    color: WHATSAPP_DARK_GREEN,
+    fontWeight: '700',
   },
   separator: {
     height: spacing.sm,
@@ -326,43 +333,43 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   loadingText: {
-    fontSize: typography.sizes?.sm || 13,
+    fontSize: 13,
     color: colors.text.secondary,
   },
   errorText: {
-    fontSize: typography.sizes?.sm || 13,
+    fontSize: 13,
     color: colors.danger,
     textAlign: 'center',
   },
   retryButton: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.primary,
+    backgroundColor: WHATSAPP_HEADER_GREEN,
     borderRadius: radius.full,
     marginTop: spacing.sm,
   },
   retryText: {
     color: '#fff',
     fontWeight: '600',
-    fontSize: typography.sizes?.sm || 13,
+    fontSize: 13,
   },
   emptyCircle: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: WHATSAPP_GREEN + '15',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.xs,
   },
   emptyTitle: {
-    fontSize: typography.sizes?.lg || 18,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text.primary,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: typography.sizes?.sm || 13,
+    fontSize: 13,
     color: colors.text.secondary,
     textAlign: 'center',
     lineHeight: 20,
@@ -374,11 +381,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm + 4,
     borderRadius: radius.full,
-    backgroundColor: colors.primary,
+    backgroundColor: WHATSAPP_DARK_GREEN,
     marginTop: spacing.sm,
   },
   newGroupButtonText: {
-    fontSize: typography.sizes?.sm || 14,
+    fontSize: 14,
     fontWeight: '700',
     color: '#fff',
   },
