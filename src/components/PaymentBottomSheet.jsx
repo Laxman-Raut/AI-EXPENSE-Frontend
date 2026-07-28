@@ -50,16 +50,17 @@ const PaymentBottomSheet = ({
   const checkInstalledApps = async () => {
     setCheckingApps(true);
     try {
-      const [gpay, phonepe, paytm] = await Promise.all([
+      const [gpay, phonepe, paytm, upi] = await Promise.all([
         Linking.canOpenURL('gpay://').catch(() => false),
         Linking.canOpenURL('phonepe://').catch(() => false),
         Linking.canOpenURL('paytmmp://').catch(() => Linking.canOpenURL('paytm://').catch(() => false)),
+        Linking.canOpenURL('upi://').catch(() => false),
       ]);
 
       setAppInstalledState({
-        gpay,
-        phonepe,
-        paytm,
+        gpay: gpay || upi,
+        phonepe: phonepe || upi,
+        paytm: paytm || upi,
       });
     } catch (err) {
       console.log('[PaymentBottomSheet] Error checking installed apps:', err);
@@ -75,21 +76,28 @@ const PaymentBottomSheet = ({
   const handleOpenGooglePay = async () => {
     if (!deepLink) return;
     try {
-      if (appInstalledState.gpay) {
-        const gpayUrl = deepLink.startsWith('upi://')
-          ? deepLink.replace('upi://', 'gpay://')
-          : deepLink;
-        const canOpen = await Linking.canOpenURL(gpayUrl).catch(() => false);
-        if (canOpen) {
-          await Linking.openURL(gpayUrl);
-        } else {
-          await Linking.openURL(deepLink);
-        }
-      } else {
-        await Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.nsetup');
+      const gpayUrl = deepLink.startsWith('upi://')
+        ? deepLink.replace('upi://', 'gpay://')
+        : deepLink;
+
+      const canOpenGpay = await Linking.canOpenURL(gpayUrl).catch(() => false);
+      if (canOpenGpay) {
+        await Linking.openURL(gpayUrl);
+        onClose();
+        return;
       }
+
+      const canOpenUpi = await Linking.canOpenURL(deepLink).catch(() => false);
+      if (canOpenUpi) {
+        await Linking.openURL(deepLink);
+        onClose();
+        return;
+      }
+
+      // Play Store fallback if not installed
+      await Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.nsetup');
     } catch (err) {
-      Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.nsetup');
+      Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.nsetup').catch(() => {});
     }
     onClose();
   };
@@ -97,21 +105,28 @@ const PaymentBottomSheet = ({
   const handleOpenPhonePe = async () => {
     if (!deepLink) return;
     try {
-      if (appInstalledState.phonepe) {
-        const phonepeUrl = deepLink.startsWith('upi://')
-          ? deepLink.replace('upi://', 'phonepe://')
-          : deepLink;
-        const canOpen = await Linking.canOpenURL(phonepeUrl).catch(() => false);
-        if (canOpen) {
-          await Linking.openURL(phonepeUrl);
-        } else {
-          await Linking.openURL(deepLink);
-        }
-      } else {
-        await Linking.openURL('https://play.google.com/store/apps/details?id=com.phonepe.app');
+      const phonepeUrl = deepLink.startsWith('upi://')
+        ? deepLink.replace('upi://', 'phonepe://')
+        : deepLink;
+
+      const canOpenPhonePe = await Linking.canOpenURL(phonepeUrl).catch(() => false);
+      if (canOpenPhonePe) {
+        await Linking.openURL(phonepeUrl);
+        onClose();
+        return;
       }
+
+      const canOpenUpi = await Linking.canOpenURL(deepLink).catch(() => false);
+      if (canOpenUpi) {
+        await Linking.openURL(deepLink);
+        onClose();
+        return;
+      }
+
+      // Play Store fallback if not installed
+      await Linking.openURL('https://play.google.com/store/apps/details?id=com.phonepe.app');
     } catch (err) {
-      Linking.openURL('https://play.google.com/store/apps/details?id=com.phonepe.app');
+      Linking.openURL('https://play.google.com/store/apps/details?id=com.phonepe.app').catch(() => {});
     }
     onClose();
   };
@@ -119,21 +134,28 @@ const PaymentBottomSheet = ({
   const handleOpenPaytm = async () => {
     if (!deepLink) return;
     try {
-      if (appInstalledState.paytm) {
-        const paytmUrl = deepLink.startsWith('upi://')
-          ? deepLink.replace('upi://', 'paytmmp://')
-          : deepLink;
-        const canOpen = await Linking.canOpenURL(paytmUrl).catch(() => false);
-        if (canOpen) {
-          await Linking.openURL(paytmUrl);
-        } else {
-          await Linking.openURL(deepLink);
-        }
-      } else {
-        await Linking.openURL('https://play.google.com/store/apps/details?id=net.one97.paytm');
+      const paytmUrl = deepLink.startsWith('upi://')
+        ? deepLink.replace('upi://', 'paytmmp://')
+        : deepLink;
+
+      const canOpenPaytm = await Linking.canOpenURL(paytmUrl).catch(() => false);
+      if (canOpenPaytm) {
+        await Linking.openURL(paytmUrl);
+        onClose();
+        return;
       }
+
+      const canOpenUpi = await Linking.canOpenURL(deepLink).catch(() => false);
+      if (canOpenUpi) {
+        await Linking.openURL(deepLink);
+        onClose();
+        return;
+      }
+
+      // Play Store fallback if not installed
+      await Linking.openURL('https://play.google.com/store/apps/details?id=net.one97.paytm');
     } catch (err) {
-      Linking.openURL('https://play.google.com/store/apps/details?id=net.one97.paytm');
+      Linking.openURL('https://play.google.com/store/apps/details?id=net.one97.paytm').catch(() => {});
     }
     onClose();
   };
