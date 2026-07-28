@@ -46,6 +46,7 @@ const ProfileScreen = ({ navigation }) => {
   const [editName, setEditName] = useState(user?.fullName || '');
   const [editMobile, setEditMobile] = useState(user?.mobile || '');
   const [editAge, setEditAge] = useState(user?.age ? String(user.age) : '');
+  const [editUpiId, setEditUpiId] = useState(user?.upiId || '');
   const [selectedCurrency, setSelectedCurrency] = useState(user?.currency || 'INR');
   const [supportSubject, setSupportSubject] = useState('');
   const [supportMessage, setSupportMessage] = useState('');
@@ -92,6 +93,11 @@ const ProfileScreen = ({ navigation }) => {
       setEditAge(String(user.age));
     } else {
       setEditAge('');
+    }
+    if (user?.upiId) {
+      setEditUpiId(user.upiId);
+    } else {
+      setEditUpiId('');
     }
   }, [user]);
 
@@ -164,6 +170,7 @@ const ProfileScreen = ({ navigation }) => {
         fullName: editName,
         mobile: editMobile,
         age: editAge ? Number(editAge) : null,
+        upiId: editUpiId,
       });
       setProfileModalVisible(false);
       showAlert('Success', 'Profile settings updated successfully.', [{ text: 'OK' }]);
@@ -298,6 +305,7 @@ const ProfileScreen = ({ navigation }) => {
           <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
           {user?.mobile ? <Text style={styles.userMobile}>{user.mobile}</Text> : null}
           {user?.age ? <Text style={styles.userAge}>Age: {user.age}</Text> : null}
+          {user?.upiId ? <Text style={styles.userUpi}>UPI ID: {user.upiId}</Text> : null}
         </View>
 
         {/* Settings Group List Card */}
@@ -418,6 +426,16 @@ const ProfileScreen = ({ navigation }) => {
                 placeholder="Enter age"
                 placeholderTextColor={colors.text.muted}
                 keyboardType="numeric"
+              />
+
+              <Text style={styles.inputLabel}>UPI ID</Text>
+              <TextInput
+                style={styles.textInput}
+                value={editUpiId}
+                onChangeText={setEditUpiId}
+                placeholder="e.g. username@upi or mobile@paytm"
+                placeholderTextColor={colors.text.muted}
+                autoCapitalize="none"
               />
               
               {loading ? (
@@ -730,6 +748,12 @@ const styles = StyleSheet.create({
   userAge: {
     fontSize: typography.sizes.sm,
     color: colors.text.muted,
+  },
+  userUpi: {
+    fontSize: typography.sizes.sm,
+    color: colors.primary,
+    fontWeight: typography.weights.semibold,
+    marginTop: 2,
   },
   menuCard: {
     backgroundColor: colors.card,
