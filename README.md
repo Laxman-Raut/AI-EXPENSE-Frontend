@@ -1,97 +1,76 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# AI Expense Tracker - React Native Mobile Application
 
-# Getting Started
+This is the mobile application for **AI Expense Tracker**, built with [**React Native CLI**](https://reactnative.dev), **React Navigation v7**, **Redux Toolkit**, **Axios**, and **React Native Vector Icons**.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+---
 
-## Step 1: Start Metro
+## 📱 Features & Highlights
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+- **WhatsApp Group UI**:
+  - Group Details screen with WhatsApp dark emerald header (`#075E54`), circular group profile avatar, and quick actions (➕ *Add*, 💸 *Split Bill*, ℹ️ *Info*).
+  - WhatsApp tab switcher (`ACTIVITY`, `PARTICIPANTS`), green `Group Admin` tags for creators/admins, and chat bubble styled split expense cards.
+- **UPI Deep Link Payment Flow**:
+  - Seamless instant settlement via standard NPCI UPI links (`POST /api/upi/deeplink`).
+  - Modern Material UI `PaymentBottomSheet` with options for **Google Pay**, **PhonePe**, **Paytm**, and **Other UPI Apps**.
+  - Direct app launching via package intents (`package=com.phonepe.app`, `package=com.google.android.apps.nsetup`, `package=net.one97.paytm`) to prevent QR code gallery popups.
+  - Floating `Snackbar` notification component for error messages and network failure retries.
+- **Group Admin & Payment Authorization**:
+  - Enforces strict rules: only group creators/admins can mark other members as paid; regular members can mark or pay their own share.
+- **Profile Settings & UPI ID**:
+  - Manage Full Name, Mobile Number, Age, Currency, and **UPI ID** (`upiId`) in obsidian-styled profile settings.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+---
+
+## 📂 Project Architecture
+
+```text
+src/
+├── api/                        # Axios instance configuration & request/response interceptors
+├── components/                 # Atomic UI component design system
+│   ├── PaymentOptionCard.jsx   # Material UI UPI payment app option card
+│   ├── PaymentBottomSheet.jsx  # Animated modal bottom sheet for app selection
+│   └── Snackbar.jsx            # Toast & alert snackbar with action buttons
+├── context/                    # Context providers (AuthContext, AlertContext)
+├── hooks/                      # Custom hooks (useAuth, useGroups, useSplitRequests, useTransactions)
+├── navigation/                 # Navigation stacks & tab bar configuration
+├── screens/
+│   ├── groups/                 # WhatsApp style group screens (GroupsList, GroupDetails, SplitRequestDetail)
+│   ├── profile/                # User profile screen & settings modal (with UPI ID support)
+│   └── ...                     # Dashboard, Transactions, Budget, Calendar screens
+├── services/                   # Network services (upiService.js, transactionService, syncService)
+├── store/                      # Redux Toolkit slices (authSlice, transactionSlice)
+└── theme/                      # Styling design tokens (colors, spacing, typography, radius, shadow)
+```
+
+---
+
+## 🚀 Getting Started
+
+### Step 1: Start Metro Dev Server
+
+Run Metro, the JavaScript build tool for React Native:
 
 ```sh
-# Using npm
 npm start
-
-# OR using Yarn
-yarn start
 ```
 
-## Step 2: Build and run your app
+### Step 2: Build & Run Mobile App
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
+#### Android
 ```sh
-# Using npm
 npm run android
-
-# OR using Yarn
-yarn android
 ```
 
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
+#### iOS
 ```sh
 bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
 bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
 npm run ios
-
-# OR using Yarn
-yarn ios
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+---
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## 🛠️ Network & API Troubleshooting
 
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- **Base URL Configuration**: Base URL is automatically loaded from `.env` (`API_URL`) or falls back to your host machine's Wi-Fi IP address in `src/api/client.js`.
+- **Android Deep Link Intent Queries**: Android 11+ (API 30+) requires deep link scheme intents declared under `<queries>` in `android/app/src/main/AndroidManifest.xml` (`upi`, `gpay`, `phonepe`, `paytmmp`, `paytm`).

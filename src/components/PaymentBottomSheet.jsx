@@ -76,13 +76,13 @@ const PaymentBottomSheet = ({
   const handleOpenGooglePay = async () => {
     if (!deepLink) return;
     try {
-      const gpayUrl = deepLink.startsWith('upi://')
-        ? deepLink.replace('upi://', 'gpay://')
+      const gpayPkgUrl = deepLink.includes('?')
+        ? `${deepLink}&package=com.google.android.apps.nsetup`
         : deepLink;
 
-      const canOpenGpay = await Linking.canOpenURL(gpayUrl).catch(() => false);
-      if (canOpenGpay) {
-        await Linking.openURL(gpayUrl);
+      const canOpen = await Linking.canOpenURL(gpayPkgUrl).catch(() => false);
+      if (canOpen) {
+        await Linking.openURL(gpayPkgUrl);
         onClose();
         return;
       }
@@ -94,7 +94,6 @@ const PaymentBottomSheet = ({
         return;
       }
 
-      // Play Store fallback if not installed
       await Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.nsetup');
     } catch (err) {
       Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.nsetup').catch(() => {});
@@ -105,13 +104,13 @@ const PaymentBottomSheet = ({
   const handleOpenPhonePe = async () => {
     if (!deepLink) return;
     try {
-      const phonepeUrl = deepLink.startsWith('upi://')
-        ? deepLink.replace('upi://', 'phonepe://')
+      const phonepePkgUrl = deepLink.includes('?')
+        ? `${deepLink}&package=com.phonepe.app`
         : deepLink;
 
-      const canOpenPhonePe = await Linking.canOpenURL(phonepeUrl).catch(() => false);
-      if (canOpenPhonePe) {
-        await Linking.openURL(phonepeUrl);
+      const canOpen = await Linking.canOpenURL(phonepePkgUrl).catch(() => false);
+      if (canOpen) {
+        await Linking.openURL(phonepePkgUrl);
         onClose();
         return;
       }
@@ -123,7 +122,6 @@ const PaymentBottomSheet = ({
         return;
       }
 
-      // Play Store fallback if not installed
       await Linking.openURL('https://play.google.com/store/apps/details?id=com.phonepe.app');
     } catch (err) {
       Linking.openURL('https://play.google.com/store/apps/details?id=com.phonepe.app').catch(() => {});
@@ -134,13 +132,13 @@ const PaymentBottomSheet = ({
   const handleOpenPaytm = async () => {
     if (!deepLink) return;
     try {
-      const paytmUrl = deepLink.startsWith('upi://')
-        ? deepLink.replace('upi://', 'paytmmp://')
+      const paytmPkgUrl = deepLink.includes('?')
+        ? `${deepLink}&package=net.one97.paytm`
         : deepLink;
 
-      const canOpenPaytm = await Linking.canOpenURL(paytmUrl).catch(() => false);
-      if (canOpenPaytm) {
-        await Linking.openURL(paytmUrl);
+      const canOpen = await Linking.canOpenURL(paytmPkgUrl).catch(() => false);
+      if (canOpen) {
+        await Linking.openURL(paytmPkgUrl);
         onClose();
         return;
       }
@@ -152,7 +150,6 @@ const PaymentBottomSheet = ({
         return;
       }
 
-      // Play Store fallback if not installed
       await Linking.openURL('https://play.google.com/store/apps/details?id=net.one97.paytm');
     } catch (err) {
       Linking.openURL('https://play.google.com/store/apps/details?id=net.one97.paytm').catch(() => {});
