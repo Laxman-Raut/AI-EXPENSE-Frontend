@@ -20,12 +20,14 @@ import { useFriends } from '../../hooks/useFriends';
 import { useGroupSplitRequests } from '../../hooks/useSplitRequests';
 import { useAuth } from '../../hooks/useAuth';
 import { formatCurrency } from '../../utils/formatCurrency';
+import upiService from '../../services/upiService';
+import PaymentBottomSheet from '../../components/PaymentBottomSheet';
+import Snackbar from '../../components/Snackbar';
 import dayjs from 'dayjs';
 
 const WHATSAPP_GREEN = '#25D366';
 const WHATSAPP_DARK_GREEN = '#128C7E';
 const WHATSAPP_HEADER_GREEN = '#075E54';
-const WHATSAPP_BG_LIGHT = '#F0F2F5';
 
 const getInitials = (name = '') =>
   name
@@ -89,6 +91,34 @@ const GroupDetailsScreen = ({ route, navigation }) => {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // UPI Payment states
+  const [upiModalVisible, setUpiModalVisible] = useState(false);
+  const [paymentData, setPaymentData] = useState(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState({
+    visible: false,
+    message: '',
+    type: 'error',
+    actionText: null,
+    onAction: null,
+  });
+
+  const showSnackbar = (message, type = 'error', actionText = null, onAction = null) => {
+    setSnackbar({
+      visible: true,
+      message,
+      type,
+      actionText,
+      onAction,
+    });
+  };
+
+  const hideSnackbar = () => {
+    setSnackbar((prev) => ({ ...prev, visible: false }));
+  };
+
   const handleRefresh = () => {
     refetchGroup();
     refetchSplits();
@@ -103,17 +133,17 @@ const GroupDetailsScreen = ({ route, navigation }) => {
 
   const handleAddMember = async (friendId) => {
     if (!isGroupAdmin) {
-      Alert.alert('Permission Denied', 'Only group admin can add members.');
+      showSnackbar('Only group admin can add members.', 'warning');
       return;
     }
     setActionLoading(true);
     try {
       await addMember(groupId, friendId);
-      Alert.alert('Success', 'Member added to group');
+      showSnackbar('Member added to group', 'success');
       setAddModalVisible(false);
       handleRefresh();
     } catch (err) {
-      Alert.alert('Error', err?.response?.data?.message || 'Failed to add member');
+      showSnackbar(err?.response?.data?.message || 'Failed to add member', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -121,7 +151,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
 
   const handleRemoveMember = (member) => {
     if (!isGroupAdmin) {
-      Alert.alert('Permission Denied', 'Only group admin can remove members.');
+      showSnackbar('Only group admin can remove members.', 'warning');
       return;
     }
     const memberName = member.fullName || member.username || 'this member';
@@ -136,10 +166,10 @@ const GroupDetailsScreen = ({ route, navigation }) => {
           onPress: async () => {
             try {
               await removeMember(groupId, member._id);
-              Alert.alert('Success', 'Member removed');
+              showSnackbar('Member removed', 'success');
               handleRefresh();
             } catch (err) {
-              Alert.alert('Error', err?.response?.data?.message || 'Failed to remove member');
+              showSnackbar(err?.response?.data?.message || 'Failed to remove member', 'error');
             }
           },
         },
@@ -159,10 +189,10 @@ const GroupDetailsScreen = ({ route, navigation }) => {
           onPress: async () => {
             try {
               await leaveGroup(groupId);
-              Alert.alert('Success', 'You left the group');
+              showSnackbar('You left the group', 'info');
               navigation.goBack();
             } catch (err) {
-              Alert.alert('Error', err?.response?.data?.message || 'Failed to leave group');
+              showSnackbar(err?.response?.data?.message || 'Failed to leave group', 'error');
             }
           },
         },
@@ -172,7 +202,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
 
   const handleDelete = () => {
     if (!isGroupAdmin) {
-      Alert.alert('Permission Denied', 'Only group creator/admin can delete this group.');
+      showSnackbar('Only group creator/admin can delete this group.', 'warning');
       return;
     }
 
@@ -187,10 +217,10 @@ const GroupDetailsScreen = ({ route, navigation }) => {
           onPress: async () => {
             try {
               await deleteGroup(groupId);
-              Alert.alert('Success', 'Group deleted');
+              showSnackbar('Group deleted', 'success');
               navigation.goBack();
             } catch (err) {
-              Alert.alert('Error', err?.response?.data?.message || 'Failed to delete group');
+              showSnackbar(err?.response?.data?.message || 'Failed to delete group', 'error');
             }
           },
         },
@@ -198,8 +228,38 @@ const GroupDetailsScreen = ({ route, navigation }) => {
     );
   };
 
+  // UPI Deep Link Generation & Pay Flow for Quick Pay
+  const handleUpiPayNow = async (splitRequestId) => {
+    setPaymentLoading(true);
+    try {
+      const res = await upiService.generateDeepLink(splitRequestId);
+      if (res && res.success && res.data) {
+        setPaymentData(res.data);
+        setUpiModalVisible(true);
+      } else {
+        showSnackbar(res?.message || 'Failed to generate UPI payment link.', 'error');
+      }
+    } catch (err) {
+      console.log('[UPI Quick Pay Error]', err);
+      const errMsg = err?.message || 'Failed to generate UPI payment link.';
+      const isNetErr = err?.isNetworkError || !err?.response;
+
+      if (isNetErr) {
+        showSnackbar(
+          'Network connection failed. Please check your internet connection.',
+          'error',
+          'Retry',
+          () => handleUpiPayNow(splitRequestId)
+        );
+      } else {
+        showSnackbar(errMsg, 'error');
+      }
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   const handleQuickPay = async (item) => {
-    // Pay current user's share for this split request
     const myParticipant = item.participants?.find((p) => {
       const pId = String(typeof p.user === 'object' ? p.user._id || p.user.id : p.user);
       return pId === currentUserId;
@@ -211,43 +271,12 @@ const GroupDetailsScreen = ({ route, navigation }) => {
     }
 
     if (myParticipant.status === 'paid') {
-      Alert.alert('Info', 'You have already paid your share for this split expense.');
+      showSnackbar('You have already paid your share for this expense.', 'info');
       return;
     }
 
-    Alert.alert(
-      'Pay Share',
-      `Pay ${formatCurrency(myParticipant.amount)} for "${item.title}"? Payment will be automatically recorded!`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Pay Now',
-          onPress: async () => {
-            try {
-              const updatedParticipants = item.participants.map((p) => {
-                const pId = String(typeof p.user === 'object' ? p.user._id || p.user.id : p.user);
-                const isMe = pId === currentUserId;
-                return {
-                  user: pId,
-                  amount: p.amount,
-                  status: isMe ? 'paid' : p.status,
-                };
-              });
-
-              const allPaid = updatedParticipants.every((p) => p.status === 'paid');
-              await updateSplit(item._id, {
-                participants: updatedParticipants,
-                status: allPaid ? 'completed' : 'pending',
-              });
-              Alert.alert('Payment Successful', 'Your payment was processed & recorded in your transactions!');
-              handleRefresh();
-            } catch (err) {
-              Alert.alert('Error', err?.response?.data?.message || 'Failed to record payment');
-            }
-          },
-        },
-      ]
-    );
+    // Trigger UPI Deep Link & Payment App Selection Sheet
+    handleUpiPayNow(item._id);
   };
 
   const renderMemberItem = ({ item }) => {
@@ -343,9 +372,14 @@ const GroupDetailsScreen = ({ route, navigation }) => {
             <TouchableOpacity
               style={styles.payShareBtn}
               onPress={() => handleQuickPay(item)}
+              disabled={paymentLoading}
               activeOpacity={0.8}
             >
-              <Text style={styles.payShareBtnText}>Pay Share ({formatCurrency(myParticipant.amount)})</Text>
+              {paymentLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.payShareBtnText}>Pay Share ({formatCurrency(myParticipant.amount)})</Text>
+              )}
             </TouchableOpacity>
           )}
 
@@ -633,6 +667,24 @@ const GroupDetailsScreen = ({ route, navigation }) => {
           </View>
         </View>
       </Modal>
+
+      {/* UPI Payment App Bottom Sheet */}
+      <PaymentBottomSheet
+        visible={upiModalVisible}
+        onClose={() => setUpiModalVisible(false)}
+        paymentData={paymentData}
+        loading={paymentLoading}
+      />
+
+      {/* Reusable Snackbar */}
+      <Snackbar
+        visible={snackbar.visible}
+        message={snackbar.message}
+        type={snackbar.type}
+        actionText={snackbar.actionText}
+        onAction={snackbar.onAction}
+        onDismiss={hideSnackbar}
+      />
     </SafeAreaView>
   );
 };

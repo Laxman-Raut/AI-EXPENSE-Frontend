@@ -18,6 +18,9 @@ import { useSplitDetail, useGroupSplitRequests } from '../../hooks/useSplitReque
 import { useGroupDetails } from '../../hooks/useGroups';
 import { useAuth } from '../../hooks/useAuth';
 import { formatCurrency } from '../../utils/formatCurrency';
+import upiService from '../../services/upiService';
+import PaymentBottomSheet from '../../components/PaymentBottomSheet';
+import Snackbar from '../../components/Snackbar';
 
 const WHATSAPP_GREEN = '#25D366';
 const WHATSAPP_DARK_GREEN = '#128C7E';
@@ -68,6 +71,34 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
 
   const [updating, setUpdating] = useState(false);
 
+  // UPI Payment states
+  const [upiModalVisible, setUpiModalVisible] = useState(false);
+  const [paymentData, setPaymentData] = useState(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState({
+    visible: false,
+    message: '',
+    type: 'error',
+    actionText: null,
+    onAction: null,
+  });
+
+  const showSnackbar = (message, type = 'error', actionText = null, onAction = null) => {
+    setSnackbar({
+      visible: true,
+      message,
+      type,
+      actionText,
+      onAction,
+    });
+  };
+
+  const hideSnackbar = () => {
+    setSnackbar((prev) => ({ ...prev, visible: false }));
+  };
+
   const paidByObj = typeof splitRequest?.paidBy === 'object' ? splitRequest.paidBy : {};
   const participants = splitRequest?.participants || [];
   const isCompleted = splitRequest?.status === 'completed';
@@ -80,16 +111,59 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
   const isSplitCreator = Boolean(splitPayerId && splitPayerId === currentUserId);
   const canManageAll = isGroupAdmin || isSplitCreator;
 
+  // Find current user's participant object
+  const myParticipant = participants.find((p) => {
+    const pId = String(typeof p.user === 'object' ? p.user._id || p.user.id : p.user);
+    return pId === currentUserId;
+  });
+
+  // UPI Deep Link Generation & Pay Flow
+  const handleUpiPayNow = async (idToPay = splitId) => {
+    setPaymentLoading(true);
+    try {
+      const res = await upiService.generateDeepLink(idToPay);
+      if (res && res.success && res.data) {
+        setPaymentData({
+          ...res.data,
+          note: splitRequest?.title || 'Split Expense',
+        });
+        setUpiModalVisible(true);
+      } else {
+        showSnackbar(res?.message || 'Failed to generate UPI payment link.', 'error');
+      }
+    } catch (err) {
+      console.log('[UPI Flow Error]', err);
+      const errMsg = err?.message || 'Failed to generate UPI payment link.';
+      const isNetErr = err?.isNetworkError || !err?.response;
+
+      if (isNetErr) {
+        showSnackbar(
+          'Network connection failed. Please check your internet connection.',
+          'error',
+          'Retry',
+          () => handleUpiPayNow(idToPay)
+        );
+      } else {
+        showSnackbar(errMsg, 'error');
+      }
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   const toggleParticipantStatus = async (participant) => {
     const pUserId = String(typeof participant.user === 'object' ? participant.user._id || participant.user.id : participant.user);
     const isMe = pUserId === currentUserId;
 
+    // If regular member tapping themselves, trigger UPI payment if pending
+    if (!isPaidStatus(participant.status) && isMe && !canManageAll) {
+      handleUpiPayNow(splitId);
+      return;
+    }
+
     // Strict validation check: only group admin or creator can tap other members as paid
     if (!canManageAll && !isMe) {
-      Alert.alert(
-        'Action Restricted',
-        'Only the group admin or expense creator can mark other members as paid.'
-      );
+      showSnackbar('Only group admin or creator can mark other members as paid.', 'warning');
       return;
     }
 
@@ -114,15 +188,17 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
       });
       refetch();
     } catch (err) {
-      Alert.alert('Error', err?.response?.data?.message || 'Failed to update status');
+      showSnackbar(err?.response?.data?.message || 'Failed to update status', 'error');
     } finally {
       setUpdating(false);
     }
   };
 
+  const isPaidStatus = (status) => status === 'paid';
+
   const handleDelete = () => {
     if (!canManageAll) {
-      Alert.alert('Permission Denied', 'Only the group admin or expense creator can delete this expense.');
+      showSnackbar('Only group admin or creator can delete this expense.', 'warning');
       return;
     }
 
@@ -137,10 +213,10 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
           onPress: async () => {
             try {
               await deleteSplit(splitId);
-              Alert.alert('Success', 'Split expense deleted');
+              showSnackbar('Split expense deleted', 'success');
               navigation.goBack();
             } catch (err) {
-              Alert.alert('Error', err?.response?.data?.message || 'Failed to delete expense');
+              showSnackbar(err?.response?.data?.message || 'Failed to delete expense', 'error');
             }
           },
         },
@@ -180,12 +256,18 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
             isPaid ? styles.statusBadgePaid : styles.statusBadgePending,
             !canTap && styles.statusBadgeDisabled,
           ]}
-          onPress={() => toggleParticipantStatus(item)}
-          disabled={updating}
+          onPress={() => {
+            if (!isPaid && isMe) {
+              handleUpiPayNow(splitId);
+            } else {
+              toggleParticipantStatus(item);
+            }
+          }}
+          disabled={updating || paymentLoading}
           activeOpacity={0.8}
         >
           <Icon
-            name={isPaid ? 'checkmark-done' : canTap ? 'time-outline' : 'lock-closed-outline'}
+            name={isPaid ? 'checkmark-done' : canTap ? 'card-outline' : 'lock-closed-outline'}
             size={14}
             color={isPaid ? WHATSAPP_GREEN : canTap ? colors.warning : colors.text.muted}
           />
@@ -195,7 +277,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
               isPaid ? styles.statusTextPaid : canTap ? styles.statusTextPending : styles.statusTextDisabled,
             ]}
           >
-            {isPaid ? 'Paid' : 'Pending'}
+            {isPaid ? 'Paid' : isMe ? 'Pay Now' : 'Pending'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -312,11 +394,32 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
                 </View>
               </View>
 
+              {/* Prominent Pay Now Button for User's Share */}
+              {!isCompleted && myParticipant && myParticipant.status !== 'paid' && (
+                <TouchableOpacity
+                  style={styles.payNowPrimaryBtn}
+                  onPress={() => handleUpiPayNow(splitId)}
+                  disabled={paymentLoading}
+                  activeOpacity={0.85}
+                >
+                  {paymentLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Icon name="card-outline" size={18} color="#fff" />
+                      <Text style={styles.payNowPrimaryBtnText}>
+                        Pay Now with UPI ({formatCurrency(myParticipant.amount)})
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+
               {!canManageAll && (
                 <View style={styles.infoBanner}>
                   <Icon name="information-circle-outline" size={16} color={WHATSAPP_DARK_GREEN} />
                   <Text style={styles.infoBannerText}>
-                    Only group admin or creator can mark other members as paid. You can mark your own share.
+                    Only group admin or creator can mark other members as paid. Tap "Pay Now" to settle your share via Google Pay, PhonePe, or Paytm.
                   </Text>
                 </View>
               )}
@@ -327,6 +430,24 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
       )}
+
+      {/* UPI Payment App Bottom Sheet */}
+      <PaymentBottomSheet
+        visible={upiModalVisible}
+        onClose={() => setUpiModalVisible(false)}
+        paymentData={paymentData}
+        loading={paymentLoading}
+      />
+
+      {/* Reusable Snackbar */}
+      <Snackbar
+        visible={snackbar.visible}
+        message={snackbar.message}
+        type={snackbar.type}
+        actionText={snackbar.actionText}
+        onAction={snackbar.onAction}
+        onDismiss={hideSnackbar}
+      />
     </SafeAreaView>
   );
 };
@@ -466,6 +587,27 @@ const styles = StyleSheet.create({
   },
   overallBadgeTextPending: {
     color: colors.warning,
+  },
+  payNowPrimaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: WHATSAPP_DARK_GREEN,
+    borderRadius: radius.full,
+    paddingVertical: spacing.sm + 4,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    gap: 8,
+    shadowColor: WHATSAPP_DARK_GREEN,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  payNowPrimaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
   infoBanner: {
     flexDirection: 'row',
