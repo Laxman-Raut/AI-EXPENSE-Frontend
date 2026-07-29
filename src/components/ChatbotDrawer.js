@@ -23,7 +23,7 @@ import { useAlert } from '../context/AlertContext';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.85;
 
-const ChatbotDrawer = ({ visible, onClose }) => {
+const ChatbotDrawer = ({ visible, onClose, navigation }) => {
   const { showAlert } = useAlert();
   const insets = useSafeAreaInsets();
   
@@ -143,7 +143,29 @@ const ChatbotDrawer = ({ visible, onClose }) => {
         showAlert('Error', 'Could not get response from FinMate.');
       }
     } catch (err) {
-      showAlert('Error', 'Failed to send message. Check network connection.');
+      const errMsg = err.response?.data?.message || err.message || 'Failed to send message.';
+      const isLimitReached = err.response?.data?.code === 'LIMIT_REACHED' || err.response?.status === 403;
+
+      if (isLimitReached) {
+        showAlert(
+          'AI Limit Reached 🚀',
+          errMsg || 'You have reached your plan limit for AI Chatbot queries today. Upgrade your plan to unlock more AI queries!',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Upgrade Plan ⚡',
+              onPress: () => {
+                onClose();
+                if (navigation) {
+                  navigation.navigate('SubscriptionScreen');
+                }
+              },
+            },
+          ]
+        );
+      } else {
+        showAlert('Error', errMsg);
+      }
     } finally {
       setIsSending(false);
     }

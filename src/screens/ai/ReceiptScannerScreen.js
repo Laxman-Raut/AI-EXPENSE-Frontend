@@ -187,7 +187,23 @@ const ReceiptScannerScreen = ({ route, navigation }) => {
             showAlert('Scan Failed', 'Could not parse receipt contents.');
           }
         } catch (error) {
-          showAlert('Error', error.message || 'Gemini failed to scan receipt.');
+          const errMsg = error.response?.data?.message || error.message || 'Gemini failed to scan receipt.';
+          const isLimitReached = error.response?.data?.code === 'LIMIT_REACHED' || error.response?.status === 403;
+          if (isLimitReached) {
+            showAlert(
+              'AI Limit Reached 🚀',
+              errMsg || 'You have reached your daily plan limit for Receipt Scans. Upgrade your plan to unlock more scans!',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Upgrade Plan ⚡',
+                  onPress: () => navigation.navigate('SubscriptionScreen'),
+                },
+              ]
+            );
+          } else {
+            showAlert('Error', errMsg);
+          }
         } finally {
           setScanning(false);
         }

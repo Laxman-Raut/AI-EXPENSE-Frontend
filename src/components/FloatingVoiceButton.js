@@ -26,10 +26,12 @@ import PrimaryButton from './atoms/PrimaryButton';
 import dayjs from 'dayjs';
 import ChatbotDrawer from './ChatbotDrawer';
 import { usePremiumAccess } from '../hooks/usePremiumAccess';
+import { useNavigation } from '@react-navigation/native';
 
 const { SpeechRecognitionModule } = NativeModules;
 
 const FloatingVoiceButton = () => {
+  const navigation = useNavigation();
   const { isAuthenticated } = useAuth();
   const { showAlert } = useAlert();
   const { hasPremiumAccess, showPremiumAlert } = usePremiumAccess();
@@ -214,7 +216,26 @@ const FloatingVoiceButton = () => {
         showAlert('Processing Failed', 'Gemini failed to parse transaction fields.');
       }
     } catch (error) {
-      showAlert('Error', error.response?.data?.message || error.message || 'Error communicating with AI parser.');
+      const errMsg = error.response?.data?.message || error.message || 'Error communicating with AI parser.';
+      const isLimitReached = error.response?.data?.code === 'LIMIT_REACHED' || error.response?.status === 403;
+      if (isLimitReached) {
+        showAlert(
+          'AI Limit Reached 🚀',
+          errMsg || 'You have reached your daily plan limit for Voice Transactions. Upgrade your plan to unlock more scans!',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Upgrade Plan ⚡',
+              onPress: () => {
+                setModalVisible(false);
+                navigation.navigate('SubscriptionScreen');
+              },
+            },
+          ]
+        );
+      } else {
+        showAlert('Error', errMsg);
+      }
     } finally {
       setLoading(false);
     }
@@ -456,7 +477,7 @@ const FloatingVoiceButton = () => {
       </Modal>
 
       {/* Chatbot Global Drawer */}
-      <ChatbotDrawer visible={chatbotVisible} onClose={() => setChatbotVisible(false)} />
+      <ChatbotDrawer visible={chatbotVisible} onClose={() => setChatbotVisible(false)} navigation={navigation} />
     </>
   );
 };
