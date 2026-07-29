@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -60,6 +61,19 @@ const FriendsScreen = ({ navigation }) => {
   const currentUserIdStr = String(user?._id || user?.id || '');
   const { friends, pendingRequests, loading, error, refetch, accept, reject, remove } =
     useFriends();
+
+  // ─── Real-Time Focus Sync & Auto-Polling (4s) ───────────────────────────────
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+
+      const interval = setInterval(() => {
+        refetch();
+      }, 4000);
+
+      return () => clearInterval(interval);
+    }, [refetch])
+  );
 
   const handleAccept = async (requestId) => {
     try {

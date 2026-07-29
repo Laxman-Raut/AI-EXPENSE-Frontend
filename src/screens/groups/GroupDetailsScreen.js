@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -121,6 +122,21 @@ const GroupDetailsScreen = ({ route, navigation }) => {
     refetchGroup();
     refetchSplits();
   };
+
+  // ─── Real-Time Focus Sync & Auto-Polling (3.5s) ─────────────────────────────
+  useFocusEffect(
+    useCallback(() => {
+      refetchGroup();
+      refetchSplits();
+
+      const interval = setInterval(() => {
+        refetchGroup();
+        refetchSplits();
+      }, 3500);
+
+      return () => clearInterval(interval);
+    }, [refetchGroup, refetchSplits])
+  );
 
   const isMemberAlready = (friendUserId) => {
     return members.some((m) => {

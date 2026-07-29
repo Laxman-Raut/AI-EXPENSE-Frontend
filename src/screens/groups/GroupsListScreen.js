@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -55,6 +56,19 @@ const GroupAvatarCircle = ({ name, avatar, size = 52 }) => {
 const GroupsListScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const { groups, loading, error, refetch } = useGroups();
+
+  // ─── Real-Time Focus Sync & Auto-Polling (4s) ───────────────────────────────
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+
+      const interval = setInterval(() => {
+        refetch();
+      }, 4000);
+
+      return () => clearInterval(interval);
+    }, [refetch])
+  );
 
   const filteredGroups = useMemo(() => {
     if (!searchQuery.trim()) return groups;

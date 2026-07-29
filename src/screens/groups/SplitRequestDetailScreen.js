@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -66,6 +67,19 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
   const { splitRequest, loading, error, refetch } = useSplitDetail(splitId);
   const { updateSplit, deleteSplit } = useGroupSplitRequests(splitRequest?.group);
   const { group } = useGroupDetails(splitRequest?.group);
+
+  // ─── Real-Time Focus Sync & Auto-Polling (3s) ────────────────────────────────
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+
+      const interval = setInterval(() => {
+        refetch();
+      }, 3000);
+
+      return () => clearInterval(interval);
+    }, [refetch])
+  );
 
   const [updating, setUpdating] = useState(false);
 
