@@ -22,9 +22,7 @@ import upiService from '../../services/upiService';
 import PaymentBottomSheet from '../../components/PaymentBottomSheet';
 import Snackbar from '../../components/Snackbar';
 
-const WHATSAPP_GREEN = '#25D366';
-const WHATSAPP_DARK_GREEN = '#128C7E';
-const WHATSAPP_HEADER_GREEN = '#075E54';
+
 
 const getInitials = (name = '') =>
   name
@@ -47,7 +45,7 @@ const AvatarCircle = ({ name, avatar, size = 44 }) => {
   }
   return (
     <LinearGradient
-      colors={[WHATSAPP_DARK_GREEN, WHATSAPP_HEADER_GREEN]}
+      colors={[colors.primary, colors.primaryDark || '#5E1BDB']}
       style={[
         styles.avatarFallback,
         { width: size, height: size, borderRadius: size / 2 },
@@ -269,7 +267,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
           <Icon
             name={isPaid ? 'checkmark-done' : canTap ? 'card-outline' : 'lock-closed-outline'}
             size={14}
-            color={isPaid ? WHATSAPP_GREEN : canTap ? colors.warning : colors.text.muted}
+            color={isPaid ? colors.success : canTap ? colors.warning : colors.text.muted}
           />
           <Text
             style={[
@@ -286,7 +284,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Header - WhatsApp Style */}
+      {/* Header - Dark Theme */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backBtn}
@@ -315,7 +313,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={WHATSAPP_GREEN} size="large" />
+          <ActivityIndicator color={colors.primary} size="large" />
           <Text style={styles.loadingText}>Loading expense details...</Text>
         </View>
       ) : error ? (
@@ -337,7 +335,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
             <RefreshControl
               refreshing={loading}
               onRefresh={refetch}
-              tintColor={WHATSAPP_GREEN}
+              tintColor={colors.primary}
             />
           }
           ListHeaderComponent={
@@ -380,7 +378,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
                     <Icon
                       name={isCompleted ? 'checkmark-done' : 'time-outline'}
                       size={12}
-                      color={isCompleted ? WHATSAPP_GREEN : colors.warning}
+                      color={isCompleted ? colors.success : colors.warning}
                     />
                     <Text
                       style={[
@@ -417,7 +415,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
 
               {!canManageAll && (
                 <View style={styles.infoBanner}>
-                  <Icon name="information-circle-outline" size={16} color={WHATSAPP_DARK_GREEN} />
+                  <Icon name="information-circle-outline" size={16} color={colors.primary} />
                   <Text style={styles.infoBannerText}>
                     Only group admin or creator can mark other members as paid. Tap "Pay Now" to settle your share via Google Pay, PhonePe, or Paytm.
                   </Text>
@@ -461,9 +459,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: WHATSAPP_HEADER_GREEN,
+    backgroundColor: colors.card,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
   },
   backBtn: {
     width: 38,
@@ -488,11 +488,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#fff',
+    color: colors.text.primary,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#aebac1',
+    color: colors.text.secondary,
     marginTop: 1,
   },
   listContent: {
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   totalAmount: {
     fontSize: 32,
     fontWeight: '800',
-    color: WHATSAPP_GREEN,
+    color: colors.text.primary,
     marginTop: 4,
   },
   divider: {
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   overallBadgeCompleted: {
-    backgroundColor: WHATSAPP_GREEN + '1A',
+    backgroundColor: colors.success + '1A',
   },
   overallBadgePending: {
     backgroundColor: colors.warning + '1A',
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   overallBadgeTextCompleted: {
-    color: WHATSAPP_GREEN,
+    color: colors.success,
   },
   overallBadgeTextPending: {
     color: colors.warning,
@@ -592,13 +592,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: WHATSAPP_DARK_GREEN,
+    backgroundColor: colors.primary,
     borderRadius: radius.full,
     paddingVertical: spacing.sm + 4,
     paddingHorizontal: spacing.lg,
     marginTop: spacing.md,
     gap: 8,
-    shadowColor: WHATSAPP_DARK_GREEN,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -612,7 +612,9 @@ const styles = StyleSheet.create({
   infoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: WHATSAPP_GREEN + '12',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
     borderRadius: radius.md,
     marginTop: spacing.md,
@@ -662,7 +664,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   adminBadge: {
-    backgroundColor: WHATSAPP_GREEN + '20',
+    backgroundColor: colors.primary + '20',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -670,7 +672,7 @@ const styles = StyleSheet.create({
   adminBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: WHATSAPP_DARK_GREEN,
+    color: colors.primary,
   },
   participantAmount: {
     fontSize: 13,
@@ -686,7 +688,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statusBadgePaid: {
-    backgroundColor: WHATSAPP_GREEN + '1F',
+    backgroundColor: colors.success + '1F',
   },
   statusBadgePending: {
     backgroundColor: colors.warning + '1F',
@@ -701,7 +703,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   statusTextPaid: {
-    color: WHATSAPP_GREEN,
+    color: colors.success,
   },
   statusTextPending: {
     color: colors.warning,
@@ -731,7 +733,7 @@ const styles = StyleSheet.create({
   retryButton: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    backgroundColor: WHATSAPP_HEADER_GREEN,
+    backgroundColor: colors.primary,
     borderRadius: radius.full,
     marginTop: spacing.sm,
   },

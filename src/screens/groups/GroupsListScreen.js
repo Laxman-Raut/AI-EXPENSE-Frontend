@@ -16,9 +16,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useGroups } from '../../hooks/useGroups';
 
-const WHATSAPP_GREEN = '#25D366';
-const WHATSAPP_DARK_GREEN = '#128C7E';
-const WHATSAPP_HEADER_GREEN = '#075E54';
+
 
 const getInitials = (name = '') =>
   name
@@ -41,7 +39,7 @@ const GroupAvatarCircle = ({ name, avatar, size = 52 }) => {
   }
   return (
     <LinearGradient
-      colors={[WHATSAPP_DARK_GREEN, WHATSAPP_HEADER_GREEN]}
+      colors={[colors.primary, colors.primaryDark || '#5E1BDB']}
       style={[
         styles.avatarFallback,
         { width: size, height: size, borderRadius: size / 2 },
@@ -91,7 +89,7 @@ const GroupsListScreen = ({ navigation }) => {
 
           <View style={styles.metaRow}>
             <View style={styles.memberBadge}>
-              <Icon name="people-outline" size={12} color={WHATSAPP_DARK_GREEN} />
+              <Icon name="people-outline" size={12} color={colors.primary} />
               <Text style={styles.memberBadgeText}>
                 {memberCount} participant{memberCount !== 1 ? 's' : ''}
               </Text>
@@ -106,7 +104,7 @@ const GroupsListScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Header - WhatsApp Style */}
+      {/* Header - Dark Theme */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Groups</Text>
@@ -146,7 +144,7 @@ const GroupsListScreen = ({ navigation }) => {
       {/* Content */}
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={WHATSAPP_GREEN} size="large" />
+          <ActivityIndicator color={colors.primary} size="large" />
           <Text style={styles.loadingText}>Loading groups...</Text>
         </View>
       ) : error ? (
@@ -160,7 +158,7 @@ const GroupsListScreen = ({ navigation }) => {
       ) : filteredGroups.length === 0 ? (
         <View style={styles.centered}>
           <View style={styles.emptyCircle}>
-            <Icon name="people-circle-outline" size={56} color={WHATSAPP_DARK_GREEN} />
+            <Icon name="people-circle-outline" size={56} color={colors.primary} />
           </View>
           <Text style={styles.emptyTitle}>
             {searchQuery ? 'No groups found' : 'No Groups Yet'}
@@ -191,7 +189,7 @@ const GroupsListScreen = ({ navigation }) => {
             <RefreshControl
               refreshing={loading}
               onRefresh={refetch}
-              tintColor={WHATSAPP_GREEN}
+              tintColor={colors.primary}
             />
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -210,19 +208,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: WHATSAPP_HEADER_GREEN,
+    backgroundColor: colors.card,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#fff',
+    color: colors.text.primary,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#aebac1',
+    color: colors.text.secondary,
     marginTop: 2,
   },
   createButton: {
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: WHATSAPP_GREEN,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -311,7 +311,9 @@ const styles = StyleSheet.create({
   memberBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: WHATSAPP_GREEN + '1A',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radius.full,
@@ -319,7 +321,7 @@ const styles = StyleSheet.create({
   },
   memberBadgeText: {
     fontSize: 11,
-    color: WHATSAPP_DARK_GREEN,
+    color: colors.text.secondary,
     fontWeight: '700',
   },
   separator: {
@@ -344,7 +346,7 @@ const styles = StyleSheet.create({
   retryButton: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    backgroundColor: WHATSAPP_HEADER_GREEN,
+    backgroundColor: colors.primary,
     borderRadius: radius.full,
     marginTop: spacing.sm,
   },
@@ -357,7 +359,9 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: WHATSAPP_GREEN + '15',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.xs,
@@ -381,7 +385,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm + 4,
     borderRadius: radius.full,
-    backgroundColor: WHATSAPP_DARK_GREEN,
+    backgroundColor: colors.primary,
     marginTop: spacing.sm,
   },
   newGroupButtonText: {

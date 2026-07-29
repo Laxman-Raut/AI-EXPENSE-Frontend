@@ -25,9 +25,7 @@ import PaymentBottomSheet from '../../components/PaymentBottomSheet';
 import Snackbar from '../../components/Snackbar';
 import dayjs from 'dayjs';
 
-const WHATSAPP_GREEN = '#25D366';
-const WHATSAPP_DARK_GREEN = '#128C7E';
-const WHATSAPP_HEADER_GREEN = '#075E54';
+
 
 const getInitials = (name = '') =>
   name
@@ -50,7 +48,7 @@ const AvatarCircle = ({ name, avatar, size = 44 }) => {
   }
   return (
     <LinearGradient
-      colors={[WHATSAPP_DARK_GREEN, WHATSAPP_HEADER_GREEN]}
+      colors={[colors.primary, colors.primaryDark || '#5E1BDB']}
       style={[
         styles.avatarFallback,
         { width: size, height: size, borderRadius: size / 2 },
@@ -361,7 +359,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
             <Icon
               name={isCompleted ? 'checkmark-done' : isOverdue ? 'alert-circle' : 'time-outline'}
               size={14}
-              color={isCompleted ? WHATSAPP_GREEN : isOverdue ? colors.danger : colors.warning}
+              color={isCompleted ? colors.success : isOverdue ? colors.danger : colors.warning}
             />
             <Text style={[styles.dueBadgeText, isCompleted ? styles.dueBadgeTextSettled : isOverdue ? styles.dueBadgeTextOverdue : styles.dueBadgeTextPending]}>
               {dueText}
@@ -385,7 +383,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
 
           {iHavePaid && !isCompleted && (
             <View style={styles.paidSelfBadge}>
-              <Icon name="checkmark-circle" size={14} color={WHATSAPP_GREEN} />
+              <Icon name="checkmark-circle" size={14} color={colors.success} />
               <Text style={styles.paidSelfText}>You Paid</Text>
             </View>
           )}
@@ -451,7 +449,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={WHATSAPP_GREEN} size="large" />
+          <ActivityIndicator color={colors.primary} size="large" />
           <Text style={styles.loadingText}>Loading group details...</Text>
         </View>
       ) : error ? (
@@ -473,12 +471,12 @@ const GroupDetailsScreen = ({ route, navigation }) => {
             <RefreshControl
               refreshing={loading || splitsLoading}
               onRefresh={handleRefresh}
-              tintColor={WHATSAPP_GREEN}
+              tintColor={colors.primary}
             />
           }
           ListHeaderComponent={
             <View>
-              {/* WhatsApp Profile Hero Section */}
+              {/* Profile Hero Section */}
               <View style={styles.heroSection}>
                 <View style={styles.heroAvatarContainer}>
                   <AvatarCircle name={group?.name} avatar={group?.avatar} size={76} />
@@ -492,14 +490,14 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                   <Text style={styles.heroDesc}>{group.description}</Text>
                 ) : null}
 
-                {/* WhatsApp Circular Quick Actions Bar */}
+                {/* Circular Quick Actions Bar */}
                 <View style={styles.quickActionsRow}>
                   {isGroupAdmin && (
                     <TouchableOpacity
                       style={styles.actionCircleBtn}
                       onPress={() => setAddModalVisible(true)}
                     >
-                      <View style={[styles.actionCircleIcon, { backgroundColor: WHATSAPP_GREEN }]}>
+                      <View style={[styles.actionCircleIcon, { backgroundColor: colors.primary }]}>
                         <Icon name="person-add" size={20} color="#fff" />
                       </View>
                       <Text style={styles.actionCircleLabel}>Add</Text>
@@ -510,7 +508,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                     style={styles.actionCircleBtn}
                     onPress={() => navigation.navigate('CreateSplitRequest', { group })}
                   >
-                    <View style={[styles.actionCircleIcon, { backgroundColor: WHATSAPP_DARK_GREEN }]}>
+                    <View style={[styles.actionCircleIcon, { backgroundColor: colors.primary }]}>
                       <Icon name="add" size={22} color="#fff" />
                     </View>
                     <Text style={styles.actionCircleLabel}>Split Bill</Text>
@@ -521,7 +519,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                     onPress={() => setActiveTab(activeTab === 'Members' ? 'Splits' : 'Members')}
                   >
                     <View style={[styles.actionCircleIcon, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
-                      <Icon name={activeTab === 'Members' ? 'receipt-outline' : 'people-outline'} size={20} color={WHATSAPP_DARK_GREEN} />
+                      <Icon name={activeTab === 'Members' ? 'receipt-outline' : 'people-outline'} size={20} color={colors.primary} />
                     </View>
                     <Text style={styles.actionCircleLabel}>{activeTab === 'Members' ? 'Expenses' : 'Members'}</Text>
                   </TouchableOpacity>
@@ -530,7 +528,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                 {/* Balance Cards Summary */}
                 <View style={styles.balanceRow}>
                   <View style={styles.balanceCard}>
-                    <Icon name="arrow-down-circle" size={18} color={WHATSAPP_GREEN} />
+                    <Icon name="arrow-down-circle" size={18} color={colors.success} />
                     <Text style={styles.balanceAmountSuccess}>{formatCurrency(balanceSummary.owedToMe)}</Text>
                     <Text style={styles.balanceLabel}>Owed to You</Text>
                   </View>
@@ -542,7 +540,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                 </View>
               </View>
 
-              {/* WhatsApp Style Tab Navigation Bar */}
+              {/* Tab Navigation Bar */}
               <View style={styles.tabBar}>
                 <TouchableOpacity
                   style={[styles.tabItem, activeTab === 'Splits' && styles.tabItemActive]}
@@ -551,7 +549,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                   <Icon
                     name="chatbubbles-outline"
                     size={16}
-                    color={activeTab === 'Splits' ? WHATSAPP_DARK_GREEN : colors.text.secondary}
+                    color={activeTab === 'Splits' ? colors.primary : colors.text.secondary}
                   />
                   <Text style={[styles.tabText, activeTab === 'Splits' && styles.tabTextActive]}>
                     ACTIVITY ({splitRequests.length})
@@ -565,7 +563,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                   <Icon
                     name="people-outline"
                     size={16}
-                    color={activeTab === 'Members' ? WHATSAPP_DARK_GREEN : colors.text.secondary}
+                    color={activeTab === 'Members' ? colors.primary : colors.text.secondary}
                   />
                   <Text style={[styles.tabText, activeTab === 'Members' && styles.tabTextActive]}>
                     PARTICIPANTS ({members.length})
@@ -573,7 +571,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
               </View>
 
-              {/* WhatsApp "Add participants" row if on Members tab & user is admin */}
+              {/* "Add participants" row if on Members tab & user is admin */}
               {activeTab === 'Members' && isGroupAdmin && (
                 <TouchableOpacity
                   style={styles.addParticipantRow}
@@ -592,7 +590,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
               <Icon
                 name={activeTab === 'Splits' ? 'chatbubble-ellipses-outline' : 'people-outline'}
                 size={44}
-                color={WHATSAPP_DARK_GREEN}
+                color={colors.primary}
               />
               <Text style={styles.emptyTitle}>
                 {activeTab === 'Splits' ? 'No Split Expenses Yet' : 'No Participants'}
@@ -626,7 +624,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
 
             {friends.length === 0 ? (
               <View style={styles.emptyFriendsView}>
-                <Icon name="people-outline" size={40} color={WHATSAPP_DARK_GREEN} />
+                <Icon name="people-outline" size={40} color={colors.primary} />
                 <Text style={styles.emptyFriendsText}>
                   You haven't added any friends yet. Add friends first to invite them to groups!
                 </Text>
@@ -698,9 +696,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: WHATSAPP_HEADER_GREEN,
+    backgroundColor: colors.card,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
   },
   backBtn: {
     width: 38,
@@ -716,11 +716,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
+    color: colors.text.primary,
   },
   headerSub: {
     fontSize: 12,
-    color: '#aebac1',
+    color: colors.text.secondary,
     marginTop: 1,
   },
   menuBtn: {
@@ -743,7 +743,7 @@ const styles = StyleSheet.create({
   },
   heroAvatarContainer: {
     borderWidth: 3,
-    borderColor: WHATSAPP_GREEN,
+    borderColor: colors.primary,
     borderRadius: 40,
     padding: 2,
     marginBottom: spacing.md,
@@ -811,7 +811,7 @@ const styles = StyleSheet.create({
   balanceAmountSuccess: {
     fontSize: 16,
     fontWeight: '800',
-    color: WHATSAPP_GREEN,
+    color: colors.success,
     marginTop: 2,
   },
   balanceAmountDanger: {
@@ -842,7 +842,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabItemActive: {
-    borderBottomColor: WHATSAPP_DARK_GREEN,
+    borderBottomColor: colors.primary,
   },
   tabText: {
     fontSize: 12,
@@ -851,7 +851,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   tabTextActive: {
-    color: WHATSAPP_DARK_GREEN,
+    color: colors.primary,
   },
   addParticipantRow: {
     flexDirection: 'row',
@@ -866,7 +866,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: WHATSAPP_GREEN,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
@@ -874,7 +874,7 @@ const styles = StyleSheet.create({
   addParticipantText: {
     fontSize: 15,
     fontWeight: '700',
-    color: WHATSAPP_DARK_GREEN,
+    color: colors.primary,
   },
   memberCard: {
     flexDirection: 'row',
@@ -908,7 +908,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   adminBadge: {
-    backgroundColor: WHATSAPP_GREEN + '20',
+    backgroundColor: colors.primary + '20',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 4,
@@ -916,7 +916,7 @@ const styles = StyleSheet.create({
   adminBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: WHATSAPP_DARK_GREEN,
+    color: colors.primary,
   },
   removeMemberBtn: {
     padding: spacing.xs,
@@ -963,7 +963,7 @@ const styles = StyleSheet.create({
   splitAmount: {
     fontSize: 16,
     fontWeight: '800',
-    color: WHATSAPP_DARK_GREEN,
+    color: colors.text.primary,
   },
   splitTypeBadge: {
     fontSize: 9,
@@ -991,7 +991,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   dueBadgeSettled: {
-    backgroundColor: WHATSAPP_GREEN + '1A',
+    backgroundColor: colors.success + '1A',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: radius.full,
@@ -1009,7 +1009,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   dueBadgeTextSettled: {
-    color: WHATSAPP_GREEN,
+    color: colors.success,
   },
   dueBadgeTextPending: {
     color: colors.warning,
@@ -1018,7 +1018,7 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   payShareBtn: {
-    backgroundColor: WHATSAPP_DARK_GREEN,
+    backgroundColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radius.full,
@@ -1036,7 +1036,7 @@ const styles = StyleSheet.create({
   paidSelfText: {
     fontSize: 12,
     fontWeight: '700',
-    color: WHATSAPP_GREEN,
+    color: colors.success,
   },
   separator: {
     height: 1,
@@ -1078,7 +1078,7 @@ const styles = StyleSheet.create({
   retryButton: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    backgroundColor: WHATSAPP_HEADER_GREEN,
+    backgroundColor: colors.primary,
     borderRadius: radius.full,
     marginTop: spacing.sm,
   },
@@ -1124,7 +1124,7 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   addFriendBtn: {
-    backgroundColor: WHATSAPP_DARK_GREEN,
+    backgroundColor: colors.primary,
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: radius.full,
