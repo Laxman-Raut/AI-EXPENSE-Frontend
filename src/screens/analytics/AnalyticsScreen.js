@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
+import { useSelector } from 'react-redux';
 import { LineChart, PieChart } from 'react-native-gifted-charts';
 import Icon from 'react-native-vector-icons/Ionicons';
 import dayjs from 'dayjs';
@@ -32,6 +33,9 @@ const CATEGORY_COLORS = [
 const AnalyticsScreen = () => {
   const [activeTab, setActiveTab] = useState('EXPENSES'); // 'EXPENSES' | 'INCOME'
   const [timeframe, setTimeframe] = useState('1M');
+
+  // Active User Currency from Redux
+  const userCurrency = useSelector((state) => state.auth?.user?.currency || state.app?.currency || 'INR');
 
   // Fetch all transactions
   const { data: transactions = [], isLoading } = useTransactions();
@@ -303,7 +307,7 @@ const AnalyticsScreen = () => {
       title,
       hasData,
     };
-  }, [transactions, activeTab, timeframe]);
+  }, [transactions, activeTab, timeframe, userCurrency]);
 
   // Calculate precise spacing to fit the LineChart exactly within container width (taking padding into account)
   const chartWidth = SCREEN_WIDTH - 48; // Card inner width (SCREEN_WIDTH - card margins 32 - card paddings 16)
@@ -449,7 +453,7 @@ const AnalyticsScreen = () => {
                 if (!item || item.value === undefined) return null;
                 return (
                   <View style={styles.tooltipContainer}>
-                    <Text style={styles.tooltipAmount}>{formatCurrency(item.value)}</Text>
+                    <Text style={styles.tooltipAmount}>{formatCurrency(item.value, 'INR', userCurrency)}</Text>
                     <Text style={styles.tooltipDate}>{item.dateStr || item.label}</Text>
                     {item.timeStr ? <Text style={styles.tooltipTime}>{item.timeStr}</Text> : null}
                   </View>
@@ -478,7 +482,7 @@ const AnalyticsScreen = () => {
                   if (!item || item.value === undefined) return null;
                   return (
                     <View style={styles.tooltipContainer}>
-                      <Text style={styles.tooltipAmount}>{formatCurrency(item.value)}</Text>
+                      <Text style={styles.tooltipAmount}>{formatCurrency(item.value, 'INR', userCurrency)}</Text>
                       <Text style={styles.tooltipDate}>{item.dateStr || item.label}</Text>
                       {item.timeStr ? <Text style={styles.tooltipTime}>{item.timeStr}</Text> : null}
                     </View>
@@ -499,13 +503,13 @@ const AnalyticsScreen = () => {
           <Card style={styles.insightBox}>
             <Text style={styles.insightLabel}>Total {activeTab === 'EXPENSES' ? 'Spent' : 'Earned'}</Text>
             <Text style={[styles.insightValue, { color: activeTab === 'EXPENSES' ? colors.danger : colors.success }]}>
-              {formatCurrency(analyticsData.total)}
+              {formatCurrency(analyticsData.total, 'INR', userCurrency)}
             </Text>
           </Card>
           <Card style={styles.insightBox}>
             <Text style={styles.insightLabel}>Average ({timeframe.toLowerCase()})</Text>
             <Text style={styles.insightValue}>
-              {formatCurrency(analyticsData.average)}
+              {formatCurrency(analyticsData.average, 'INR', userCurrency)}
             </Text>
           </Card>
         </View>
@@ -525,7 +529,7 @@ const AnalyticsScreen = () => {
               />
               <View style={styles.pieCenterTextContainer}>
                 <Text style={styles.pieCenterTotal}>
-                  {formatCurrency(analyticsData.total)}
+                  {formatCurrency(analyticsData.total, 'INR', userCurrency)}
                 </Text>
                 <Text style={styles.pieCenterLabel}>Total</Text>
               </View>
@@ -544,7 +548,7 @@ const AnalyticsScreen = () => {
                     </View>
                     <View style={styles.legendRight}>
                       <Text style={styles.legendValue}>{item.percentage}%</Text>
-                      <Text style={styles.legendAmt}>{formatCurrency(item.amount)}</Text>
+                      <Text style={styles.legendAmt}>{formatCurrency(item.amount, 'INR', userCurrency)}</Text>
                     </View>
                   </View>
                 ))
