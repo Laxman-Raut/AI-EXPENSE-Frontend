@@ -46,3 +46,13 @@ export const resetPassword = async (email, otp, newPassword) => {
   const response = await apiClient.post('auth/reset-password', { email, otp, newPassword });
   return response.data;
 };
+
+export const verifyRegistrationOtp = async (email, otp) => {
+  const response = await apiClient.post('auth/verify-registration-otp', { email, otp });
+  return response.data;
+};
+
+export const resendRegistrationOtp = async (email) => {
+  const response = await apiClient.post('auth/resend-registration-otp', { email });
+  return response.data;
+};

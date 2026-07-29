@@ -59,7 +59,13 @@ const RegisterScreen = ({ navigation }) => {
     setLoading(true);
 
     try {
-      await auth.register(fullName.trim(), email.trim(), password);
+      const res = await auth.register(fullName.trim(), email.trim(), password);
+      if (res && res.requiresVerification) {
+        navigation.navigate('OtpVerification', {
+          email: res.email || email.trim(),
+          fullName: fullName.trim(),
+        });
+      }
     } catch (err) {
       const message =
         err.response?.data?.message ||

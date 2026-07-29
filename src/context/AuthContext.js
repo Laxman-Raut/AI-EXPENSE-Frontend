@@ -6,6 +6,7 @@ import {
   login as loginThunk,
   googleLogin as googleLoginThunk,
   register as registerThunk,
+  verifyRegistrationOtp as verifyRegistrationOtpThunk,
   logout as logoutThunk,
   updateUser as updateUserThunk,
   refreshProfile as refreshProfileThunk,
@@ -42,6 +43,11 @@ export const AuthProvider = ({ children }) => {
     return result;
   };
 
+  const verifyOtp = async (email, otp) => {
+    const result = await dispatch(verifyRegistrationOtpThunk({ email, otp })).unwrap();
+    return result;
+  };
+
   const logout = async () => {
     await dispatch(logoutThunk()).unwrap();
   };
@@ -65,6 +71,7 @@ export const AuthProvider = ({ children }) => {
         login,
         googleLogin,
         register,
+        verifyOtp,
         logout,
         refreshProfile,
         updateUser,

@@ -53,6 +53,12 @@ const LoginScreen = ({ navigation }) => {
     try {
       await auth.login(email.trim(), password);
     } catch (err) {
+      if (err.requiresVerification || err.response?.data?.requiresVerification) {
+        navigation.navigate('OtpVerification', {
+          email: err.email || err.response?.data?.email || email.trim(),
+        });
+        return;
+      }
       const message =
         err.response?.data?.message || err.message || 'Login failed. Please try again.';
       setError(message);

@@ -73,17 +73,34 @@ export const googleLogin = createAsyncThunk(
 
 export const register = createAsyncThunk(
   'auth/register',
-  async ({ fullName, email, password }, { dispatch, rejectWithValue }) => {
+  async ({ fullName, email, password }, { rejectWithValue }) => {
     try {
       const response = await authApi.registerUser(fullName, email, password);
-      if (response.success) {
-        // Auto-login after registration
-        const loginResult = await dispatch(login({ email, password })).unwrap();
-        return loginResult;
+      if (response.success && response.data) {
+        return response.data;
       }
       return rejectWithValue(response.message || 'Registration failed');
     } catch (error) {
       const msg = error.response?.data?.message || error.message || 'Registration failed';
+      return rejectWithValue(msg);
+    }
+  }
+);
+
+export const verifyRegistrationOtp = createAsyncThunk(
+  'auth/verifyRegistrationOtp',
+  async ({ email, otp }, { rejectWithValue }) => {
+    try {
+      const response = await authApi.verifyRegistrationOtp(email, otp);
+      if (response.success && response.data) {
+        const { user, token } = response.data;
+        await AsyncStorage.setItem('auth_token', token);
+        await AsyncStorage.setItem('user', JSON.stringify(user));
+        return { token, user };
+      }
+      return rejectWithValue(response.message || 'OTP verification failed');
+    } catch (error) {
+      const msg = error.response?.data?.message || error.message || 'OTP verification failed';
       return rejectWithValue(msg);
     }
   }
@@ -187,13 +204,23 @@ const authSlice = createSlice({
       .addCase(register.pending, (state) => {
         state.isLoading = true;
       })
-      .addCase(register.fulfilled, (state, action) => {
+      .addCase(register.fulfilled, (state) => {
+        state.isLoading = false;
+      })
+      .addCase(register.rejected, (state) => {
+        state.isLoading = false;
+      })
+      // verifyRegistrationOtp
+      .addCase(verifyRegistrationOtp.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(verifyRegistrationOtp.fulfilled, (state, action) => {
         state.token = action.payload.token;
         state.user = action.payload.user;
         state.isAuthenticated = true;
         state.isLoading = false;
       })
-      .addCase(register.rejected, (state) => {
+      .addCase(verifyRegistrationOtp.rejected, (state) => {
         state.isLoading = false;
       })
       // logout
