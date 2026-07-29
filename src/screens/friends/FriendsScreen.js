@@ -16,6 +16,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useFriends } from '../../hooks/useFriends';
 import { useGroups } from '../../hooks/useGroups';
+import { useAuth } from '../../hooks/useAuth';
 import GroupsListScreen from '../groups/GroupsListScreen';
 
 const TABS = ['Friends', 'Groups', 'Requests'];
@@ -55,6 +56,8 @@ const AvatarCircle = ({ name, avatar, size = 50 }) => {
 
 const FriendsScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('Friends');
+  const { user } = useAuth();
+  const currentUserIdStr = String(user?._id || user?.id || '');
   const { friends, pendingRequests, loading, error, refetch, accept, reject, remove } =
     useFriends();
 
@@ -97,16 +100,10 @@ const FriendsScreen = ({ navigation }) => {
 
   // ─── Friend Card ─────────────────────────────────────────────────────────────
   const renderFriend = ({ item }) => {
-    // item has { _id, sender: {_id, fullName,...}, receiver: {_id, fullName,...}, status }
-    // We need the OTHER user (not the current user). Since we don't have currentUserId
-    // easily here, we show both and let the remove use the Friend doc _id for the API.
-    // Backend removeFriend receives the friendId as the OTHER user's _id.
-    // We store the friend's user _id as friendUserId.
-    const sender = item.sender || {};
-    const receiver = item.receiver || {};
-    // Pick whichever user object has fullName (both are populated)
-    const friend = sender.fullName ? sender : receiver;
-    // The API DELETE /friends/:friendId expects the Friend document _id
+    // Resolve the OTHER user object in the friendship
+    const senderIdStr = String(item.sender?._id || item.sender?.id || item.sender || '');
+    const friend = item.friend || (senderIdStr === currentUserIdStr ? item.receiver : item.sender) || {};
+
     return (
       <View style={styles.card}>
         <AvatarCircle name={friend.fullName} avatar={friend.avatar} />

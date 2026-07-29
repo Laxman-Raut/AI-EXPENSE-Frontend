@@ -634,8 +634,10 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                 data={friends}
                 keyExtractor={(item) => item._id}
                 renderItem={({ item }) => {
-                  const friend = item.sender?.fullName ? item.sender : item.receiver || {};
-                  const isAlreadyInGroup = isMemberAlready(friend._id);
+                  const senderIdStr = String(item.sender?._id || item.sender?.id || item.sender || '');
+                  const friend = item.friend || (senderIdStr === currentUserId ? item.receiver : item.sender) || {};
+                  const friendId = String(friend._id || friend.id || '');
+                  const isAlreadyInGroup = isMemberAlready(friendId);
 
                   return (
                     <View style={styles.friendRow}>
@@ -650,7 +652,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                       ) : (
                         <TouchableOpacity
                           style={styles.addFriendBtn}
-                          onPress={() => handleAddMember(friend._id)}
+                          onPress={() => handleAddMember(friendId)}
                           disabled={actionLoading}
                         >
                           <Text style={styles.addFriendBtnText}>Add</Text>
