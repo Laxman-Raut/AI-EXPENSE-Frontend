@@ -10,16 +10,14 @@ import { Platform } from 'react-native';
 // ─────────────────────────────────────────────────────────────
 
 // Host machine IP address on your local Wi-Fi network (for physical phone)
-const LOCAL_IP = '10.245.170.195';
+const LOCAL_IP = '10.86.63.181';
 // Android Emulator special loopback IP to host machine
 const EMULATOR_IP = '10.0.2.2';
 
 const getBaseUrl = () => {
-  if (process.env.API_URL) {
-    return process.env.API_URL;
-  }
+  const cleanLocalIp = LOCAL_IP.trim();
   return Platform.OS === 'android'
-    ? `http://${LOCAL_IP}:5000/api`
+    ? `http://${cleanLocalIp}:5000/api`
     : 'http://localhost:5000/api';
 };
 

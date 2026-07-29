@@ -16,8 +16,8 @@ export const useFriends = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
+  const fetchAll = useCallback(async (isSilent = false) => {
+    if (!isSilent && friends.length === 0) setLoading(true);
     setError(null);
     try {
       const [friendsRes, pendingRes] = await Promise.all([
@@ -27,11 +27,11 @@ export const useFriends = () => {
       setFriends(friendsRes.data || []);
       setPendingRequests(pendingRes.data || []);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to load friends');
+      if (!isSilent) setError(err?.response?.data?.message || 'Failed to load friends');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [friends.length]);
 
   useEffect(() => {
     fetchAll();
