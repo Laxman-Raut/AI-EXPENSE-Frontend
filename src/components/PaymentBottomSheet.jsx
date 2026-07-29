@@ -80,23 +80,21 @@ const PaymentBottomSheet = ({
         ? `${deepLink}&package=com.google.android.apps.nsetup`
         : deepLink;
 
-      const canOpen = await Linking.canOpenURL(gpayPkgUrl).catch(() => false);
-      if (canOpen) {
+      try {
         await Linking.openURL(gpayPkgUrl);
         onClose();
         return;
+      } catch (e1) {
+        try {
+          await Linking.openURL(deepLink);
+          onClose();
+          return;
+        } catch (e2) {
+          Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.nsetup').catch(() => {});
+        }
       }
-
-      const canOpenUpi = await Linking.canOpenURL(deepLink).catch(() => false);
-      if (canOpenUpi) {
-        await Linking.openURL(deepLink);
-        onClose();
-        return;
-      }
-
-      await Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.nsetup');
     } catch (err) {
-      Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.nsetup').catch(() => {});
+      console.log('[PaymentBottomSheet] GPay error:', err);
     }
     onClose();
   };
@@ -108,23 +106,21 @@ const PaymentBottomSheet = ({
         ? `${deepLink}&package=com.phonepe.app`
         : deepLink;
 
-      const canOpen = await Linking.canOpenURL(phonepePkgUrl).catch(() => false);
-      if (canOpen) {
+      try {
         await Linking.openURL(phonepePkgUrl);
         onClose();
         return;
+      } catch (e1) {
+        try {
+          await Linking.openURL(deepLink);
+          onClose();
+          return;
+        } catch (e2) {
+          Linking.openURL('https://play.google.com/store/apps/details?id=com.phonepe.app').catch(() => {});
+        }
       }
-
-      const canOpenUpi = await Linking.canOpenURL(deepLink).catch(() => false);
-      if (canOpenUpi) {
-        await Linking.openURL(deepLink);
-        onClose();
-        return;
-      }
-
-      await Linking.openURL('https://play.google.com/store/apps/details?id=com.phonepe.app');
     } catch (err) {
-      Linking.openURL('https://play.google.com/store/apps/details?id=com.phonepe.app').catch(() => {});
+      console.log('[PaymentBottomSheet] PhonePe error:', err);
     }
     onClose();
   };
@@ -136,23 +132,21 @@ const PaymentBottomSheet = ({
         ? `${deepLink}&package=net.one97.paytm`
         : deepLink;
 
-      const canOpen = await Linking.canOpenURL(paytmPkgUrl).catch(() => false);
-      if (canOpen) {
+      try {
         await Linking.openURL(paytmPkgUrl);
         onClose();
         return;
+      } catch (e1) {
+        try {
+          await Linking.openURL(deepLink);
+          onClose();
+          return;
+        } catch (e2) {
+          Linking.openURL('https://play.google.com/store/apps/details?id=net.one97.paytm').catch(() => {});
+        }
       }
-
-      const canOpenUpi = await Linking.canOpenURL(deepLink).catch(() => false);
-      if (canOpenUpi) {
-        await Linking.openURL(deepLink);
-        onClose();
-        return;
-      }
-
-      await Linking.openURL('https://play.google.com/store/apps/details?id=net.one97.paytm');
     } catch (err) {
-      Linking.openURL('https://play.google.com/store/apps/details?id=net.one97.paytm').catch(() => {});
+      console.log('[PaymentBottomSheet] Paytm error:', err);
     }
     onClose();
   };
@@ -167,7 +161,7 @@ const PaymentBottomSheet = ({
     onClose();
   };
 
-  const isButtonsDisabled = loading || checkingApps || !deepLink;
+  const isButtonsDisabled = loading || !deepLink;
 
   return (
     <Modal
