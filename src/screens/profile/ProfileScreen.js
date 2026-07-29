@@ -27,6 +27,7 @@ import { useTransactions } from '../../hooks/useTransactions';
 import apiClient from '../../api/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
+import { setGlobalCurrency } from '../../utils/formatCurrency';
 
 const ProfileScreen = ({ navigation }) => {
   const { user, logout, updateUser } = useAuth();
@@ -187,6 +188,7 @@ const ProfileScreen = ({ navigation }) => {
     try {
       await updateUser({ currency: currCode });
       setSelectedCurrency(currCode);
+      setGlobalCurrency(currCode);
       setCurrencyModalVisible(false);
       showAlert('Success', `Currency switched to ${currCode}.`, [{ text: 'OK' }]);
     } catch (err) {

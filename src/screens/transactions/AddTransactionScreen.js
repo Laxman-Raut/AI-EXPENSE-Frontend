@@ -23,6 +23,7 @@ import {
 } from '../../hooks/useTransactions';
 import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
+import { getGlobalCurrency } from '../../utils/formatCurrency';
 
 const EXPENSE_CATEGORIES = [
   { id: 'Food', name: 'Food', icon: 'fast-food', color: '#FF6B6B' },
@@ -139,10 +140,13 @@ const AddTransactionScreen = ({ navigation, route }) => {
       return;
     }
 
+    const activeCurrency = getGlobalCurrency() || 'INR';
+
     const payload = {
       type: activeType,
       category,
       amount: Number(amount),
+      currency: activeCurrency,
       description: notes && notes.trim().length >= 2 ? notes.trim() : `${category} ${activeType}`,
       paymentMethod,
       note: notes,

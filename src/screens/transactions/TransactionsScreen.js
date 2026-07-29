@@ -540,7 +540,7 @@ const TransactionsScreen = ({ navigation }) => {
                   title={txn.description}
                   category={txn.category}
                   paymentMethod={txn.paymentMethod}
-                  amount={formatCurrency(txn.amount)}
+                  amount={formatCurrency(txn.amount, txn.currency || 'INR')}
                   type={txn.type}
                   onEdit={() => navigation.navigate('AddTransaction', { id: txn._id })}
                   onDelete={() => handleDelete(txn._id)}

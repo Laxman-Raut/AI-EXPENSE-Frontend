@@ -608,7 +608,7 @@ const DashboardScreen = ({ navigation }) => {
                   </View>
                   <View style={styles.txnRight}>
                     <Text style={[styles.txnAmount, isExpense ? styles.expenseText : styles.incomeText]}>
-                      {isExpense ? '-' : '+'}{formatCurrency(txn.amount)}
+                      {isExpense ? '-' : '+'}{formatCurrency(txn.amount, txn.currency || 'INR')}
                     </Text>
                     <Text style={styles.txnTime}>
                       {txn.time || (txn.transactionDate ? formatDate(txn.transactionDate) : 'Today')}

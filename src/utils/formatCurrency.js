@@ -1,6 +1,7 @@
-let cachedCurrency = 'INR';
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+let cachedCurrency = 'INR';
+const USD_TO_INR_RATE = 85.0;
 
 // Attempt to load from storage on boot
 AsyncStorage.getItem('user').then((storedUser) => {
@@ -8,69 +9,96 @@ AsyncStorage.getItem('user').then((storedUser) => {
     try {
       const user = JSON.parse(storedUser);
       if (user && user.currency) {
-        cachedCurrency = user.currency;
+        setGlobalCurrency(user.currency);
       }
     } catch {}
   }
 });
 
 export const setGlobalCurrency = (currencyCode) => {
-  cachedCurrency = currencyCode;
+  if (currencyCode === '₹') cachedCurrency = 'INR';
+  else if (currencyCode === '$') cachedCurrency = 'USD';
+  else if (currencyCode) cachedCurrency = currencyCode;
 };
+
+export const getGlobalCurrency = () => cachedCurrency;
 
 export const getCurrencySymbol = (currency = null) => {
   const activeCurrency = currency || cachedCurrency || 'INR';
   const symbolMap = { USD: '$', EUR: '€', GBP: '£', INR: '₹' };
-  return symbolMap[activeCurrency] || '₹';
+  return symbolMap[activeCurrency] || (activeCurrency === 'USD' ? '$' : '₹');
 };
 
-export const formatCurrency = (amount, currency = null) => {
-  const activeCurrency = currency || cachedCurrency || 'INR';
-  
-  if (amount === undefined || amount === null || isNaN(Number(amount))) {
-    return activeCurrency === 'INR' ? '₹0' : activeCurrency === 'USD' ? '$0' : activeCurrency === 'EUR' ? '€0' : activeCurrency === 'GBP' ? '£0' : '0';
-  }
-  const absAmount = Math.abs(amount);
-  
-  if (activeCurrency === 'INR') {
-    const formatted = absAmount.toLocaleString('en-IN', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    });
-    return `₹${formatted}`;
-  }
-  
-  try {
-    return absAmount.toLocaleString('en-US', {
-      style: 'currency',
-      currency: activeCurrency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    });
-  } catch {
-    const symbolMap = { USD: '$', EUR: '€', GBP: '£', INR: '₹' };
-    const symbol = symbolMap[activeCurrency] || activeCurrency;
-    return `${symbol}${absAmount.toFixed(2)}`;
-  }
+/**
+ * Converts numeric value between currencies (USD <-> INR)
+ * Base transactions are in source currency ('INR' or 'USD').
+ */
+export const convertCurrencyValue = (amount, fromCurrency = 'INR', toCurrency = null) => {
+  const targetCurrency = toCurrency || cachedCurrency || 'INR';
+  const sourceCurrency = fromCurrency || 'INR';
+
+  if (amount === undefined || amount === null || isNaN(Number(amount))) return 0;
+  const num = Number(amount);
+
+  if (sourceCurrency === targetCurrency) return num;
+
+  // Convert source -> INR -> target
+  const sourceInINR = (sourceCurrency === 'USD' || sourceCurrency === '$')
+    ? num * USD_TO_INR_RATE
+    : (sourceCurrency === 'EUR' ? num * 92.0 : num);
+
+  if (targetCurrency === 'USD' || targetCurrency === '$') return sourceInINR / USD_TO_INR_RATE;
+  if (targetCurrency === 'EUR') return sourceInINR / 92.0;
+  if (targetCurrency === 'GBP') return sourceInINR / 106.0;
+  return sourceInINR;
 };
 
-export const formatCompactCurrency = (amount, currency = null) => {
-  const activeCurrency = currency || cachedCurrency || 'INR';
+/**
+ * Formats amount with dynamic numerical conversion & active symbol
+ */
+export const formatCurrency = (amount, fromCurrency = 'INR', targetCurrency = null) => {
+  const activeCurrency = targetCurrency || cachedCurrency || 'INR';
   const symbolMap = { USD: '$', EUR: '€', GBP: '£', INR: '₹' };
-  const symbol = symbolMap[activeCurrency] || '₹';
+  const symbol = symbolMap[activeCurrency] || (activeCurrency === 'USD' ? '$' : '₹');
 
   if (amount === undefined || amount === null || isNaN(Number(amount))) {
     return `${symbol}0`;
   }
-  const absAmount = Math.abs(amount);
-  if (absAmount >= 10000000) {
-    return `${symbol}${(absAmount / 10000000).toFixed(1)}Cr`;
+
+  const converted = convertCurrencyValue(amount, fromCurrency, activeCurrency);
+  const absAmount = Math.abs(converted);
+
+  if (activeCurrency === 'INR') {
+    const formatted = Math.round(absAmount).toLocaleString('en-IN');
+    return `₹${formatted}`;
   }
-  if (absAmount >= 100000) {
-    return `${symbol}${(absAmount / 100000).toFixed(1)}L`;
+
+  const formattedVal = absAmount < 10 && absAmount % 1 !== 0
+    ? absAmount.toFixed(2)
+    : Math.round(absAmount).toLocaleString('en-US');
+
+  return `${symbol}${formattedVal}`;
+};
+
+export const formatCompactCurrency = (amount, fromCurrency = 'INR', targetCurrency = null) => {
+  const activeCurrency = targetCurrency || cachedCurrency || 'INR';
+  const symbolMap = { USD: '$', EUR: '€', GBP: '£', INR: '₹' };
+  const symbol = symbolMap[activeCurrency] || (activeCurrency === 'USD' ? '$' : '₹');
+
+  if (amount === undefined || amount === null || isNaN(Number(amount))) {
+    return `${symbol}0`;
   }
+
+  const converted = convertCurrencyValue(amount, fromCurrency, activeCurrency);
+  const absAmount = Math.abs(converted);
+
+  if (activeCurrency === 'INR') {
+    if (absAmount >= 10000000) return `${symbol}${(absAmount / 10000000).toFixed(1)}Cr`;
+    if (absAmount >= 100000) return `${symbol}${(absAmount / 100000).toFixed(1)}L`;
+  }
+
   if (absAmount >= 1000) {
     return `${symbol}${(absAmount / 1000).toFixed(1)}K`;
   }
-  return `${symbol}${absAmount}`;
+  return `${symbol}${Math.round(absAmount)}`;
 };
