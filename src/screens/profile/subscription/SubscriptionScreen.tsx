@@ -69,26 +69,45 @@ const getBillingLabel = (cycle: string): string => {
   }
 };
 
+const USD_RATES: Record<string, number> = {
+  USD: 1,
+  INR: 85.0,
+  EUR: 0.92,
+  GBP: 0.79,
+};
+
 const formatPrice = (price: number, planCurrency: string, userCurrencySymbol: string): string => {
   if (price === 0) return 'Free';
-  const userCode = SYMBOL_TO_CODE[userCurrencySymbol] || 'INR';
-  const symbol = CODE_TO_SYMBOL[userCode] || userCurrencySymbol;
 
-  // If plan currency matches user currency — show directly
-  if (planCurrency === userCode) {
-    return `${symbol}${price.toLocaleString('en-IN')}`;
+  // Determine user's active currency code ('INR', 'USD', etc.)
+  let userCode = SYMBOL_TO_CODE[userCurrencySymbol] || userCurrencySymbol;
+  if (!userCode || userCode === '₹') userCode = 'INR';
+  if (userCode === '$') userCode = 'USD';
+
+  const symbol = CODE_TO_SYMBOL[userCode] || (userCode === 'USD' ? '$' : '₹');
+
+  // Base plan prices from backend database are in USD (e.g. 9, 19, 39)
+  const baseCurrency = (planCurrency || 'USD').toUpperCase();
+
+  let finalPrice = price;
+
+  if (baseCurrency === 'USD' && userCode === 'INR') {
+    // Convert $ USD base price to ₹ INR (1 USD = 85 INR)
+    finalPrice = Math.round(price * 85.0);
+  } else if (baseCurrency === 'USD' && userCode !== 'USD') {
+    const rate = USD_RATES[userCode] || 85.0;
+    finalPrice = Math.round(price * rate);
+  } else if (baseCurrency === 'INR' && userCode === 'USD') {
+    finalPrice = Math.round(price / 85.0);
   }
 
-  // Convert: assume plan price is always in INR from backend
-  const rate = INR_RATES[userCode] || 1;
-  const converted = Math.round(price * rate);
-  return `${symbol}${converted.toLocaleString('en-IN')}`;
+  return `${symbol}${finalPrice.toLocaleString('en-IN')}`;
 };
 
 const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const dispatch = useDispatch<any>();
   const subscription = useSelector((state: any) => state.subscription);
-  const userCurrency = useSelector((state: any) => state.app?.currency || '₹');
+  const userCurrency = useSelector((state: any) => state.auth?.user?.currency || state.app?.currency || '₹');
   const { startSubscriptionPayment, isLoading } = usePayment();
   const { data: plans, isLoading: plansLoading, error: plansError, refetch } = usePublicPlans();
 
