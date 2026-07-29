@@ -228,7 +228,7 @@ const FloatingVoiceButton = () => {
               text: 'Upgrade Plan ⚡',
               onPress: () => {
                 setModalVisible(false);
-                navigation.navigate('SubscriptionScreen');
+                navigation.navigate('Subscription');
               },
             },
           ]
