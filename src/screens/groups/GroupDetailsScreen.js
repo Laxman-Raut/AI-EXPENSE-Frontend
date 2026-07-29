@@ -123,18 +123,11 @@ const GroupDetailsScreen = ({ route, navigation }) => {
     refetchSplits();
   };
 
-  // ─── Real-Time Focus Sync & Auto-Polling (3.5s) ─────────────────────────────
+  // ─── Real-Time Focus Sync ─────────────────────────────
   useFocusEffect(
     useCallback(() => {
       refetchGroup();
       refetchSplits();
-
-      const interval = setInterval(() => {
-        refetchGroup();
-        refetchSplits();
-      }, 3500);
-
-      return () => clearInterval(interval);
     }, [refetchGroup, refetchSplits])
   );
 
@@ -463,7 +456,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {loading ? (
+      {loading && !group ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} size="large" />
           <Text style={styles.loadingText}>Loading group details...</Text>

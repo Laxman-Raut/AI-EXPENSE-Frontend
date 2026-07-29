@@ -88,7 +88,6 @@ export const useGroupDetails = (groupId) => {
 
   const fetchDetails = useCallback(async () => {
     if (!groupId) return;
-    setLoading(true);
     setError(null);
     try {
       const res = await getGroupById(groupId);
