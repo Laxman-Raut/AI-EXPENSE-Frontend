@@ -17,6 +17,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useGroupSplitRequests } from '../../hooks/useSplitRequests';
+import { useAuth } from '../../hooks/useAuth';
 import { formatCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
 
 const SPLIT_TYPES = [
@@ -70,11 +71,21 @@ const AvatarCircle = ({ name, avatar, size = 36 }) => {
 const CreateSplitRequestScreen = ({ route, navigation }) => {
   const { group } = route.params || {};
   const members = group?.members || [];
+  const { user } = useAuth();
+  const currentUserId = String(user?._id || user?.id || '');
+
+  const defaultPaidBy = useMemo(() => {
+    const foundMe = members.find((m) => String(m._id || m.id) === currentUserId);
+    if (foundMe) {
+      return String(foundMe._id || foundMe.id);
+    }
+    return String(members[0]?._id || members[0]?.id || '');
+  }, [members, currentUserId]);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
-  const [paidBy, setPaidBy] = useState(members[0]?._id || members[0]?.id || '');
+  const [paidBy, setPaidBy] = useState(defaultPaidBy);
   const [splitType, setSplitType] = useState('equal');
   const [dueDays, setDueDays] = useState(7);
 
