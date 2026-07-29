@@ -107,7 +107,8 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
 
   const isGroupAdmin = Boolean(groupAdminId && groupAdminId === currentUserId);
   const isSplitCreator = Boolean(splitPayerId && splitPayerId === currentUserId);
-  const canManageAll = isGroupAdmin || isSplitCreator;
+  const canDeleteSplit = isGroupAdmin || isSplitCreator;
+  const canToggleStatus = isSplitCreator;
 
   // Find current user's participant object
   const myParticipant = participants.find((p) => {
@@ -154,14 +155,14 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
     const isMe = pUserId === currentUserId;
 
     // If regular member tapping themselves, trigger UPI payment if pending
-    if (!isPaidStatus(participant.status) && isMe && !canManageAll) {
+    if (!isPaidStatus(participant.status) && isMe && !canToggleStatus) {
       handleUpiPayNow(splitId);
       return;
     }
 
-    // Strict validation check: only group admin or creator can tap other members as paid
-    if (!canManageAll && !isMe) {
-      showSnackbar('Only group admin or creator can mark other members as paid.', 'warning');
+    // Strict validation check: only creator of this expense can mark other members as paid
+    if (!canToggleStatus && !isMe) {
+      showSnackbar('Only the creator of this split expense can mark members as paid.', 'warning');
       return;
     }
 
@@ -195,8 +196,8 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
   const isPaidStatus = (status) => status === 'paid';
 
   const handleDelete = () => {
-    if (!canManageAll) {
-      showSnackbar('Only group admin or creator can delete this expense.', 'warning');
+    if (!canDeleteSplit) {
+      showSnackbar('Only the creator of this expense or group admin can delete it.', 'warning');
       return;
     }
 
@@ -227,7 +228,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
     const pUserId = String(userObj._id || userObj.id || item.user);
     const isPaid = item.status === 'paid';
     const isMe = pUserId === currentUserId;
-    const canTap = canManageAll || isMe;
+    const canTap = canToggleStatus || isMe;
     const isItemAdmin = pUserId === groupAdminId;
 
     return (
@@ -302,7 +303,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
           </Text>
         </View>
 
-        {canManageAll ? (
+        {canDeleteSplit ? (
           <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
             <Icon name="trash-outline" size={20} color="#ff6b6b" />
           </TouchableOpacity>
@@ -413,11 +414,11 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
               )}
 
-              {!canManageAll && (
+              {!isSplitCreator && (
                 <View style={styles.infoBanner}>
                   <Icon name="information-circle-outline" size={16} color={colors.primary} />
                   <Text style={styles.infoBannerText}>
-                    Only group admin or creator can mark other members as paid. Tap "Pay Now" to settle your share via Google Pay, PhonePe, or Paytm.
+                    Only the creator of this expense can mark members as paid. Tap "Pay Now" to settle your share via Google Pay, PhonePe, or Paytm.
                   </Text>
                 </View>
               )}
