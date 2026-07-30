@@ -84,6 +84,7 @@ const subscriptionSlice = createSlice({
     startDate: null,
     endDate: null,
     autoRenew: false,
+    planLimits: { enableSplitBill: false },
     loading: false,
     error: null,
     upgradeSuccess: false,
@@ -111,6 +112,7 @@ const subscriptionSlice = createSlice({
         state.startDate = action.payload.startDate || null;
         state.endDate = action.payload.endDate || null;
         state.autoRenew = action.payload.autoRenew || false;
+        state.planLimits = action.payload.planLimits || { enableSplitBill: false };
       })
       .addCase(fetchSubscription.rejected, (state, action) => {
         state.loading = false;

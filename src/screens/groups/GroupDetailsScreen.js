@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -68,6 +69,8 @@ const GroupDetailsScreen = ({ route, navigation }) => {
 
   const { user } = useAuth();
   const currentUserId = String(user?._id || user?.id || '');
+
+  const subscription = useSelector((state) => state.subscription);
 
   const { group, loading, error, refetch: refetchGroup } = useGroupDetails(groupId);
   const { addMember, removeMember, leaveGroup, deleteGroup } = useGroups();
@@ -522,7 +525,26 @@ const GroupDetailsScreen = ({ route, navigation }) => {
 
                   <TouchableOpacity
                     style={styles.actionCircleBtn}
-                    onPress={() => navigation.navigate('CreateSplitRequest', { group })}
+                    onPress={() => {
+                      const isPremium = subscription.plan !== 'free' && subscription.status === 'active';
+                      const isSplitBillEnabled = subscription.planLimits?.enableSplitBill === true;
+
+                      if (isPremium && isSplitBillEnabled) {
+                        navigation.navigate('CreateSplitRequest', { group });
+                      } else {
+                        Alert.alert(
+                          'Split Bill — Premium Feature 🚀',
+                          'Split Bill feature is available only for subscribed users. Upgrade your plan to unlock group split bills!',
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Upgrade Plan ⚡',
+                              onPress: () => navigation.navigate('Subscription'),
+                            },
+                          ]
+                        );
+                      }
+                    }}
                   >
                     <View style={[styles.actionCircleIcon, { backgroundColor: colors.primary }]}>
                       <Icon name="add" size={22} color="#fff" />
