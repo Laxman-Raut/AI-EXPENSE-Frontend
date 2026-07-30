@@ -528,15 +528,14 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                   <TouchableOpacity
                     style={styles.actionCircleBtn}
                     onPress={() => {
-                      const isPremium = subscription.plan !== 'free' && subscription.status === 'active';
                       const isSplitBillEnabled = subscription.planLimits?.enableSplitBill === true;
 
-                      if (isPremium && isSplitBillEnabled) {
+                      if (isSplitBillEnabled) {
                         navigation.navigate('CreateSplitRequest', { group });
                       } else {
                         showAlert(
                           'Split Bill — Premium Feature 🚀',
-                          'Split Bill feature is available only for subscribed users. Upgrade your plan to unlock group split bills!',
+                          'Split Bill feature is disabled for your current plan. Upgrade your plan or contact admin to unlock group split bills!',
                           [
                             { text: 'Cancel', style: 'cancel' },
                             {
