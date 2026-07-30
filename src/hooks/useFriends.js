@@ -17,7 +17,7 @@ export const useFriends = () => {
   const [error, setError] = useState(null);
 
   const fetchAll = useCallback(async (isSilent = false) => {
-    if (!isSilent && friends.length === 0) setLoading(true);
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const [friendsRes, pendingRes] = await Promise.all([

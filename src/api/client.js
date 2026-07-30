@@ -3,37 +3,40 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // ─────────────────────────────────────────────────────────────
-// CONNECTION SETTINGS (LOCAL HOST)
+// CONNECTION SETTINGS & ADAPTIVE FALLBACKS
 // ─────────────────────────────────────────────────────────────
-// - Android Emulator connects to host computer via 10.0.2.2:5000
-// - iOS Simulator / Web connects via localhost:5000
-// ─────────────────────────────────────────────────────────────
-
 // Host machine IP address on your local Wi-Fi network (for physical phone)
 const LOCAL_IP = '10.86.63.181';
 // Android Emulator special loopback IP to host machine
 const EMULATOR_IP = '10.0.2.2';
 
-const getBaseUrl = () => {
-  const cleanLocalIp = LOCAL_IP.trim();
-  return Platform.OS === 'android'
-    ? `http://${cleanLocalIp}:5000/api`
-    : 'http://localhost:5000/api';
+// Priority list of host endpoints
+const FALLBACK_URLS = [
+  process.env.API_URL,
+  Platform.OS === 'android' ? `http://${EMULATOR_IP}:5000/api` : null,
+  `http://${LOCAL_IP}:5000/api`,
+  'http://localhost:5000/api',
+  'http://127.0.0.1:5000/api',
+].filter(Boolean);
+
+let activeUrlIndex = 0;
+
+const getInitialBaseUrl = () => {
+  return FALLBACK_URLS[0] || `http://${LOCAL_IP}:5000/api`;
 };
 
-const BASE_URL = getBaseUrl();
-
-console.log('[API Client] Target Base URL:', BASE_URL);
+const BASE_URL = getInitialBaseUrl();
+console.log('[API Client] Initial Base URL:', BASE_URL);
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
-  timeout: 60000,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor — attach token
+// Request interceptor — attach auth token
 apiClient.interceptors.request.use(
   async (config) => {
     try {
@@ -49,21 +52,42 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// Response interceptor — handle errors
+// Response interceptor — handle errors & automatic IP fallback
 apiClient.interceptors.response.use(
   (response) => {
-    console.log('[API SUCCESS] Request to:', response.config.url);
     return response;
   },
   async (error) => {
-    console.warn('--- API Request Error ---');
-    console.warn('URL:', error.config?.url);
-    console.warn('BaseURL:', error.config?.baseURL);
-    console.warn('Method:', error.config?.method?.toUpperCase());
-    console.warn('Error Message:', error.message);
-    console.warn('Response Status:', error.response?.status);
-    console.warn('Response Data:', JSON.stringify(error.response?.data));
-    console.warn('-------------------------');
+    const isNetworkError =
+      !error.response &&
+      (error.code === 'ERR_NETWORK' ||
+        error.code === 'ECONNABORTED' ||
+        error.message?.includes('Network Error') ||
+        error.message?.includes('timeout') ||
+        error.message?.includes('failed'));
+
+    // Automatically switch IP and retry once if network connection fails
+    if (isNetworkError && error.config && !error.config._hasRetriedFallback) {
+      activeUrlIndex = (activeUrlIndex + 1) % FALLBACK_URLS.length;
+      const nextUrl = FALLBACK_URLS[activeUrlIndex];
+
+      console.warn(
+        `[API Client] Network error on ${error.config.baseURL}. Auto-switching to fallback: ${nextUrl}`,
+      );
+
+      apiClient.defaults.baseURL = nextUrl;
+      const newConfig = {
+        ...error.config,
+        baseURL: nextUrl,
+        _hasRetriedFallback: true,
+      };
+
+      try {
+        return await apiClient.request(newConfig);
+      } catch (retryErr) {
+        return Promise.reject(retryErr);
+      }
+    }
 
     if (error.response?.status === 401) {
       await AsyncStorage.removeItem('auth_token');

@@ -1,22 +1,27 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import PrimaryButtonImport from '../atoms/PrimaryButton';
-import CardImport from '../molecules/Card';
 import { colors, spacing, radius, typography as themeTypography } from '../../theme';
 import { usePayment } from '../../hooks/usePayment';
 
 const PrimaryButton = PrimaryButtonImport as any;
-const Card = CardImport as any;
 const typography = themeTypography as any;
 
 interface SubscriptionPromoModalProps {
   visible: boolean;
   onClose: () => void;
+  onNavigateToPlans?: () => void;
 }
 
-const SubscriptionPromoModal: React.FC<SubscriptionPromoModalProps> = ({ visible, onClose }) => {
+const SubscriptionPromoModal: React.FC<SubscriptionPromoModalProps> = ({
+  visible,
+  onClose,
+  onNavigateToPlans,
+}) => {
+  const navigation = useNavigation<any>();
   const { startSubscriptionPayment, isLoading } = usePayment();
   const [selectedPlan, setSelectedPlan] = useState<'pro_monthly' | 'pro_yearly'>('pro_yearly');
 
@@ -25,11 +30,59 @@ const SubscriptionPromoModal: React.FC<SubscriptionPromoModalProps> = ({ visible
     await startSubscriptionPayment(selectedPlan);
   };
 
+  const handleExploreAll = () => {
+    onClose();
+    if (onNavigateToPlans) {
+      onNavigateToPlans();
+    } else {
+      try {
+        navigation.navigate('Subscription');
+      } catch {
+        try {
+          navigation.navigate('Profile', { screen: 'Subscription' });
+        } catch (err) {
+          console.warn('Navigation to Subscription failed:', err);
+        }
+      }
+    }
+  };
+
   const promoFeatures = [
-    { title: 'AI Chat Assistant & Receipt Scanner', desc: 'Instant AI insights & unlimited receipt OCR' },
-    { title: 'Automatic MongoDB Cloud Sync', desc: 'Secure real-time sync across all your devices' },
-    { title: 'Voice Expense Logging', desc: 'Hands-free natural language transaction logging' },
-    { title: 'PDF & Excel Export Sheets', desc: 'Export statement reports for tax & accounting' },
+    {
+      icon: 'sparkles-sharp',
+      iconBg: '#8A3FFC20',
+      iconColor: '#8A3FFC',
+      title: 'AI Receipt Scanner & Smart Assistant',
+      desc: 'Instant receipt OCR scanning & AI financial advice',
+    },
+    {
+      icon: 'cloud-upload-sharp',
+      iconBg: '#007AFF20',
+      iconColor: '#007AFF',
+      title: 'Automatic MongoDB Cloud Sync',
+      desc: 'Secure real-time sync across all your devices',
+    },
+    {
+      icon: 'mic-sharp',
+      iconBg: '#FF2D5520',
+      iconColor: '#FF2D55',
+      title: 'Voice Expense & Income Logging',
+      desc: 'Hands-free natural language transaction entry',
+    },
+    {
+      icon: 'document-text-sharp',
+      iconBg: '#34C75920',
+      iconColor: '#34C759',
+      title: 'PDF & Excel Statement Exports',
+      desc: 'Download statement reports for tax & accounting',
+    },
+    {
+      icon: 'notifications-sharp',
+      iconBg: '#FF950020',
+      iconColor: '#FF9500',
+      title: 'Smart Automation & Bill Reminders',
+      desc: 'Never miss recurring transactions or split payments',
+    },
   ];
 
   return (
@@ -41,27 +94,37 @@ const SubscriptionPromoModal: React.FC<SubscriptionPromoModalProps> = ({ visible
     >
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
-          
+          {/* Top handle indicator */}
+          <View style={styles.handleBar} />
+
           {/* Close Button */}
           <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
-            <Icon name="close" size={22} color={colors.text.secondary} />
+            <Icon name="close" size={20} color={colors.text.secondary} />
           </TouchableOpacity>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             
             {/* Crown Header */}
             <View style={styles.header}>
-              <LinearGradient
-                colors={['#FFB648', '#FF6037']}
-                style={styles.crownBadge}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Icon name="ribbon" size={42} color="#FFFFFF" />
-              </LinearGradient>
-              <Text style={styles.title}>Upgrade to Premium Pro 🎉</Text>
+              <View style={styles.crownGlowWrapper}>
+                <LinearGradient
+                  colors={['#8A3FFC', '#6700EB']}
+                  style={styles.crownBadge}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Icon name="trophy" size={38} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+
+              <View style={styles.offerTag}>
+                <Icon name="sparkles" size={12} color="#8A3FFC" style={{ marginRight: 4 }} />
+                <Text style={styles.offerTagText}>UPGRADE TO PRO</Text>
+              </View>
+
+              <Text style={styles.title}>Unlock Full AI Power 🚀</Text>
               <Text style={styles.subtitle}>
-                Supercharge your finances with AI & secure Cloud Sync.
+                Supercharge your financial tracking with instant AI Receipt Scanner, Cloud Sync & Voice Logging.
               </Text>
             </View>
 
@@ -69,8 +132,8 @@ const SubscriptionPromoModal: React.FC<SubscriptionPromoModalProps> = ({ visible
             <View style={styles.featuresList}>
               {promoFeatures.map((feat, index) => (
                 <View key={index} style={styles.featureItem}>
-                  <View style={styles.checkIconWrapper}>
-                    <Icon name="checkmark-circle" size={22} color={colors.success} />
+                  <View style={[styles.iconWrapper, { backgroundColor: feat.iconBg }]}>
+                    <Icon name={feat.icon} size={18} color={feat.iconColor} />
                   </View>
                   <View style={styles.featureTextWrapper}>
                     <Text style={styles.featureTitle}>{feat.title}</Text>
@@ -81,8 +144,9 @@ const SubscriptionPromoModal: React.FC<SubscriptionPromoModalProps> = ({ visible
             </View>
 
             {/* Plan Selector */}
+            <Text style={styles.sectionLabel}>Choose Your Subscription Plan</Text>
             <View style={styles.planSelectorRow}>
-              {/* Yearly Card */}
+              {/* Yearly Card (Recommended) */}
               <TouchableOpacity
                 activeOpacity={0.85}
                 style={[
@@ -91,12 +155,15 @@ const SubscriptionPromoModal: React.FC<SubscriptionPromoModalProps> = ({ visible
                 ]}
                 onPress={() => setSelectedPlan('pro_yearly')}
               >
-                <View style={styles.discountBadge}>
-                  <Text style={styles.discountBadgeText}>Save 16%</Text>
-                </View>
-                <Text style={styles.planPeriod}>Yearly Access</Text>
+                <LinearGradient
+                  colors={selectedPlan === 'pro_yearly' ? ['#FFB648', '#FF6037'] : ['#8E949A', '#8E949A']}
+                  style={styles.discountBadge}
+                >
+                  <Text style={styles.discountBadgeText}>BEST VALUE • SAVE 16%</Text>
+                </LinearGradient>
+                <Text style={styles.planPeriod}>Yearly Pass</Text>
                 <Text style={styles.planPrice}>₹1,999</Text>
-                <Text style={styles.planSubprice}>₹166/mo</Text>
+                <Text style={styles.planSubprice}>₹166/month</Text>
               </TouchableOpacity>
 
               {/* Monthly Card */}
@@ -108,15 +175,18 @@ const SubscriptionPromoModal: React.FC<SubscriptionPromoModalProps> = ({ visible
                 ]}
                 onPress={() => setSelectedPlan('pro_monthly')}
               >
-                <Text style={styles.planPeriod}>Monthly Access</Text>
+                <View style={styles.invisibleBadge}>
+                  <Text style={styles.invisibleBadgeText}>FLEXIBLE</Text>
+                </View>
+                <Text style={styles.planPeriod}>Monthly Pass</Text>
                 <Text style={styles.planPrice}>₹199</Text>
                 <Text style={styles.planSubprice}>Cancel anytime</Text>
               </TouchableOpacity>
             </View>
 
-            {/* CTA Buttons */}
+            {/* Main CTA Button */}
             <PrimaryButton
-              title={`Subscribe Now - ${selectedPlan === 'pro_yearly' ? '₹1,999/yr' : '₹199/mo'}`}
+              title={`Subscribe Now • ${selectedPlan === 'pro_yearly' ? '₹1,999/yr' : '₹199/mo'}`}
               type="primary"
               onPress={handleSubscribe}
               loading={isLoading}
@@ -124,9 +194,22 @@ const SubscriptionPromoModal: React.FC<SubscriptionPromoModalProps> = ({ visible
               icon={<Icon name="flash" size={18} color="#FFFFFF" />}
             />
 
+            {/* View All Plans Option */}
+            <TouchableOpacity onPress={handleExploreAll} style={styles.exploreAllBtn}>
+              <Text style={styles.exploreAllText}>Explore All Plans & Features</Text>
+              <Icon name="chevron-forward" size={16} color={colors.primary} />
+            </TouchableOpacity>
+
+            {/* Maybe Later Button */}
             <TouchableOpacity onPress={onClose} style={styles.maybeLaterBtn}>
               <Text style={styles.maybeLaterText}>Maybe Later</Text>
             </TouchableOpacity>
+
+            {/* Security Guarantee Note */}
+            <View style={styles.trustFooter}>
+              <Icon name="shield-checkmark" size={14} color={colors.text.muted} />
+              <Text style={styles.trustText}>100% Secure Checkout via Razorpay • Cancel Anytime</Text>
+            </View>
 
           </ScrollView>
         </View>
@@ -138,7 +221,7 @@ const SubscriptionPromoModal: React.FC<SubscriptionPromoModalProps> = ({ visible
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: colors.overlay,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'flex-end',
   },
   modalContainer: {
@@ -147,43 +230,71 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.xl * 1.5,
     borderWidth: 1,
     borderColor: colors.divider,
-    maxHeight: '90%',
+    maxHeight: '92%',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+  },
+  handleBar: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.divider,
+    alignSelf: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
   },
   closeBtn: {
     position: 'absolute',
     top: spacing.md,
     right: spacing.md,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
   },
   scrollContent: {
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.lg,
   },
   header: {
     alignItems: 'center',
-    marginBottom: spacing.lg,
-    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+    marginTop: spacing.xs,
+  },
+  crownGlowWrapper: {
+    shadowColor: '#8A3FFC',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    elevation: 10,
+    marginBottom: spacing.xs,
   },
   crownBadge: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.sm,
-    shadowColor: '#FFB648',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
+  },
+  offerTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#8A3FFC15',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    marginBottom: spacing.xs,
+    borderWidth: 1,
+    borderColor: '#8A3FFC30',
+  },
+  offerTagText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.primary,
+    letterSpacing: 0.5,
   },
   title: {
     fontSize: typography.sizes.xl,
@@ -193,25 +304,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: typography.sizes.sm,
+    fontSize: typography.sizes.xs + 1,
     color: colors.text.secondary,
     textAlign: 'center',
-    lineHeight: typography.lineHeights.sm + 2,
+    lineHeight: 18,
+    paddingHorizontal: spacing.sm,
   },
   featuresList: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: spacing.md,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
     gap: spacing.md,
   },
   featureItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
-  checkIconWrapper: {
-    marginRight: spacing.sm,
-    marginTop: 2,
+  iconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
   },
   featureTextWrapper: {
     flex: 1,
@@ -220,15 +338,24 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.bold,
     color: colors.text.primary,
+    marginBottom: 1,
   },
   featureDesc: {
     fontSize: typography.sizes.xs,
     color: colors.text.secondary,
   },
+  sectionLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
+  },
   planSelectorRow: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   planCard: {
     flex: 1,
@@ -242,48 +369,87 @@ const styles = StyleSheet.create({
   },
   selectedPlanCard: {
     borderColor: colors.primary,
-    backgroundColor: 'rgba(138, 63, 252, 0.1)',
+    backgroundColor: colors.primary + '10',
   },
   discountBadge: {
     position: 'absolute',
-    top: -10,
-    backgroundColor: colors.warning,
-    paddingHorizontal: spacing.sm,
+    top: -11,
+    paddingHorizontal: spacing.sm - 2,
     paddingVertical: 2,
     borderRadius: radius.sm,
   },
   discountBadgeText: {
     fontSize: 9,
     fontWeight: typography.weights.bold,
-    color: colors.background,
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+  },
+  invisibleBadge: {
+    position: 'absolute',
+    top: -11,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.sm - 2,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.divider,
+  },
+  invisibleBadgeText: {
+    fontSize: 9,
+    fontWeight: typography.weights.bold,
+    color: colors.text.muted,
     textTransform: 'uppercase',
   },
   planPeriod: {
     fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.medium,
     color: colors.text.secondary,
     marginTop: spacing.xs,
   },
   planPrice: {
-    fontSize: typography.sizes.lg,
+    fontSize: typography.sizes.lg + 2,
     fontWeight: typography.weights.bold,
     color: colors.text.primary,
     marginVertical: 2,
   },
   planSubprice: {
-    fontSize: 9,
+    fontSize: 10,
     color: colors.text.secondary,
   },
   subscribeBtn: {
     width: '100%',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  exploreAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xs + 2,
+    gap: 4,
+  },
+  exploreAllText: {
+    fontSize: typography.sizes.xs + 1,
+    fontWeight: typography.weights.bold,
+    color: colors.primary,
   },
   maybeLaterBtn: {
     alignSelf: 'center',
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   maybeLaterText: {
-    fontSize: typography.sizes.sm,
-    color: colors.text.secondary,
+    fontSize: typography.sizes.xs + 1,
+    color: colors.text.muted,
+  },
+  trustFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+    gap: 4,
+  },
+  trustText: {
+    fontSize: 10,
+    color: colors.text.muted,
   },
 });
 

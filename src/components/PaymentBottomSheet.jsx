@@ -77,7 +77,7 @@ const PaymentBottomSheet = ({
     if (!deepLink) return;
     try {
       const gpayPkgUrl = deepLink.includes('?')
-        ? `${deepLink}&package=com.google.android.apps.nsetup`
+        ? `${deepLink}&package=com.google.android.apps.nfc.phone`
         : deepLink;
 
       try {
@@ -90,7 +90,7 @@ const PaymentBottomSheet = ({
           onClose();
           return;
         } catch (e2) {
-          Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.nsetup').catch(() => {});
+          Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.nfc.phone').catch(() => {});
         }
       }
     } catch (err) {

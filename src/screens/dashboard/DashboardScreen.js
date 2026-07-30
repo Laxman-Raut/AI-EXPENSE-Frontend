@@ -631,6 +631,10 @@ const DashboardScreen = ({ navigation }) => {
       <SubscriptionPromoModal
         visible={showPromoModal}
         onClose={() => setShowPromoModal(false)}
+        onNavigateToPlans={() => {
+          setShowPromoModal(false);
+          navigation.navigate('Subscription');
+        }}
       />
     </View>
   );

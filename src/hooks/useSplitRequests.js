@@ -12,9 +12,9 @@ export const useGroupSplitRequests = (groupId, currentUserId) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchSplits = useCallback(async () => {
+  const fetchSplits = useCallback(async (isSilent = false) => {
     if (!groupId) return;
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await getGroupSplitRequests(groupId);
@@ -32,19 +32,19 @@ export const useGroupSplitRequests = (groupId, currentUserId) => {
 
   const handleCreateSplit = async (data) => {
     const res = await createSplitRequest(data);
-    await fetchSplits();
+    await fetchSplits(true);
     return res.data;
   };
 
   const handleUpdateSplit = async (splitId, updateData) => {
     const res = await updateSplitRequest(splitId, updateData);
-    await fetchSplits();
+    await fetchSplits(true);
     return res.data;
   };
 
   const handleDeleteSplit = async (splitId) => {
     await deleteSplitRequest(splitId);
-    await fetchSplits();
+    await fetchSplits(true);
   };
 
   // Calculate user balance summary ("You owe", "You are owed")
@@ -92,9 +92,9 @@ export const useSplitDetail = (splitId) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchDetail = useCallback(async () => {
+  const fetchDetail = useCallback(async (isSilent = false) => {
     if (!splitId) return;
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await getSplitRequestById(splitId);

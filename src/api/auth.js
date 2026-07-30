@@ -56,3 +56,13 @@ export const resendRegistrationOtp = async (email) => {
   const response = await apiClient.post('auth/resend-registration-otp', { email });
   return response.data;
 };
+
+export const sendRegistrationOtp = async (fullName, email) => {
+  const response = await apiClient.post('auth/send-registration-otp', { fullName, email });
+  return response.data;
+};
+
+export const completeRegistration = async (fullName, email, otp, password) => {
+  const response = await apiClient.post('auth/complete-registration', { fullName, email, otp, password });
+  return response.data;
+};

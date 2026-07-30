@@ -71,10 +71,10 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
   // ─── Real-Time Focus Sync & Auto-Polling (3s) ────────────────────────────────
   useFocusEffect(
     useCallback(() => {
-      refetch();
+      refetch(true);
 
       const interval = setInterval(() => {
-        refetch();
+        refetch(true);
       }, 3000);
 
       return () => clearInterval(interval);
@@ -147,7 +147,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
     } catch (err) {
       console.log('[UPI Flow Error]', err);
       const errMsg = err?.message || 'Failed to generate UPI payment link.';
-      const isNetErr = err?.isNetworkError || !err?.response;
+      const isNetErr = err?.isNetworkError === true;
 
       if (isNetErr) {
         showSnackbar(

@@ -11,7 +11,11 @@ export const generateDeepLink = async (splitRequestId) => {
     return response.data;
   } catch (error) {
     if (error.response && error.response.data) {
-      throw error.response.data;
+      throw {
+        ...error.response.data,
+        message: error.response.data.message || 'Failed to generate UPI payment link.',
+        isNetworkError: false,
+      };
     }
     throw {
       success: false,

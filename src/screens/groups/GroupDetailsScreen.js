@@ -126,8 +126,15 @@ const GroupDetailsScreen = ({ route, navigation }) => {
   // ─── Real-Time Focus Sync ─────────────────────────────
   useFocusEffect(
     useCallback(() => {
-      refetchGroup();
-      refetchSplits();
+      refetchGroup(true);
+      refetchSplits(true);
+
+      const interval = setInterval(() => {
+        refetchGroup(true);
+        refetchSplits(true);
+      }, 3500);
+
+      return () => clearInterval(interval);
     }, [refetchGroup, refetchSplits])
   );
 
@@ -249,7 +256,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
     } catch (err) {
       console.log('[UPI Quick Pay Error]', err);
       const errMsg = err?.message || 'Failed to generate UPI payment link.';
-      const isNetErr = err?.isNetworkError || !err?.response;
+      const isNetErr = err?.isNetworkError === true;
 
       if (isNetErr) {
         showSnackbar(

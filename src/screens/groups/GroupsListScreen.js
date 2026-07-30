@@ -60,7 +60,13 @@ const GroupsListScreen = ({ navigation }) => {
   // ─── Real-Time Focus Sync ───────────────────────────────
   useFocusEffect(
     useCallback(() => {
-      refetch();
+      refetch(true);
+
+      const interval = setInterval(() => {
+        refetch(true);
+      }, 4000);
+
+      return () => clearInterval(interval);
     }, [refetch])
   );
 

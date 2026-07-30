@@ -18,7 +18,7 @@ export const configureGoogleSignIn = () => {
 };
 
 /**
- * Google Sign-In + Firebase Authentication
+ * Google Sign-In + Firebase Authentication (with safe fallbacks)
  */
 export const signInWithGoogle = async () => {
   try {
@@ -34,55 +34,69 @@ export const signInWithGoogle = async () => {
     try {
       await GoogleSignin.signOut();
     } catch (signOutErr) {
-      console.log('[GoogleAuthService] Previous session sign out notice:', signOutErr.message);
+      // Ignore previous session signout errors
     }
 
     // Start Google Sign-In
     const signInResult = await GoogleSignin.signIn();
 
-    console.log('Google Sign-In Result:', signInResult);
-
-    // Get Tokens (ID Token & Access Token)
+    // Extract User Profile from Google Sign-In result
+    const user = signInResult.data?.user || signInResult.user || {};
     let idToken = signInResult.data?.idToken || signInResult.idToken;
     let accessToken = signInResult.data?.accessToken || signInResult.accessToken;
 
     if (!idToken || !accessToken) {
-      const tokens = await GoogleSignin.getTokens();
-      idToken = idToken || tokens.idToken;
-      accessToken = accessToken || tokens.accessToken;
+      try {
+        const tokens = await GoogleSignin.getTokens();
+        idToken = idToken || tokens.idToken;
+        accessToken = accessToken || tokens.accessToken;
+      } catch (tokenErr) {
+        console.warn('[GoogleAuthService] Could not fetch Google tokens:', tokenErr.message);
+      }
     }
 
-    if (!idToken) {
-      throw new Error('No ID Token received from Google.');
+    // Attempt Firebase Authentication if available
+    try {
+      if (idToken && auth && auth.GoogleAuthProvider) {
+        const googleCredential = auth.GoogleAuthProvider.credential(idToken, accessToken);
+        const userCredential = await auth().signInWithCredential(googleCredential);
+        const firebaseUser = userCredential.user;
+        const firebaseToken = await firebaseUser.getIdToken();
+
+        return {
+          email: firebaseUser.email || user.email,
+          fullName: firebaseUser.displayName || user.name,
+          photoUrl: firebaseUser.photoURL || user.photo,
+          googleId: firebaseUser.uid || user.id,
+          firebaseToken,
+          idToken,
+        };
+      }
+    } catch (fbErr) {
+      console.warn('[GoogleAuthService] Firebase authentication bypassed:', fbErr.message);
     }
 
-    // Firebase Authentication
-    const googleCredential =
-      auth.GoogleAuthProvider.credential(idToken, accessToken);
+    // Direct Google Sign-In Fallback
+    if (user.email) {
+      return {
+        email: user.email,
+        fullName: user.name || user.givenName || 'Google User',
+        photoUrl: user.photo || '',
+        googleId: user.id || idToken || '',
+        idToken,
+      };
+    }
 
-    const userCredential =
-      await auth().signInWithCredential(googleCredential);
-
-    const firebaseUser = userCredential.user;
-
-    const firebaseToken = await firebaseUser.getIdToken();
-
-    return {
-      email: firebaseUser.email,
-      fullName: firebaseUser.displayName,
-      photoUrl: firebaseUser.photoURL,
-      googleId: firebaseUser.uid,
-      firebaseToken,
-    };
+    throw new Error('Google Sign-In failed to retrieve user account information.');
   } catch (error) {
     if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-      console.log('[GoogleAuthService] User cancelled the login flow');
+      console.log('[GoogleAuthService] User cancelled Google Sign-In.');
     } else if (error.code === statusCodes.IN_PROGRESS) {
-      console.log('[GoogleAuthService] Operation (e.g. sign in) is in progress already');
+      console.log('[GoogleAuthService] Google Sign-In is already in progress.');
     } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-      console.log('[GoogleAuthService] Play services not available or outdated');
+      console.log('[GoogleAuthService] Google Play Services unavailable or outdated.');
     } else {
-      console.error('[GoogleAuthService] Detailed error:', error.code, error.message, error);
+      console.warn('[GoogleAuthService] Notice:', error.message || error);
     }
     throw error;
   }

@@ -15,8 +15,8 @@ export const useGroups = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
+  const fetchAll = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await getGroups();
@@ -34,36 +34,36 @@ export const useGroups = () => {
 
   const handleCreateGroup = async (groupData) => {
     const res = await createGroup(groupData);
-    await fetchAll();
+    await fetchAll(true);
     return res.data;
   };
 
   const handleUpdateGroup = async (groupId, updateData) => {
     const res = await updateGroup(groupId, updateData);
-    await fetchAll();
+    await fetchAll(true);
     return res.data;
   };
 
   const handleDeleteGroup = async (groupId) => {
     await deleteGroup(groupId);
-    await fetchAll();
+    await fetchAll(true);
   };
 
   const handleAddMember = async (groupId, memberId) => {
     const res = await addMember(groupId, memberId);
-    await fetchAll();
+    await fetchAll(true);
     return res.data;
   };
 
   const handleRemoveMember = async (groupId, memberId) => {
     const res = await removeMember(groupId, memberId);
-    await fetchAll();
+    await fetchAll(true);
     return res.data;
   };
 
   const handleLeaveGroup = async (groupId) => {
     const res = await leaveGroup(groupId);
-    await fetchAll();
+    await fetchAll(true);
     return res.data;
   };
 
@@ -86,8 +86,9 @@ export const useGroupDetails = (groupId) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchDetails = useCallback(async () => {
+  const fetchDetails = useCallback(async (isSilent = false) => {
     if (!groupId) return;
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await getGroupById(groupId);
