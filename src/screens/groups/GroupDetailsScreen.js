@@ -539,7 +539,10 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                             { text: 'Cancel', style: 'cancel' },
                             {
                               text: 'Upgrade Plan ⚡',
-                              onPress: () => navigation.navigate('Subscription'),
+                              onPress: () => navigation.navigate('Profile', {
+                                screen: 'Subscription',
+                                initial: false,
+                              }),
                             },
                           ]
                         );
