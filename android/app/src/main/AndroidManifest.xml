@@ -37,6 +37,12 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="paytm" />
         </intent>
+        <!-- Required for Intent-URI based UPI app targeting on Android 11+ (API 30+).
+             Without this, Linking.openURL("intent://...") silently fails. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="intent" />
+        </intent>
     </queries>
 
     <application

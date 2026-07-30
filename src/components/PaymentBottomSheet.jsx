@@ -9,11 +9,101 @@ import {
   Linking,
   ActivityIndicator,
   Animated,
+  Platform,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import PaymentOptionCard from './PaymentOptionCard';
 import { colors, spacing, typography, radius } from '../theme';
 import { formatCurrency } from '../utils/formatCurrency';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Verified Play Store package IDs (as of 2025-26):
+// ─────────────────────────────────────────────────────────────────────────────
+const PKG = {
+  // Google Pay India (Tez) — verified from play.google.com/store/apps/details?id=...
+  GPAY: 'com.google.android.apps.nfc.phone',
+  // PhonePe
+  PHONEPE: 'com.phonepe.app',
+  // Paytm
+  PAYTM: 'net.one97.paytm',
+};
+
+const STORE_URLS = {
+  GPAY: `https://play.google.com/store/apps/details?id=${PKG.GPAY}`,
+  PHONEPE: `https://play.google.com/store/apps/details?id=${PKG.PHONEPE}`,
+  PAYTM: `https://play.google.com/store/apps/details?id=${PKG.PAYTM}`,
+};
+
+/**
+ * Build a standard upi:// deep link.
+ * DO NOT append &package=... here — package is an Android Intent extra and
+ * must never appear inside a upi:// URL parameter string. It corrupts the
+ * UPI parameter parsing in GPay, PhonePe, and Paytm.
+ */
+const buildUpiUrl = (deepLink) => deepLink;
+
+/**
+ * Build an Android Intent URI to open a specific UPI app directly.
+ *
+ * Why Intent URI instead of upi://&package=... ?
+ * The UPI spec does not define a "package" query parameter. Appending it
+ * to a upi:// URL passes it as part of the query string, which UPI apps
+ * then try to parse as a UPI field — causing validation failures.
+ *
+ * Intent URIs let Android route the Intent directly to the target package
+ * without corrupting the upi:// parameter space.
+ *
+ * Format:
+ *   intent://<host>?<params>#Intent;scheme=upi;package=<pkg>;end
+ */
+const buildIntentUri = (deepLink, packageId) => {
+  // deepLink is: upi://pay?pa=...&pn=...&am=...
+  // We need:     intent://pay?pa=...&pn=...#Intent;scheme=upi;package=X;end
+  const withoutScheme = deepLink.replace(/^upi:\/\//, '');
+  return `intent://${withoutScheme}#Intent;scheme=upi;package=${packageId};end`;
+};
+
+/**
+ * Open a specific UPI app using Intent URI (Android) or plain upi:// (iOS).
+ * Falls back to plain upi:// → then Play Store if intent URI fails.
+ */
+const openUpiApp = async ({ deepLink, packageId, storeUrl, onClose }) => {
+  if (!deepLink) return;
+
+  // On Android, try the Intent URI first (direct app targeting, no URL corruption)
+  if (Platform.OS === 'android') {
+    const intentUri = buildIntentUri(deepLink, packageId);
+    try {
+      const canOpen = await Linking.canOpenURL(intentUri).catch(() => false);
+      if (canOpen) {
+        await Linking.openURL(intentUri);
+        onClose();
+        return;
+      }
+    } catch (_) { /* fall through */ }
+
+    // Fallback 1: plain upi:// (lets system picker choose, but deepLink is clean)
+    try {
+      await Linking.openURL(deepLink);
+      onClose();
+      return;
+    } catch (_) { /* fall through */ }
+
+    // Fallback 2: open Play Store
+    Linking.openURL(storeUrl).catch(() => {});
+    onClose();
+    return;
+  }
+
+  // iOS — UPI apps register upi:// so plain openURL works
+  try {
+    await Linking.openURL(deepLink);
+    onClose();
+  } catch (_) {
+    Alert.alert('App not found', 'Please install the UPI app from the App Store.');
+  }
+};
 
 const PaymentBottomSheet = ({
   visible,
@@ -50,6 +140,9 @@ const PaymentBottomSheet = ({
   const checkInstalledApps = async () => {
     setCheckingApps(true);
     try {
+      // On Android 11+ (targetSdk 30+) canOpenURL only works for schemes
+      // declared in <queries> in AndroidManifest.xml. We have gpay://, phonepe://,
+      // paytmmp://, upi:// all declared — so these checks are valid.
       const [gpay, phonepe, paytm, upi] = await Promise.all([
         Linking.canOpenURL('gpay://').catch(() => false),
         Linking.canOpenURL('phonepe://').catch(() => false),
@@ -58,9 +151,10 @@ const PaymentBottomSheet = ({
       ]);
 
       setAppInstalledState({
-        gpay: gpay || upi,
-        phonepe: phonepe || upi,
-        paytm: paytm || upi,
+        // Show as "installed" if the specific scheme responds OR if generic upi:// does
+        gpay: Boolean(gpay || upi),
+        phonepe: Boolean(phonepe || upi),
+        paytm: Boolean(paytm || upi),
       });
     } catch (err) {
       console.log('[PaymentBottomSheet] Error checking installed apps:', err);
@@ -73,83 +167,29 @@ const PaymentBottomSheet = ({
 
   const { deepLink, amount, receiver, upiId } = paymentData || {};
 
-  const handleOpenGooglePay = async () => {
-    if (!deepLink) return;
-    try {
-      const gpayPkgUrl = deepLink.includes('?')
-        ? `${deepLink}&package=com.google.android.apps.nfc.phone`
-        : deepLink;
+  const handleOpenGooglePay = () =>
+    openUpiApp({
+      deepLink: buildUpiUrl(deepLink),
+      packageId: PKG.GPAY,
+      storeUrl: STORE_URLS.GPAY,
+      onClose,
+    });
 
-      try {
-        await Linking.openURL(gpayPkgUrl);
-        onClose();
-        return;
-      } catch (e1) {
-        try {
-          await Linking.openURL(deepLink);
-          onClose();
-          return;
-        } catch (e2) {
-          Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.nfc.phone').catch(() => {});
-        }
-      }
-    } catch (err) {
-      console.log('[PaymentBottomSheet] GPay error:', err);
-    }
-    onClose();
-  };
+  const handleOpenPhonePe = () =>
+    openUpiApp({
+      deepLink: buildUpiUrl(deepLink),
+      packageId: PKG.PHONEPE,
+      storeUrl: STORE_URLS.PHONEPE,
+      onClose,
+    });
 
-  const handleOpenPhonePe = async () => {
-    if (!deepLink) return;
-    try {
-      const phonepePkgUrl = deepLink.includes('?')
-        ? `${deepLink}&package=com.phonepe.app`
-        : deepLink;
-
-      try {
-        await Linking.openURL(phonepePkgUrl);
-        onClose();
-        return;
-      } catch (e1) {
-        try {
-          await Linking.openURL(deepLink);
-          onClose();
-          return;
-        } catch (e2) {
-          Linking.openURL('https://play.google.com/store/apps/details?id=com.phonepe.app').catch(() => {});
-        }
-      }
-    } catch (err) {
-      console.log('[PaymentBottomSheet] PhonePe error:', err);
-    }
-    onClose();
-  };
-
-  const handleOpenPaytm = async () => {
-    if (!deepLink) return;
-    try {
-      const paytmPkgUrl = deepLink.includes('?')
-        ? `${deepLink}&package=net.one97.paytm`
-        : deepLink;
-
-      try {
-        await Linking.openURL(paytmPkgUrl);
-        onClose();
-        return;
-      } catch (e1) {
-        try {
-          await Linking.openURL(deepLink);
-          onClose();
-          return;
-        } catch (e2) {
-          Linking.openURL('https://play.google.com/store/apps/details?id=net.one97.paytm').catch(() => {});
-        }
-      }
-    } catch (err) {
-      console.log('[PaymentBottomSheet] Paytm error:', err);
-    }
-    onClose();
-  };
+  const handleOpenPaytm = () =>
+    openUpiApp({
+      deepLink: buildUpiUrl(deepLink),
+      packageId: PKG.PAYTM,
+      storeUrl: STORE_URLS.PAYTM,
+      onClose,
+    });
 
   const handleOpenOtherUpi = async () => {
     if (!deepLink) return;
@@ -157,6 +197,7 @@ const PaymentBottomSheet = ({
       await Linking.openURL(deepLink);
     } catch (err) {
       console.log('[PaymentBottomSheet] Error opening generic UPI link:', err);
+      Alert.alert('Error', 'No UPI app found. Please install any UPI app (BHIM, GPay, PhonePe).');
     }
     onClose();
   };
