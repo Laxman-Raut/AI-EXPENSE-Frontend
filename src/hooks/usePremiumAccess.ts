@@ -1,25 +1,26 @@
 import { useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
-import { Alert } from 'react-native';
 import subscriptionService from '../services/subscriptionService';
+import { useAlert } from '../context/AlertContext';
 
 export const usePremiumAccess = () => {
   const navigation = useNavigation<any>();
+  const { showAlert } = useAlert();
   const { plan, status, loading } = useSelector((state: any) => state.subscription);
 
   const hasPremiumAccess = subscriptionService.isSubscriptionPro({ plan, status });
 
   const showPremiumAlert = () => {
-    Alert.alert(
-      'Premium Feature',
-      'Upgrade to Pro to unlock AI Chat, AI Scanner, Cloud Backup, Voice Transactions and other premium features.',
+    showAlert(
+      'Premium Feature 🚀',
+      'Upgrade your plan to unlock AI Chat, AI Scanner, Cloud Backup, Voice Transactions and Group Split Bill features.',
       [
         {
-          text: 'Maybe Later',
+          text: 'Cancel',
           style: 'cancel',
         },
         {
-          text: 'Upgrade Now',
+          text: 'Upgrade Plan ⚡',
           onPress: () => {
             navigation.navigate('Profile', {
               screen: 'Subscription',
@@ -27,7 +28,8 @@ export const usePremiumAccess = () => {
             });
           },
         },
-      ]
+      ],
+      'premium'
     );
   };
 

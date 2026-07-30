@@ -25,6 +25,7 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import upiService from '../../services/upiService';
 import PaymentBottomSheet from '../../components/PaymentBottomSheet';
 import Snackbar from '../../components/Snackbar';
+import { useAlert } from '../../context/AlertContext';
 import dayjs from 'dayjs';
 
 
@@ -69,6 +70,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
 
   const { user } = useAuth();
   const currentUserId = String(user?._id || user?.id || '');
+  const { showAlert } = useAlert();
 
   const subscription = useSelector((state) => state.subscription);
 
@@ -532,7 +534,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                       if (isPremium && isSplitBillEnabled) {
                         navigation.navigate('CreateSplitRequest', { group });
                       } else {
-                        Alert.alert(
+                        showAlert(
                           'Split Bill — Premium Feature 🚀',
                           'Split Bill feature is available only for subscribed users. Upgrade your plan to unlock group split bills!',
                           [
@@ -544,7 +546,8 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                                 initial: false,
                               }),
                             },
-                          ]
+                          ],
+                          'premium'
                         );
                       }
                     }}
