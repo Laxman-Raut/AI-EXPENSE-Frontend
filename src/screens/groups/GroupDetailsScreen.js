@@ -123,7 +123,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
     refetchSplits();
   };
 
-  // ─── Real-Time Focus Sync ─────────────────────────────
+  // ─── Real-Time Focus Sync ───
   useFocusEffect(
     useCallback(() => {
       refetchGroup(true);
