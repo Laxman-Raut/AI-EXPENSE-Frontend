@@ -260,7 +260,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
               </View>
             )}
           </View>
-          <Text style={styles.participantAmount}>{formatCurrency(item.amount || 0)}</Text>
+          <Text style={styles.participantAmount}>{formatCurrency(item.amount || 0, splitRequest?.currency)}</Text>
         </View>
 
         <TouchableOpacity
@@ -358,7 +358,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>TOTAL EXPENSE AMOUNT</Text>
                 <Text style={styles.totalAmount}>
-                  {formatCurrency(splitRequest?.totalAmount || splitRequest?.amount || 0)}
+                  {formatCurrency(splitRequest?.totalAmount || splitRequest?.amount || 0, splitRequest?.currency)}
                 </Text>
               </View>
 
@@ -421,7 +421,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
                     <>
                       <Icon name="card-outline" size={18} color="#fff" />
                       <Text style={styles.payNowPrimaryBtnText}>
-                        Pay Now with UPI ({formatCurrency(myParticipant.amount)})
+                        Pay Now with UPI ({formatCurrency(myParticipant.amount, splitRequest?.currency)})
                       </Text>
                     </>
                   )}

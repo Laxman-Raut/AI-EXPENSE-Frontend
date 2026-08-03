@@ -369,7 +369,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
           </View>
 
           <View style={styles.splitAmountBox}>
-            <Text style={styles.splitAmount}>{formatCurrency(total)}</Text>
+            <Text style={styles.splitAmount}>{formatCurrency(total, item.currency)}</Text>
             <Text style={styles.splitTypeBadge}>{(item.splitType || 'equal').toUpperCase()}</Text>
           </View>
         </View>
@@ -397,7 +397,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
               {paymentLoading ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.payShareBtnText}>Pay Share ({formatCurrency(myParticipant.amount)})</Text>
+                <Text style={styles.payShareBtnText}>Pay Share ({formatCurrency(myParticipant.amount, item.currency)})</Text>
               )}
             </TouchableOpacity>
           )}

@@ -198,6 +198,7 @@ const CreateSplitRequestScreen = ({ route, navigation }) => {
         amount: parsedTotal,
         paidBy,
         splitType,
+        currency: user?.currency || 'INR',
         dueDate: calculatedDueDate,
         participants: participantsPayload,
       });
