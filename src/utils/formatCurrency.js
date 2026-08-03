@@ -33,9 +33,9 @@ export const getCurrencySymbol = (currency = null) => {
  * Converts numeric value between currencies (USD <-> INR)
  * Base transactions are in source currency ('INR' or 'USD').
  */
-export const convertCurrencyValue = (amount, fromCurrency = 'INR', toCurrency = null) => {
+export const convertCurrencyValue = (amount, fromCurrency = null, toCurrency = null) => {
   const targetCurrency = toCurrency || cachedCurrency || 'INR';
-  const sourceCurrency = fromCurrency || 'INR';
+  const sourceCurrency = fromCurrency || targetCurrency;
 
   if (amount === undefined || amount === null || isNaN(Number(amount))) return 0;
   const num = Number(amount);
@@ -56,8 +56,9 @@ export const convertCurrencyValue = (amount, fromCurrency = 'INR', toCurrency = 
 /**
  * Formats amount with dynamic numerical conversion & active symbol
  */
-export const formatCurrency = (amount, fromCurrency = 'INR', targetCurrency = null) => {
+export const formatCurrency = (amount, fromCurrency = null, targetCurrency = null) => {
   const activeCurrency = targetCurrency || cachedCurrency || 'INR';
+  const sourceCurrency = fromCurrency || activeCurrency;
   const symbolMap = { USD: '$', EUR: '€', GBP: '£', INR: '₹' };
   const symbol = symbolMap[activeCurrency] || (activeCurrency === 'USD' ? '$' : '₹');
 
@@ -65,7 +66,7 @@ export const formatCurrency = (amount, fromCurrency = 'INR', targetCurrency = nu
     return `${symbol}0`;
   }
 
-  const converted = convertCurrencyValue(amount, fromCurrency, activeCurrency);
+  const converted = convertCurrencyValue(amount, sourceCurrency, activeCurrency);
   const absAmount = Math.abs(converted);
 
   if (activeCurrency === 'INR') {
@@ -80,8 +81,9 @@ export const formatCurrency = (amount, fromCurrency = 'INR', targetCurrency = nu
   return `${symbol}${formattedVal}`;
 };
 
-export const formatCompactCurrency = (amount, fromCurrency = 'INR', targetCurrency = null) => {
+export const formatCompactCurrency = (amount, fromCurrency = null, targetCurrency = null) => {
   const activeCurrency = targetCurrency || cachedCurrency || 'INR';
+  const sourceCurrency = fromCurrency || activeCurrency;
   const symbolMap = { USD: '$', EUR: '€', GBP: '£', INR: '₹' };
   const symbol = symbolMap[activeCurrency] || (activeCurrency === 'USD' ? '$' : '₹');
 
@@ -89,7 +91,7 @@ export const formatCompactCurrency = (amount, fromCurrency = 'INR', targetCurren
     return `${symbol}0`;
   }
 
-  const converted = convertCurrencyValue(amount, fromCurrency, activeCurrency);
+  const converted = convertCurrencyValue(amount, sourceCurrency, activeCurrency);
   const absAmount = Math.abs(converted);
 
   if (activeCurrency === 'INR') {
