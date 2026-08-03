@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { NativeModules, AppState, AppStateStatus } from 'react-native';
 import { useDispatch } from 'react-redux';
@@ -8,12 +8,32 @@ import AuthStack from './AuthStack';
 import MainTabs from './MainTabs';
 import LoadingSpinner from '../components/atoms/LoadingSpinner';
 import { fetchSubscription } from '../store/subscriptionSlice';
+import {
+  initializePushNotifications,
+  clearFcmTokenFromBackend,
+} from '../services/pushNotificationService';
 
 export const navigationRef = createNavigationContainerRef<any>();
 
 const AppNavigator: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const dispatch = useDispatch<any>();
+  const prevAuthRef = useRef(isAuthenticated);
+
+  // ─────────────────────────────────────────────────────────────
+  // FCM Push Notification Initialization
+  // Runs once when user becomes authenticated
+  // ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (isAuthenticated) {
+      // User just logged in or app restored auth — initialize FCM
+      initializePushNotifications();
+    } else if (prevAuthRef.current && !isAuthenticated) {
+      // User just logged out — clear FCM token from backend
+      clearFcmTokenFromBackend();
+    }
+    prevAuthRef.current = isAuthenticated;
+  }, [isAuthenticated]);
 
   // Centralized Subscription Refresh Logic:
   // 1. Startup & Post-Login refresh

@@ -114,6 +114,7 @@ dependencies {
     implementation("com.facebook.react:react-android")
 implementation platform("com.google.firebase:firebase-bom:${rootProject.ext.firebaseBomVersion}")
 implementation "com.google.firebase:firebase-auth"
+implementation "com.google.firebase:firebase-messaging"
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {

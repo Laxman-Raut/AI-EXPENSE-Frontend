@@ -1,73 +1,26 @@
 {
   "project_info": {
-    "project_number": "876018790047",
-    "project_id": "ai-expense-tracker-5c4c4",
-    "storage_bucket": "ai-expense-tracker-5c4c4.firebasestorage.app"
+    "project_number": "1060708840079",
+    "project_id": "ai-expense-tracker-477f1",
+    "storage_bucket": "ai-expense-tracker-477f1.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:876018790047:android:f860e1c56c097b8c3d3caa",
+        "mobilesdk_app_id": "1:1060708840079:android:e8b798acaead322072b6fa",
         "android_client_info": {
           "package_name": "com.aiexpensetracker"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "876018790047-ql6h7o36p1gqtm1l908ts5rbmgef0hvh.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.aiexpensetracker",
-            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
-          }
-        },
-        {
-          "client_id": "876018790047-e6tute5i7vo2vhmfqoh59k9a0go8ltlm.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyC3I3IhWJ0-XPzdCb-Nm6livPY996_46bA"
+          "current_key": "AIzaSyBMMlsPWPPhALgdaG1-W7mnY4FGVT-refc"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "876018790047-e6tute5i7vo2vhmfqoh59k9a0go8ltlm.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:876018790047:android:4d5d2af2f9c51f6d3d3caa",
-        "android_client_info": {
-          "package_name": "com.frontend"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "876018790047-e6tute5i7vo2vhmfqoh59k9a0go8ltlm.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyC3I3IhWJ0-XPzdCb-Nm6livPY996_46bA"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "876018790047-e6tute5i7vo2vhmfqoh59k9a0go8ltlm.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
