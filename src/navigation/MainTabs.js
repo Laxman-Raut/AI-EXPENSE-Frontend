@@ -147,8 +147,8 @@ const MainTabs = () => {
   const insets = useSafeAreaInsets();
 
   // Dynamically calculate padding and height based on the device's safe area bottom inset
-  const bottomPadding = insets.bottom > 0 ? insets.bottom : (Platform.OS === 'ios' ? 20 : 10);
-  const tabBarHeight = (Platform.OS === 'ios' ? 60 : 56) + bottomPadding;
+  const bottomPadding = insets.bottom > 0 ? insets.bottom + 6 : (Platform.OS === 'ios' ? 20 : 16);
+  const tabBarHeight = (Platform.OS === 'ios' ? 64 : 64) + bottomPadding;
 
   return (
     <View style={{ flex: 1 }}>
@@ -164,6 +164,7 @@ const MainTabs = () => {
             {
               height: tabBarHeight,
               paddingBottom: bottomPadding,
+              paddingTop: Platform.OS === 'android' ? 8 : 6,
             }
           ],
           safeAreaInsets: { bottom: 0 },
