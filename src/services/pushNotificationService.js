@@ -107,7 +107,6 @@ export const displayLocalNotification = async (title, body, data = {}) => {
       body,
       android: {
         channelId: CHANNEL_ID,
-        smallIcon: 'ic_notification', // Uses default if not found
         pressAction: {
           id: 'default',
         },
@@ -116,7 +115,7 @@ export const displayLocalNotification = async (title, body, data = {}) => {
       data,
     });
   } catch (err) {
-    console.error('[FCM] Display notification error:', err);
+    console.error('[FCM] Display notification error:', err?.message || err);
   }
 };
 
