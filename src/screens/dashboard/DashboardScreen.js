@@ -602,7 +602,7 @@ const DashboardScreen = ({ navigation }) => {
                       <Icon name={iconInfo.name} size={20} color={iconInfo.bgColor} />
                     </View>
                     <View style={styles.txnInfo}>
-                      <Text style={styles.txnName}>{txn.description}</Text>
+                      <Text style={styles.txnName} numberOfLines={1} ellipsizeMode="tail">{txn.description}</Text>
                       <Text style={styles.txnCategory}>{txn.category}</Text>
                     </View>
                   </View>
@@ -924,6 +924,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+    flex: 1,
+    marginRight: spacing.sm,
   },
   txnIconBox: {
     width: 40,
@@ -934,6 +936,7 @@ const styles = StyleSheet.create({
   },
   txnInfo: {
     justifyContent: 'center',
+    flex: 1,
   },
   txnName: {
     fontSize: typography.sizes.base,
