@@ -19,6 +19,7 @@ import { colors, spacing, typography, radius } from '../../theme';
 import { useGroupSplitRequests } from '../../hooks/useSplitRequests';
 import { useAuth } from '../../hooks/useAuth';
 import { formatCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
+import { useAlert } from '../../context/AlertContext';
 
 const SPLIT_TYPES = [
   { key: 'equal', label: 'Equal', icon: 'calculator-outline' },
@@ -73,6 +74,7 @@ const CreateSplitRequestScreen = ({ route, navigation }) => {
   const members = group?.members || [];
   const { user } = useAuth();
   const currentUserId = String(user?._id || user?.id || '');
+  const { showAlert } = useAlert();
 
   const defaultPaidBy = useMemo(() => {
     const foundMe = members.find((m) => String(m._id || m.id) === currentUserId);
@@ -137,19 +139,19 @@ const CreateSplitRequestScreen = ({ route, navigation }) => {
 
   const handleSubmit = async () => {
     if (!title.trim()) {
-      Alert.alert('Required Field', 'Please enter an expense title.');
+      showAlert('Required Field', 'Please enter an expense title.', [{ text: 'OK' }], 'warning');
       return;
     }
     if (!parsedTotal || parsedTotal <= 0) {
-      Alert.alert('Required Field', 'Please enter a valid amount.');
+      showAlert('Required Field', 'Please enter a valid amount.', [{ text: 'OK' }], 'warning');
       return;
     }
     if (!paidBy) {
-      Alert.alert('Required Field', 'Please select who paid for the expense.');
+      showAlert('Required Field', 'Please select who paid for the expense.', [{ text: 'OK' }], 'warning');
       return;
     }
     if (selectedMemberIds.length < 1) {
-      Alert.alert('Selection Error', 'Select at least one participant.');
+      showAlert('Selection Error', 'Select at least one participant.', [{ text: 'OK' }], 'warning');
       return;
     }
 
@@ -168,16 +170,18 @@ const CreateSplitRequestScreen = ({ route, navigation }) => {
     if (splitType === 'exact') {
       const sumExact = participantsPayload.reduce((sum, p) => sum + p.amount, 0);
       if (Math.abs(sumExact - parsedTotal) > 0.5) {
-        Alert.alert(
+        showAlert(
           'Split Error',
-          `Sum of exact amounts (${getCurrencySymbol()}${sumExact.toFixed(2)}) must equal total amount (${getCurrencySymbol()}${parsedTotal.toFixed(2)}).`
+          `Sum of exact amounts (${getCurrencySymbol()}${sumExact.toFixed(2)}) must equal total amount (${getCurrencySymbol()}${parsedTotal.toFixed(2)}).`,
+          [{ text: 'OK' }],
+          'warning'
         );
         return;
       }
     } else if (splitType === 'percentage') {
       const sumPct = participantsPayload.reduce((sum, p) => sum + p.percentage, 0);
       if (Math.abs(sumPct - 100) > 0.5) {
-        Alert.alert('Split Error', `Sum of percentages (${sumPct}%) must equal 100%.`);
+        showAlert('Split Error', `Sum of percentages (${sumPct}%) must equal 100%.`, [{ text: 'OK' }], 'warning');
         return;
       }
     }
@@ -197,10 +201,19 @@ const CreateSplitRequestScreen = ({ route, navigation }) => {
         dueDate: calculatedDueDate,
         participants: participantsPayload,
       });
-      Alert.alert('Success', 'Split expense created & transactions recorded!');
-      navigation.goBack();
+      showAlert(
+        'Split Expense Created! 🎉',
+        'Split request has been sent to group members & transactions recorded successfully.',
+        [
+          {
+            text: 'Done 👍',
+            onPress: () => navigation.goBack(),
+          },
+        ],
+        'success'
+      );
     } catch (err) {
-      Alert.alert('Error', err?.response?.data?.message || 'Failed to create split expense');
+      showAlert('Error', err?.response?.data?.message || 'Failed to create split expense', [{ text: 'OK' }], 'destructive');
     } finally {
       setSubmitting(false);
     }

@@ -17,13 +17,18 @@ const CustomAlert = ({
 
   // Determine icon & gradient based on type or title
   const titleLower = title?.toLowerCase() || '';
-  const isPremium = type === 'premium' || titleLower.includes('limit') || titleLower.includes('premium') || titleLower.includes('split') || titleLower.includes('upgrade');
+  const isSuccess = type === 'success' || (titleLower.includes('success') && !titleLower.includes('unsuccessful')) || titleLower.includes('created');
+  const isPremium = !isSuccess && (type === 'premium' || titleLower.includes('limit') || titleLower.includes('premium') || titleLower.includes('upgrade'));
   
   let iconName = 'information-circle';
   let gradientColors = [colors.primary || '#8A3FFC', colors.primaryDark || '#5E1BDB'];
   let glowColor = 'rgba(138, 63, 252, 0.25)';
 
-  if (isPremium) {
+  if (isSuccess) {
+    iconName = 'checkmark-circle-sharp';
+    gradientColors = ['#00E676', '#00D26A', '#00A854'];
+    glowColor = 'rgba(0, 210, 106, 0.35)';
+  } else if (isPremium) {
     iconName = 'rocket-sharp';
     gradientColors = ['#A366FF', '#8A3FFC', '#5E1BDB'];
     glowColor = 'rgba(163, 102, 255, 0.35)';
@@ -88,6 +93,27 @@ const CustomAlert = ({
               const isCancel = btn.style === 'cancel';
               const isDestructive = btn.style === 'destructive';
               const isUpgrade = btn.text?.toLowerCase().includes('upgrade');
+
+              if (isSuccess && !isCancel) {
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    activeOpacity={0.8}
+                    style={styles.fullWidthBtn}
+                    onPress={() => onButtonPress(btn)}
+                  >
+                    <LinearGradient
+                      colors={['#00E676', '#00D26A']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.gradientBtn}
+                    >
+                      <Text style={styles.gradientBtnText}>{btn.text}</Text>
+                      <Icon name="checkmark" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                    </LinearGradient>
+                  </TouchableOpacity>
+                );
+              }
 
               if (isUpgrade || (!isCancel && !isDestructive && isPremium)) {
                 return (
