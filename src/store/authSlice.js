@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as authApi from '../api/auth';
+import { clearFcmTokenFromBackend } from '../services/pushNotificationService';
 
 export const checkStoredAuth = createAsyncThunk(
   'auth/checkStoredAuth',
@@ -109,6 +110,11 @@ export const verifyRegistrationOtp = createAsyncThunk(
 export const logout = createAsyncThunk(
   'auth/logout',
   async () => {
+    try {
+      await clearFcmTokenFromBackend();
+    } catch (err) {
+      console.warn('[Auth] Clear FCM token error:', err?.message);
+    }
     await AsyncStorage.removeItem('auth_token');
     await AsyncStorage.removeItem('user');
     return null;

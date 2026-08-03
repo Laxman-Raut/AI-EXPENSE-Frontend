@@ -28,11 +28,7 @@ const AppNavigator: React.FC = () => {
     if (isAuthenticated) {
       // User just logged in or app restored auth — initialize FCM
       initializePushNotifications();
-    } else if (prevAuthRef.current && !isAuthenticated) {
-      // User just logged out — clear FCM token from backend
-      clearFcmTokenFromBackend();
     }
-    prevAuthRef.current = isAuthenticated;
   }, [isAuthenticated]);
 
   // Centralized Subscription Refresh Logic:
