@@ -6,9 +6,10 @@
  */
 
 import messaging from '@react-native-firebase/messaging';
-import notifee, { AndroidImportance } from '@notifee/react-native';
+import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
 import { Platform, PermissionsAndroid } from 'react-native';
 import apiClient from '../api/client';
+import { navigationRef } from '../navigation/AppNavigator';
 
 const CHANNEL_ID = 'expense-tracker';
 
@@ -96,6 +97,25 @@ export const ensureNotificationChannel = async () => {
 };
 
 /**
+ * Helper to navigate to Notifications screen when notification is clicked
+ */
+const navigateToNotificationsScreen = (attempts = 0) => {
+  if (navigationRef.isReady()) {
+    console.log('[FCM] Navigation container ready — navigating to Notifications screen');
+    try {
+      navigationRef.navigate('Today', {
+        screen: 'Notifications',
+        initial: false,
+      });
+    } catch (navErr) {
+      console.error('[FCM] Navigation error:', navErr?.message);
+    }
+  } else if (attempts < 30) {
+    setTimeout(() => navigateToNotificationsScreen(attempts + 1), 100);
+  }
+};
+
+/**
  * Display a local notification using Notifee
  */
 export const displayLocalNotification = async (title, body, data = {}) => {
@@ -109,6 +129,7 @@ export const displayLocalNotification = async (title, body, data = {}) => {
         channelId: CHANNEL_ID,
         pressAction: {
           id: 'default',
+          launchActivity: 'default',
         },
         importance: AndroidImportance.HIGH,
       },
@@ -132,6 +153,41 @@ export const setupForegroundHandler = () => {
     const data = remoteMessage?.data || {};
 
     await displayLocalNotification(title, body, data);
+  });
+};
+
+/**
+ * Setup notification click/press handler
+ * Opens app and navigates to Notifications screen when notification is tapped
+ */
+export const setupNotificationClickListener = () => {
+  // 1. Notifee foreground/background notification tap handler
+  notifee.onForegroundEvent(({ type, detail }) => {
+    if (type === EventType.PRESS) {
+      console.log('[FCM] Notification tapped (foreground/background event):', detail?.notification?.title);
+      navigateToNotificationsScreen();
+    }
+  });
+
+  // 2. Check if app was opened from a killed state by tapping a Notifee notification
+  notifee.getInitialNotification().then((initialNotification) => {
+    if (initialNotification) {
+      console.log('[FCM] App opened from killed state via Notifee:', initialNotification?.notification?.title);
+      navigateToNotificationsScreen();
+    }
+  });
+
+  // 3. FCM native notification open handlers
+  messaging().onNotificationOpenedApp((remoteMessage) => {
+    console.log('[FCM] App opened from background via FCM:', remoteMessage?.notification?.title);
+    navigateToNotificationsScreen();
+  });
+
+  messaging().getInitialNotification().then((remoteMessage) => {
+    if (remoteMessage) {
+      console.log('[FCM] App opened from killed state via FCM:', remoteMessage?.notification?.title);
+      navigateToNotificationsScreen();
+    }
   });
 };
 
@@ -173,7 +229,10 @@ export const initializePushNotifications = async () => {
     // 4. Setup foreground handler
     setupForegroundHandler();
 
-    // 5. Setup token refresh handler
+    // 5. Setup notification click listener
+    setupNotificationClickListener();
+
+    // 6. Setup token refresh handler
     setupTokenRefreshHandler();
 
     console.log('[FCM] ✅ Push notifications initialized successfully.');

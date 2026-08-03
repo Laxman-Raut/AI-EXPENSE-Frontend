@@ -41,6 +41,7 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
       importance: AndroidImportance.HIGH,
       pressAction: {
         id: 'default',
+        launchActivity: 'default',
       },
     },
     data: remoteMessage?.data || {},
