@@ -24,6 +24,7 @@ import {
 import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 import { getGlobalCurrency } from '../../utils/formatCurrency';
+import useBanks from '../../hooks/useBanks';
 
 const EXPENSE_CATEGORIES = [
   { id: 'Food', name: 'Food', icon: 'fast-food', color: '#FF6B6B' },
@@ -81,6 +82,28 @@ const AddTransactionScreen = ({ navigation, route }) => {
 
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(dayjs());
+
+  // Bank selection state
+  const { banks } = useBanks();
+  const [selectedBankId, setSelectedBankId] = useState(null);
+
+  // Auto-select primary bank when banks load or editing
+  useEffect(() => {
+    if (isEditing && transactionDetails) {
+      if (transactionDetails.bankAccount) {
+        setSelectedBankId(
+          typeof transactionDetails.bankAccount === 'object'
+            ? transactionDetails.bankAccount._id
+            : transactionDetails.bankAccount
+        );
+      }
+    } else if (banks && banks.length > 0 && !selectedBankId) {
+      const primary = banks.find((b) => b.isPrimary) || banks[0];
+      if (primary) {
+        setSelectedBankId(primary._id);
+      }
+    }
+  }, [banks, isEditing, transactionDetails]);
 
   // Populate data when editing
   useEffect(() => {
@@ -149,6 +172,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
       currency: activeCurrency,
       description: notes && notes.trim().length >= 2 ? notes.trim() : `${category} ${activeType}`,
       paymentMethod,
+      bankAccount: selectedBankId || null,
       note: notes,
       transactionDate: transactionDate.toISOString(),
     };
@@ -470,6 +494,67 @@ const AddTransactionScreen = ({ navigation, route }) => {
             );
           })}
         </ScrollView>
+
+        {/* Bank Account Selection Section */}
+        {banks && banks.length > 0 && (
+          <>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Bank Account</Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Profile', { screen: 'BankAccounts' })}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.seeAllText}>Manage Banks ›</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.paymentMethodsRow}
+            >
+              {banks.map((b) => {
+                const isSelected = selectedBankId === b._id;
+                const maskAcc = b.accountNumber?.slice(-4) ? `•••• ${b.accountNumber.slice(-4)}` : '';
+                return (
+                  <TouchableOpacity
+                    key={b._id}
+                    style={[
+                      styles.bankPill,
+                      isSelected && styles.bankPillSelected,
+                    ]}
+                    onPress={() => setSelectedBankId(isSelected ? null : b._id)}
+                    activeOpacity={0.75}
+                  >
+                    <Icon
+                      name="card"
+                      size={16}
+                      color={isSelected ? colors.primary : colors.text.secondary}
+                      style={{ marginRight: 6 }}
+                    />
+                    <View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Text
+                          style={[
+                            styles.bankPillTitle,
+                            isSelected && styles.bankPillTitleSelected,
+                          ]}
+                        >
+                          {b.bankName}
+                        </Text>
+                        {b.isPrimary && (
+                          <View style={styles.miniPrimaryBadge}>
+                            <Text style={styles.miniPrimaryBadgeText}>P</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.bankPillSub}>{maskAcc}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </>
+        )}
 
         {/* Date Selector Section */}
         <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Transaction Date</Text>
@@ -1083,6 +1168,47 @@ const styles = StyleSheet.create({
   },
   pickerDisabledCellText: {
     color: colors.text.muted,
+  },
+  bankPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg || 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    marginRight: spacing.sm,
+  },
+  bankPillSelected: {
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(138, 63, 252, 0.15)',
+  },
+  bankPillTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  bankPillTitleSelected: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  bankPillSub: {
+    fontSize: 10,
+    color: colors.text.secondary,
+  },
+  miniPrimaryBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    width: 14,
+    height: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  miniPrimaryBadgeText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });
 
