@@ -4,7 +4,7 @@ import apiClient from './client';
  * Get all bank accounts of the user
  */
 export const getBanks = async () => {
-  const response = await apiClient.get('/bank');
+  const response = await apiClient.get('/banks');
   return response.data;
 };
 
@@ -13,7 +13,7 @@ export const getBanks = async () => {
  * @param {string} id
  */
 export const getBankById = async (id) => {
-  const response = await apiClient.get(`/bank/${id}`);
+  const response = await apiClient.get(`/banks/${id}`);
   return response.data;
 };
 
@@ -22,7 +22,7 @@ export const getBankById = async (id) => {
  * @param {Object} data { bankName, bankCode, accountHolderName, accountNumber, accountType, nickname, upiId, isPrimary }
  */
 export const createBank = async (data) => {
-  const response = await apiClient.post('/bank', data);
+  const response = await apiClient.post('/banks', data);
   return response.data;
 };
 
@@ -32,7 +32,7 @@ export const createBank = async (data) => {
  * @param {Object} data
  */
 export const updateBank = async (id, data) => {
-  const response = await apiClient.patch(`/bank/${id}`, data);
+  const response = await apiClient.patch(`/banks/${id}`, data);
   return response.data;
 };
 
@@ -41,7 +41,7 @@ export const updateBank = async (id, data) => {
  * @param {string} id
  */
 export const deleteBank = async (id) => {
-  const response = await apiClient.delete(`/bank/${id}`);
+  const response = await apiClient.delete(`/banks/${id}`);
   return response.data;
 };
 
@@ -50,7 +50,7 @@ export const deleteBank = async (id) => {
  * @param {string} id
  */
 export const setPrimaryBank = async (id) => {
-  const response = await apiClient.patch(`/bank/${id}/primary`);
+  const response = await apiClient.patch(`/banks/${id}/primary`);
   return response.data;
 };
 
