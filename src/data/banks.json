@@ -1,0 +1,202 @@
+[
+  {
+    "id": 1,
+    "name": "State Bank of India",
+    "shortName": "SBI"
+  },
+  {
+    "id": 2,
+    "name": "HDFC Bank",
+    "shortName": "HDFC"
+  },
+  {
+    "id": 3,
+    "name": "ICICI Bank",
+    "shortName": "ICICI"
+  },
+  {
+    "id": 4,
+    "name": "Axis Bank",
+    "shortName": "AXIS"
+  },
+  {
+    "id": 5,
+    "name": "Punjab National Bank",
+    "shortName": "PNB"
+  },
+  {
+    "id": 6,
+    "name": "Bank of Baroda",
+    "shortName": "BOB"
+  },
+  {
+    "id": 7,
+    "name": "Canara Bank",
+    "shortName": "CANARA"
+  },
+  {
+    "id": 8,
+    "name": "Union Bank of India",
+    "shortName": "UBI"
+  },
+  {
+    "id": 9,
+    "name": "Indian Bank",
+    "shortName": "INDIAN"
+  },
+  {
+    "id": 10,
+    "name": "Bank of India",
+    "shortName": "BOI"
+  },
+  {
+    "id": 11,
+    "name": "IDBI Bank",
+    "shortName": "IDBI"
+  },
+  {
+    "id": 12,
+    "name": "Central Bank of India",
+    "shortName": "CBI"
+  },
+  {
+    "id": 13,
+    "name": "UCO Bank",
+    "shortName": "UCO"
+  },
+  {
+    "id": 14,
+    "name": "Indian Overseas Bank",
+    "shortName": "IOB"
+  },
+  {
+    "id": 15,
+    "name": "Punjab & Sind Bank",
+    "shortName": "PSB"
+  },
+  {
+    "id": 16,
+    "name": "Federal Bank",
+    "shortName": "FEDERAL"
+  },
+  {
+    "id": 17,
+    "name": "Kotak Mahindra Bank",
+    "shortName": "KOTAK"
+  },
+  {
+    "id": 18,
+    "name": "IndusInd Bank",
+    "shortName": "INDUSIND"
+  },
+  {
+    "id": 19,
+    "name": "Yes Bank",
+    "shortName": "YES"
+  },
+  {
+    "id": 20,
+    "name": "RBL Bank",
+    "shortName": "RBL"
+  },
+  {
+    "id": 21,
+    "name": "South Indian Bank",
+    "shortName": "SIB"
+  },
+  {
+    "id": 22,
+    "name": "Karnataka Bank",
+    "shortName": "KBL"
+  },
+  {
+    "id": 23,
+    "name": "Karur Vysya Bank",
+    "shortName": "KVB"
+  },
+  {
+    "id": 24,
+    "name": "City Union Bank",
+    "shortName": "CUB"
+  },
+  {
+    "id": 25,
+    "name": "DCB Bank",
+    "shortName": "DCB"
+  },
+  {
+    "id": 26,
+    "name": "Bandhan Bank",
+    "shortName": "BANDHAN"
+  },
+  {
+    "id": 27,
+    "name": "AU Small Finance Bank",
+    "shortName": "AU"
+  },
+  {
+    "id": 28,
+    "name": "Equitas Small Finance Bank",
+    "shortName": "EQUITAS"
+  },
+  {
+    "id": 29,
+    "name": "Ujjivan Small Finance Bank",
+    "shortName": "UJJIVAN"
+  },
+  {
+    "id": 30,
+    "name": "ESAF Small Finance Bank",
+    "shortName": "ESAF"
+  },
+  {
+    "id": 31,
+    "name": "Jana Small Finance Bank",
+    "shortName": "JANA"
+  },
+  {
+    "id": 32,
+    "name": "Suryoday Small Finance Bank",
+    "shortName": "SURYODAY"
+  },
+  {
+    "id": 33,
+    "name": "Fincare Small Finance Bank",
+    "shortName": "FINCARE"
+  },
+  {
+    "id": 34,
+    "name": "North East Small Finance Bank",
+    "shortName": "NESFB"
+  },
+  {
+    "id": 35,
+    "name": "Capital Small Finance Bank",
+    "shortName": "CAPITAL"
+  },
+  {
+    "id": 36,
+    "name": "Unity Small Finance Bank",
+    "shortName": "UNITY"
+  },
+  {
+    "id": 37,
+    "name": "Airtel Payments Bank",
+    "shortName": "AIRTEL"
+  },
+  {
+    "id": 38,
+    "name": "India Post Payments Bank",
+    "shortName": "IPPB"
+  },
+  {
+    "id": 39,
+    "name": "NSDL Payments Bank",
+    "shortName": "NSDL"
+  },
+  {
+    "id": 40,
+    "name": "Jio Payments Bank",
+    "shortName": "JIO"
+  }
+]
