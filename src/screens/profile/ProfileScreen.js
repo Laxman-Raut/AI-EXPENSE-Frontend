@@ -318,6 +318,11 @@ const ProfileScreen = ({ navigation }) => {
             onPress={() => setProfileModalVisible(true)}
           />
           <SettingRow
+            icon="business-outline"
+            label="Bank Accounts"
+            onPress={() => navigation.navigate('BankAccounts')}
+          />
+          <SettingRow
             icon="wallet-outline"
             label="Monthly Budget"
             onPress={() => navigation.navigate('Budget')}

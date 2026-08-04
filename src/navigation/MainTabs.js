@@ -34,6 +34,8 @@ import CreateEditGroupScreen from '../screens/groups/CreateEditGroupScreen';
 import CreateSplitRequestScreen from '../screens/groups/CreateSplitRequestScreen';
 import SplitRequestDetailScreen from '../screens/groups/SplitRequestDetailScreen';
 
+import BankAccountsScreen from '../screens/profile/BankAccountsScreen';
+
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
 const TransactionsStack = createNativeStackNavigator();
@@ -105,6 +107,7 @@ const ProfileStackScreen = () => (
     <ProfileStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
     <ProfileStack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
     <ProfileStack.Screen name="PremiumFeatures" component={PremiumFeaturesScreen} />
+    <ProfileStack.Screen name="BankAccounts" component={BankAccountsScreen} />
   </ProfileStack.Navigator>
 );
 
