@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
