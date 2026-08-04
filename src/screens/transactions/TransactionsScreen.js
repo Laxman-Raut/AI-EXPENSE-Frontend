@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import { exportToExcel, exportToPDF } from '../../utils/exportUtils';
 import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 import { useAuth } from '../../hooks/useAuth';
+import useBanks from '../../hooks/useBanks';
 
 const FILTER_CHIPS = [
   'All',
@@ -61,16 +62,70 @@ const formatMobileDisplay = (mobile, email) => {
   return '+91 ••••• •••••';
 };
 
-const TransactionsScreen = ({ navigation }) => {
+const TransactionsScreen = ({ navigation, route }) => {
   const { user } = useAuth();
   const { data: transactions, isLoading: txLoading, refetch } = useTransactions();
+  const { banks, refetch: refetchBanks } = useBanks();
   const deleteTransaction = useDeleteTransaction();
   const { showAlert } = useAlert();
   const { checkAccessAndExecute } = usePremiumAccess();
 
+  const [selectedBankId, setSelectedBankId] = useState(route?.params?.selectedBankId || null);
+  const [selectedBankName, setSelectedBankName] = useState(route?.params?.selectedBankName || null);
+
+  useEffect(() => {
+    if (route?.params?.selectedBankId !== undefined) {
+      setSelectedBankId(route.params.selectedBankId || null);
+      setSelectedBankName(route.params.selectedBankName || null);
+    }
+  }, [route?.params?.selectedBankId, route?.params?.selectedBankName]);
+
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
+
+  // Dynamic filter chips combining base filters + user's added bank accounts + categories
+  const dynamicFilterChips = useMemo(() => {
+    const baseFilters = [
+      { id: 'all', label: 'All', type: 'category' },
+      { id: 'income', label: 'Income', type: 'category' },
+      { id: 'expense', label: 'Expense', type: 'category' },
+    ];
+
+    const bankChips = (banks || []).map((b) => ({
+      id: `bank_${b._id}`,
+      bankId: b._id,
+      bankName: b.nickname || b.bankName,
+      label: b.nickname || b.bankName,
+      type: 'bank',
+    }));
+
+    const categoryChips = [
+      { id: 'cat_Food', label: 'Food', type: 'category' },
+      { id: 'cat_Shopping', label: 'Shopping', type: 'category' },
+      { id: 'cat_Bills', label: 'Bills', type: 'category' },
+      { id: 'cat_Travel', label: 'Travel', type: 'category' },
+      { id: 'cat_Salary', label: 'Salary', type: 'category' },
+      { id: 'cat_Investments', label: 'Investments', type: 'category' },
+    ];
+
+    return [...baseFilters, ...bankChips, ...categoryChips];
+  }, [banks]);
+
+  const handleChipPress = (chip) => {
+    if (chip.type === 'bank') {
+      setSelectedBankId(chip.bankId);
+      setSelectedBankName(chip.bankName);
+      setActiveFilter('All');
+    } else {
+      setSelectedBankId(null);
+      setSelectedBankName(null);
+      if (route?.params?.selectedBankId) {
+        navigation.setParams({ selectedBankId: undefined, selectedBankName: undefined });
+      }
+      setActiveFilter(chip.label);
+    }
+  };
 
   // Custom Filter Modal sheet states
   const [filterModalVisible, setFilterModalVisible] = useState(false);
@@ -89,8 +144,9 @@ const TransactionsScreen = ({ navigation }) => {
     if (maxAmount.trim()) count++;
     if (dateRangeFilter !== 'All Time') count++;
     if (sortBy !== 'newest') count++;
+    if (selectedBankId) count++;
     return count;
-  }, [activeFilter, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy]);
+  }, [activeFilter, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy, selectedBankId]);
 
   const resetAllFilters = () => {
     setSearchQuery('');
@@ -100,6 +156,11 @@ const TransactionsScreen = ({ navigation }) => {
     setMaxAmount('');
     setDateRangeFilter('All Time');
     setSortBy('newest');
+    setSelectedBankId(null);
+    setSelectedBankName(null);
+    if (route?.params?.selectedBankId) {
+      navigation.setParams({ selectedBankId: undefined, selectedBankName: undefined });
+    }
   };
 
   // Export modal
@@ -178,6 +239,15 @@ const TransactionsScreen = ({ navigation }) => {
   // Client-side advanced multi-criteria search & filtering
   const filteredTxns = useMemo(() => {
     let result = transactions ? [...transactions] : [];
+
+    // 0. Selected Bank Account Filter
+    if (selectedBankId) {
+      result = result.filter((t) => {
+        if (!t.bankAccount) return false;
+        const bId = typeof t.bankAccount === 'object' ? t.bankAccount._id : t.bankAccount;
+        return String(bId) === String(selectedBankId);
+      });
+    }
 
     // 1. Smart Multi-Field Search Query
     if (searchQuery.trim()) {
@@ -409,6 +479,26 @@ const TransactionsScreen = ({ navigation }) => {
         </View>
       </View>
 
+      {/* Bank Account Filter Banner */}
+      {selectedBankId && (
+        <View style={styles.bankFilterBanner}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Icon name="business-outline" size={16} color={colors.primary} />
+            <Text style={styles.bankFilterBannerText}>
+              Bank: <Text style={{ fontWeight: '700', color: colors.text.primary }}>{selectedBankName || 'Selected Bank'}</Text>
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => {
+              navigation.setParams({ selectedBankId: undefined, selectedBankName: undefined });
+            }}
+            style={styles.clearBankFilterBtn}
+          >
+            <Icon name="close-circle" size={18} color={colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Results Count & Quick Reset Row */}
       {(searchQuery.trim().length > 0 || activeFiltersCount > 0) && (
         <View style={styles.resultsBadgeRow}>
@@ -475,17 +565,34 @@ const TransactionsScreen = ({ navigation }) => {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.chipsScroll}
       >
-        {FILTER_CHIPS.map((chip) => {
-          const isActive = activeFilter === chip;
+        {dynamicFilterChips.map((chip) => {
+          const isBankChip = chip.type === 'bank';
+          const isActive = isBankChip
+            ? String(selectedBankId) === String(chip.bankId)
+            : (!selectedBankId && activeFilter === chip.label);
+
           return (
             <TouchableOpacity
-              key={chip}
+              key={chip.id}
               activeOpacity={0.8}
-              onPress={() => setActiveFilter(chip)}
-              style={[styles.chip, isActive && styles.chipActive]}
+              onPress={() => handleChipPress(chip)}
+              style={[
+                styles.chip,
+                isActive && styles.chipActive,
+                isBankChip && styles.bankChip,
+                isBankChip && isActive && styles.bankChipActive,
+              ]}
             >
+              {isBankChip && (
+                <Icon
+                  name="card-outline"
+                  size={13}
+                  color={isActive ? '#FFFFFF' : '#4ECDC4'}
+                  style={{ marginRight: 4 }}
+                />
+              )}
               <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
-                {chip}
+                {chip.label}
               </Text>
             </TouchableOpacity>
           );
@@ -1226,6 +1333,35 @@ const styles = StyleSheet.create({
     color: colors.danger || '#FF4D67',
     fontWeight: typography.weights.bold,
     fontSize: typography.sizes.sm,
+  },
+  // Bank Account Filter Banner Styles
+  bankFilterBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(75, 140, 255, 0.12)',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(75, 140, 255, 0.3)',
+    paddingHorizontal: spacing.sm || 12,
+    paddingVertical: spacing.xs || 8,
+    marginHorizontal: spacing.md || 16,
+    marginBottom: spacing.xs || 8,
+  },
+  bankFilterBannerText: {
+    fontSize: typography.sizes?.xs || 12,
+    color: colors.text.secondary,
+  },
+  clearBankFilterBtn: {
+    padding: 2,
+  },
+  bankChip: {
+    borderColor: 'rgba(78, 205, 196, 0.4)',
+    backgroundColor: 'rgba(78, 205, 196, 0.08)',
+  },
+  bankChipActive: {
+    backgroundColor: '#4ECDC4',
+    borderColor: '#4ECDC4',
   },
 });
 

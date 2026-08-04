@@ -6,6 +6,7 @@ import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-nati
 import Icon from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import dayjs from 'dayjs';
+import { useFocusEffect } from '@react-navigation/native';
 import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
@@ -18,6 +19,7 @@ import FloatingVoiceButton from '../../components/FloatingVoiceButton';
 import subscriptionService from '../../services/subscriptionService';
 import { checkAndIncrementDailyPromo } from '../../services/subscriptionPromoStorage';
 import SubscriptionPromoModal from '../../components/organisms/SubscriptionPromoModal';
+import useBanks from '../../hooks/useBanks';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -61,14 +63,39 @@ const DashboardScreen = ({ navigation }) => {
     };
   }, [isPro]);
 
+  const { banks, loading: banksLoading, refetch: refetchBanks } = useBanks();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refetchBanks(true);
+    }, [refetchBanks])
+  );
+
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('ALL'); // 'ALL' | 'EXPENSES' | 'INCOME'
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchSummary(), refetchRecent()]);
+    await Promise.all([refetchSummary(), refetchRecent(), refetchBanks(true)]);
     setRefreshing(false);
   };
+
+  // Prepare bank grid slots (up to 5 banks + 1 add button, or 4 banks + 1 see all + 1 add button if > 5 banks)
+  const bankGridSlots = useMemo(() => {
+    const list = banks || [];
+    const total = list.length;
+
+    if (total <= 5) {
+      const slots = list.map((b) => ({ type: 'bank', data: b }));
+      slots.push({ type: 'add' });
+      return slots;
+    } else {
+      const slots = list.slice(0, 4).map((b) => ({ type: 'bank', data: b }));
+      slots.push({ type: 'see_all', totalCount: total });
+      slots.push({ type: 'add' });
+      return slots;
+    }
+  }, [banks]);
 
   // Default transactions for fallback
   const fallbackTransactions = [
@@ -370,6 +397,106 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         </Card>
 
+        {/* Bank Accounts Widget Card */}
+        <Card style={styles.bankAccountsCard}>
+          <View style={styles.bankHeaderRow}>
+            <View style={styles.bankTitleGroup}>
+              <View style={styles.bankHeaderIconBg}>
+                <Icon name="business" size={16} color={colors.primary} />
+              </View>
+              <Text style={styles.bankHeaderTitle}>Bank Accounts</Text>
+              {banks && banks.length > 0 && (
+                <View style={styles.bankCountBadge}>
+                  <Text style={styles.bankCountBadgeText}>{banks.length}</Text>
+                </View>
+              )}
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('Profile', { screen: 'BankAccounts' })}
+              style={styles.bankManageBtn}
+            >
+              <Text style={styles.bankManageBtnText}>Manage</Text>
+              <Icon name="chevron-forward" size={14} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* 2 Rows x 3 Columns Grid */}
+          <View style={styles.bankGridContainer}>
+            {bankGridSlots.map((slot, index) => {
+              if (slot.type === 'bank') {
+                const bank = slot.data;
+                const last4 = bank.accountNumber ? bank.accountNumber.slice(-4) : '••••';
+                return (
+                  <TouchableOpacity
+                    key={bank._id || index}
+                    activeOpacity={0.75}
+                    style={[
+                      styles.bankGridSlot,
+                      bank.isPrimary && styles.bankGridSlotPrimary
+                    ]}
+                    onPress={() => {
+                      navigation.navigate('Wallet', {
+                        screen: 'TransactionsList',
+                        params: {
+                          selectedBankId: bank._id,
+                          selectedBankName: bank.bankName || bank.nickname || 'Bank',
+                        },
+                      });
+                    }}
+                  >
+                    <View style={styles.bankSlotIconWrapper}>
+                      <Icon name="card" size={18} color={bank.isPrimary ? colors.primary : '#4ECDC4'} />
+                      {bank.isPrimary && <View style={styles.primaryBadgeDot} />}
+                    </View>
+                    <Text style={styles.bankSlotName} numberOfLines={1}>
+                      {bank.nickname || bank.bankName}
+                    </Text>
+                    <Text style={styles.bankSlotAccNum}>
+                      ••{last4}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }
+
+              if (slot.type === 'see_all') {
+                return (
+                  <TouchableOpacity
+                    key="see_all"
+                    activeOpacity={0.75}
+                    style={[styles.bankGridSlot, styles.seeAllSlot]}
+                    onPress={() => navigation.navigate('Profile', { screen: 'BankAccounts' })}
+                  >
+                    <View style={styles.seeAllIconWrapper}>
+                      <Icon name="grid" size={18} color="#FF9500" />
+                    </View>
+                    <Text style={styles.seeAllText}>See All</Text>
+                    <Text style={styles.seeAllSubtext}>{slot.totalCount} Banks</Text>
+                  </TouchableOpacity>
+                );
+              }
+
+              if (slot.type === 'add') {
+                return (
+                  <TouchableOpacity
+                    key="add_bank"
+                    activeOpacity={0.75}
+                    style={[styles.bankGridSlot, styles.addBankSlot]}
+                    onPress={() => navigation.navigate('Profile', { screen: 'BankAccounts' })}
+                  >
+                    <View style={styles.addBankIconWrapper}>
+                      <Icon name="add" size={22} color={colors.primary} />
+                    </View>
+                    <Text style={styles.addBankText}>Add Bank</Text>
+                  </TouchableOpacity>
+                );
+              }
+
+              return null;
+            })}
+          </View>
+        </Card>
 
         {/* Summary Stats Row */}
         <View style={styles.statsRow}>
@@ -1057,6 +1184,160 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 9,
     fontWeight: 'bold',
+  },
+  // Bank Accounts Widget Card Styles
+  bankAccountsCard: {
+    marginVertical: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: colors.card,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  bankHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  bankTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bankHeaderIconBg: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(78, 205, 196, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bankHeaderTitle: {
+    fontSize: typography.sizes?.sm || 14,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  bankCountBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  bankCountBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.text.secondary,
+  },
+  bankManageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  bankManageBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  bankGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  bankGridSlot: {
+    width: '31.5%',
+    height: 82,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: spacing.xs || 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  bankGridSlotPrimary: {
+    borderColor: 'rgba(78, 205, 196, 0.4)',
+    backgroundColor: 'rgba(78, 205, 196, 0.06)',
+  },
+  bankSlotIconWrapper: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+    position: 'relative',
+  },
+  primaryBadgeDot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.success || '#00D26A',
+    borderWidth: 1.5,
+    borderColor: colors.card,
+  },
+  bankSlotName: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text.primary,
+    textAlign: 'center',
+    width: '100%',
+  },
+  bankSlotAccNum: {
+    fontSize: 9,
+    fontWeight: '500',
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  seeAllSlot: {
+    borderColor: 'rgba(255, 149, 0, 0.3)',
+    backgroundColor: 'rgba(255, 149, 0, 0.06)',
+  },
+  seeAllIconWrapper: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 149, 0, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  seeAllText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF9500',
+  },
+  seeAllSubtext: {
+    fontSize: 9,
+    fontWeight: '500',
+    color: colors.text.secondary,
+    marginTop: 1,
+  },
+  addBankSlot: {
+    borderStyle: 'dashed',
+    borderColor: 'rgba(75, 140, 255, 0.4)',
+    backgroundColor: 'rgba(75, 140, 255, 0.06)',
+  },
+  addBankIconWrapper: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(75, 140, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  addBankText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
   },
 });
 
