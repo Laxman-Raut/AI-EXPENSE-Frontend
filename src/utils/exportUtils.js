@@ -6,7 +6,7 @@ import apiClient from '../api/client';
 // apiClient.defaults.baseURL is e.g. "http://10.0.2.2:5000/api"
 // We strip "/api" to get "http://10.0.2.2:5000"
 const getServerBaseUrl = () => {
-  const base = apiClient.defaults.baseURL || 'http://10.0.2.2:5000/api';
+  const base = apiClient.defaults.baseURL || process.env.API_URL || 'https://ai-expense-backend-veoz.onrender.com/api';
   return base.replace(/\/api\/?$/, '');
 };
 

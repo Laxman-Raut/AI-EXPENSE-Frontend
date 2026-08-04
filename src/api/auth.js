@@ -1,7 +1,7 @@
 import apiClient from './client';
 
 export const registerUser = async (fullName, email, password) => {
-  const response = await apiClient.post('auth/register', {
+  const response = await apiClient.post('/auth/register', {
     fullName,
     email,
     password,
@@ -10,7 +10,7 @@ export const registerUser = async (fullName, email, password) => {
 };
 
 export const loginUser = async (email, password) => {
-  const response = await apiClient.post('auth/login', {
+  const response = await apiClient.post('/auth/login', {
     email,
     password,
   });
@@ -18,51 +18,51 @@ export const loginUser = async (email, password) => {
 };
 
 export const googleLoginUser = async (googleData) => {
-  const response = await apiClient.post('auth/google', googleData);
+  const response = await apiClient.post('/auth/google', googleData);
   return response.data;
 };
 
 export const getProfile = async () => {
-  const response = await apiClient.get('auth/me');
+  const response = await apiClient.get('/auth/me');
   return response.data;
 };
 
 export const updateProfile = async (data) => {
-  const response = await apiClient.put('auth/profile', data);
+  const response = await apiClient.put('/auth/profile', data);
   return response.data;
 };
 
 export const forgotPassword = async (email) => {
-  const response = await apiClient.post('auth/forgot-password', { email });
+  const response = await apiClient.post('/auth/forgot-password', { email });
   return response.data;
 };
 
 export const verifyOtp = async (email, otp) => {
-  const response = await apiClient.post('auth/verify-otp', { email, otp });
+  const response = await apiClient.post('/auth/verify-otp', { email, otp });
   return response.data;
 };
 
 export const resetPassword = async (email, otp, newPassword) => {
-  const response = await apiClient.post('auth/reset-password', { email, otp, newPassword });
+  const response = await apiClient.post('/auth/reset-password', { email, otp, newPassword });
   return response.data;
 };
 
 export const verifyRegistrationOtp = async (email, otp) => {
-  const response = await apiClient.post('auth/verify-registration-otp', { email, otp });
+  const response = await apiClient.post('/auth/verify-registration-otp', { email, otp });
   return response.data;
 };
 
 export const resendRegistrationOtp = async (email) => {
-  const response = await apiClient.post('auth/resend-registration-otp', { email });
+  const response = await apiClient.post('/auth/resend-registration-otp', { email });
   return response.data;
 };
 
 export const sendRegistrationOtp = async (fullName, email) => {
-  const response = await apiClient.post('auth/send-registration-otp', { fullName, email });
+  const response = await apiClient.post('/auth/send-registration-otp', { fullName, email });
   return response.data;
 };
 
 export const completeRegistration = async (fullName, email, otp, password) => {
-  const response = await apiClient.post('auth/complete-registration', { fullName, email, otp, password });
+  const response = await apiClient.post('/auth/complete-registration', { fullName, email, otp, password });
   return response.data;
 };

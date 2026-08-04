@@ -7,6 +7,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Screen from '../../components/templates/Screen';
@@ -181,8 +182,15 @@ const RegisterScreen = ({ navigation }) => {
       const res = await completeRegistration(fullName.trim(), email.trim(), fullOtp, password);
       
       if (res && res.success && res.data) {
-        // Automatically log in the user via Redux / AuthContext
-        await auth.login(email.trim(), password);
+        if (res.data.token && res.data.user) {
+          // If completeRegistration returned JWT token directly
+          await AsyncStorage.setItem('auth_token', res.data.token);
+          await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
+          await auth.refreshProfile();
+        } else {
+          // Automatically log in the user via Redux / AuthContext
+          await auth.login(email.trim(), password);
+        }
       }
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Registration failed. Please try again.';

@@ -14,12 +14,12 @@ const EMULATOR_IP = '10.0.2.2';
 const RENDER_BASE_URL = 'https://ai-expense-backend-veoz.onrender.com/api';
 
 const getInitialBaseUrl = () => {
-  // Ensure process.env.API_URL has /api suffix if defined
   if (process.env.API_URL) {
     const cleanEnvUrl = process.env.API_URL.trim().replace(/\/+$/, '');
     return cleanEnvUrl.endsWith('/api') ? cleanEnvUrl : `${cleanEnvUrl}/api`;
   }
-  return RENDER_BASE_URL;
+  const fallbackIp = Platform.OS === 'android' ? EMULATOR_IP : 'localhost';
+  return `http://${fallbackIp}:5000/api`;
 };
 
 const BASE_URL = getInitialBaseUrl();
@@ -49,7 +49,7 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// Response interceptor — handle unauthorized responses & errors
+// Response interceptor — handle unauthorized responses & errors with local fallback
 apiClient.interceptors.response.use(
   (response) => {
     return response;
@@ -59,6 +59,21 @@ apiClient.interceptors.response.use(
       await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user');
     }
+
+    // Network Error Fallback: If deployed Render URL is cold-starting, sleeping, or un-reachable,
+    // retry once using local dev server URL
+    const originalRequest = error.config;
+    if (
+      (error.code === 'ECONNABORTED' || error.message === 'Network Error' || !error.response) &&
+      !originalRequest._retryWithLocal
+    ) {
+      originalRequest._retryWithLocal = true;
+      const fallbackIp = Platform.OS === 'android' ? EMULATOR_IP : 'localhost';
+      originalRequest.baseURL = `http://${fallbackIp}:5000/api`;
+      console.log('[API Client] Network error on primary server. Falling back to local server:', originalRequest.baseURL);
+      return apiClient(originalRequest);
+    }
+
     return Promise.reject(error);
   },
 );
