@@ -10,19 +10,16 @@ const LOCAL_IP = '10.86.63.181';
 // Android Emulator special loopback IP to host machine
 const EMULATOR_IP = '10.0.2.2';
 
-// Priority list of host endpoints
-const FALLBACK_URLS = [
-  process.env.API_URL,
-  Platform.OS === 'android' ? `http://${EMULATOR_IP}:5000/api` : null,
-  `http://${LOCAL_IP}:5000/api`,
-  'http://localhost:5000/api',
-  'http://127.0.0.1:5000/api',
-].filter(Boolean);
-
-let activeUrlIndex = 0;
+// Render Deployed Backend URL
+const RENDER_BASE_URL = 'https://ai-expense-backend-veoz.onrender.com/api';
 
 const getInitialBaseUrl = () => {
-  return FALLBACK_URLS[0] || `http://${LOCAL_IP}:5000/api`;
+  // Ensure process.env.API_URL has /api suffix if defined
+  if (process.env.API_URL) {
+    const cleanEnvUrl = process.env.API_URL.trim().replace(/\/+$/, '');
+    return cleanEnvUrl.endsWith('/api') ? cleanEnvUrl : `${cleanEnvUrl}/api`;
+  }
+  return RENDER_BASE_URL;
 };
 
 const BASE_URL = getInitialBaseUrl();
@@ -52,43 +49,12 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// Response interceptor — handle errors & automatic IP fallback
+// Response interceptor — handle unauthorized responses & errors
 apiClient.interceptors.response.use(
   (response) => {
     return response;
   },
   async (error) => {
-    const isNetworkError =
-      !error.response &&
-      (error.code === 'ERR_NETWORK' ||
-        error.code === 'ECONNABORTED' ||
-        error.message?.includes('Network Error') ||
-        error.message?.includes('timeout') ||
-        error.message?.includes('failed'));
-
-    // Automatically switch IP and retry once if network connection fails
-    if (isNetworkError && error.config && !error.config._hasRetriedFallback) {
-      activeUrlIndex = (activeUrlIndex + 1) % FALLBACK_URLS.length;
-      const nextUrl = FALLBACK_URLS[activeUrlIndex];
-
-      console.warn(
-        `[API Client] Network error on ${error.config.baseURL}. Auto-switching to fallback: ${nextUrl}`,
-      );
-
-      apiClient.defaults.baseURL = nextUrl;
-      const newConfig = {
-        ...error.config,
-        baseURL: nextUrl,
-        _hasRetriedFallback: true,
-      };
-
-      try {
-        return await apiClient.request(newConfig);
-      } catch (retryErr) {
-        return Promise.reject(retryErr);
-      }
-    }
-
     if (error.response?.status === 401) {
       await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user');

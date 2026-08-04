@@ -95,8 +95,10 @@ const CreateSplitRequestScreen = ({ route, navigation }) => {
   const [participantState, setParticipantState] = useState(() => {
     const initial = {};
     members.forEach((m) => {
-      const id = m._id || m.id;
-      initial[id] = { selected: true, amount: '', percentage: '', shares: '1' };
+      const id = String(m._id || m.id || m);
+      if (id) {
+        initial[id] = { selected: true, amount: '', percentage: '', shares: '1' };
+      }
     });
     return initial;
   });
@@ -214,7 +216,7 @@ const CreateSplitRequestScreen = ({ route, navigation }) => {
         'success'
       );
     } catch (err) {
-      showAlert('Error', err?.response?.data?.message || 'Failed to create split expense', [{ text: 'OK' }], 'destructive');
+      Alert.alert('Error', err?.response?.data?.message || 'Failed to create split expense');
     } finally {
       setSubmitting(false);
     }

@@ -68,7 +68,7 @@ const buildIntentUri = (deepLink, packageId) => {
  * Open a specific UPI app using Intent URI (Android) or plain upi:// (iOS).
  * Falls back to plain upi:// → then Play Store if intent URI fails.
  */
-const openUpiApp = async ({ deepLink, packageId, storeUrl, onClose }) => {
+const openUpiApp = async ({ deepLink, packageId, storeUrl, onClose, onPaymentLaunched }) => {
   if (!deepLink) return;
 
   // On Android, try the Intent URI first (direct app targeting, no URL corruption)
@@ -77,6 +77,7 @@ const openUpiApp = async ({ deepLink, packageId, storeUrl, onClose }) => {
     try {
       const canOpen = await Linking.canOpenURL(intentUri).catch(() => false);
       if (canOpen) {
+        if (onPaymentLaunched) onPaymentLaunched();
         await Linking.openURL(intentUri);
         onClose();
         return;
@@ -85,6 +86,7 @@ const openUpiApp = async ({ deepLink, packageId, storeUrl, onClose }) => {
 
     // Fallback 1: plain upi:// (lets system picker choose, but deepLink is clean)
     try {
+      if (onPaymentLaunched) onPaymentLaunched();
       await Linking.openURL(deepLink);
       onClose();
       return;
@@ -98,6 +100,7 @@ const openUpiApp = async ({ deepLink, packageId, storeUrl, onClose }) => {
 
   // iOS — UPI apps register upi:// so plain openURL works
   try {
+    if (onPaymentLaunched) onPaymentLaunched();
     await Linking.openURL(deepLink);
     onClose();
   } catch (_) {
@@ -110,6 +113,7 @@ const PaymentBottomSheet = ({
   onClose,
   paymentData, // { deepLink, amount, receiver, upiId, note }
   loading = false,
+  onPaymentLaunched,
 }) => {
   const [appInstalledState, setAppInstalledState] = useState({
     gpay: false,
@@ -173,6 +177,7 @@ const PaymentBottomSheet = ({
       packageId: PKG.GPAY,
       storeUrl: STORE_URLS.GPAY,
       onClose,
+      onPaymentLaunched,
     });
 
   const handleOpenPhonePe = () =>
@@ -181,6 +186,7 @@ const PaymentBottomSheet = ({
       packageId: PKG.PHONEPE,
       storeUrl: STORE_URLS.PHONEPE,
       onClose,
+      onPaymentLaunched,
     });
 
   const handleOpenPaytm = () =>
@@ -189,11 +195,13 @@ const PaymentBottomSheet = ({
       packageId: PKG.PAYTM,
       storeUrl: STORE_URLS.PAYTM,
       onClose,
+      onPaymentLaunched,
     });
 
   const handleOpenOtherUpi = async () => {
     if (!deepLink) return;
     try {
+      if (onPaymentLaunched) onPaymentLaunched();
       await Linking.openURL(deepLink);
     } catch (err) {
       console.log('[PaymentBottomSheet] Error opening generic UPI link:', err);

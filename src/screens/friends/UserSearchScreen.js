@@ -32,15 +32,14 @@ const UserSearchScreen = ({ navigation }) => {
   };
 
   const handleSendRequest = async (user) => {
-    if (sentRequests.has(user._id)) return;
+    const targetId = user?._id || user?.id || user;
+    if (!targetId || sentRequests.has(targetId)) return;
     try {
-      await send(user._id);
-      setSentRequests((prev) => new Set([...prev, user._id]));
+      await send(targetId);
+      setSentRequests((prev) => new Set([...prev, targetId]));
     } catch (err) {
-      Alert.alert(
-        'Request Failed',
-        err?.response?.data?.message || 'Could not send friend request',
-      );
+      const msg = err?.response?.data?.message || err?.message || 'Could not send friend request';
+      Alert.alert('Request Failed', msg);
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -10,6 +10,7 @@ import {
   Alert,
   Image,
   RefreshControl,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -87,6 +88,79 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
   const [upiModalVisible, setUpiModalVisible] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
+
+  // Track whether the user launched a UPI payment, so we can prompt on return
+  const paymentLaunchedRef = useRef(false);
+  const appStateRef = useRef(AppState.currentState);
+
+  // AppState listener: fires when user comes back from GPay/PhonePe
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      const wasBackground =
+        appStateRef.current === 'background' || appStateRef.current === 'inactive';
+      const isNowActive = nextState === 'active';
+
+      if (wasBackground && isNowActive && paymentLaunchedRef.current) {
+        paymentLaunchedRef.current = false;
+        // Give the UPI app a moment to fully dismiss before showing alert
+        setTimeout(() => {
+          Alert.alert(
+            'Payment Confirmation',
+            'Did your payment complete successfully?',
+            [
+              {
+                text: 'Yes, I Paid',
+                style: 'default',
+                onPress: () => markMyselfPaid(),
+              },
+              {
+                text: 'No / Cancel',
+                style: 'cancel',
+              },
+            ]
+          );
+        }, 600);
+      }
+
+      appStateRef.current = nextState;
+    });
+
+    return () => subscription.remove();
+  }, [markMyselfPaid]);
+
+  // Mark the current user's share as paid
+  const markMyselfPaid = useCallback(async () => {
+    if (!myParticipant) return;
+    const pUserId = String(
+      typeof myParticipant.user === 'object'
+        ? myParticipant.user._id || myParticipant.user.id
+        : myParticipant.user
+    );
+    const updatedParticipants = participants.map((p) => {
+      const id = String(typeof p.user === 'object' ? p.user._id || p.user.id : p.user);
+      if (id === pUserId) {
+        return { ...p, user: id, status: 'paid' };
+      }
+      return { ...p, user: id };
+    });
+    const allPaid = updatedParticipants.every((p) => p.status === 'paid');
+    setUpdating(true);
+    try {
+      await updateSplit(splitId, {
+        participants: updatedParticipants,
+        status: allPaid ? 'completed' : 'pending',
+      });
+      refetch();
+      showSnackbar('Your payment has been recorded! ✅', 'success');
+    } catch (err) {
+      showSnackbar(
+        err?.response?.data?.message || 'Could not update payment status. Please try again.',
+        'error'
+      );
+    } finally {
+      setUpdating(false);
+    }
+  }, [myParticipant, participants, splitId, updateSplit, refetch]);
 
   // Snackbar state
   const [snackbar, setSnackbar] = useState({
@@ -450,6 +524,9 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
         onClose={() => setUpiModalVisible(false)}
         paymentData={paymentData}
         loading={paymentLoading}
+        onPaymentLaunched={() => {
+          paymentLaunchedRef.current = true;
+        }}
       />
 
       {/* Reusable Snackbar */}

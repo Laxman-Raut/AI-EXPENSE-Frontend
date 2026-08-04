@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from 'react';
-import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -12,6 +11,7 @@ import {
   Modal,
   Image,
   RefreshControl,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -99,6 +99,82 @@ const GroupDetailsScreen = ({ route, navigation }) => {
   const [upiModalVisible, setUpiModalVisible] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
+
+  // Track whether a UPI payment was launched so we can prompt on return
+  const paymentLaunchedRef = useRef(false);
+  const quickPaySplitRef = useRef(null); // stores the split item for the in-flight payment
+  const appStateRef = useRef(AppState.currentState);
+
+  // AppState listener: fires when user returns from GPay/PhonePe after quick-pay
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      const wasBackground =
+        appStateRef.current === 'background' || appStateRef.current === 'inactive';
+      const isNowActive = nextState === 'active';
+
+      if (wasBackground && isNowActive && paymentLaunchedRef.current) {
+        paymentLaunchedRef.current = false;
+        const splitItem = quickPaySplitRef.current;
+        setTimeout(() => {
+          Alert.alert(
+            'Payment Confirmation',
+            'Did your payment complete successfully?',
+            [
+              {
+                text: 'Yes, I Paid',
+                style: 'default',
+                onPress: () => splitItem && markQuickPayPaid(splitItem),
+              },
+              {
+                text: 'No / Cancel',
+                style: 'cancel',
+              },
+            ]
+          );
+        }, 600);
+      }
+
+      appStateRef.current = nextState;
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  // Mark current user as paid for a given split item (used after quick-pay)
+  const markQuickPayPaid = async (item) => {
+    const myParticipant = item.participants?.find((p) => {
+      const pId = String(typeof p.user === 'object' ? p.user._id || p.user.id : p.user);
+      return pId === currentUserId;
+    });
+    if (!myParticipant) return;
+
+    const pUserId = String(
+      typeof myParticipant.user === 'object'
+        ? myParticipant.user._id || myParticipant.user.id
+        : myParticipant.user
+    );
+
+    const updatedParticipants = (item.participants || []).map((p) => {
+      const id = String(typeof p.user === 'object' ? p.user._id || p.user.id : p.user);
+      if (id === pUserId) return { ...p, user: id, status: 'paid' };
+      return { ...p, user: id };
+    });
+    const allPaid = updatedParticipants.every((p) => p.status === 'paid');
+
+    try {
+      await updateSplit(item._id, {
+        participants: updatedParticipants,
+        status: allPaid ? 'completed' : 'pending',
+      });
+      refetchSplits(true);
+      showSnackbar('Your payment has been recorded! ✅', 'success');
+    } catch (err) {
+      showSnackbar(
+        err?.response?.data?.message || 'Could not update payment status. Please try again.',
+        'error'
+      );
+    }
+  };
 
   // Snackbar state
   const [snackbar, setSnackbar] = useState({
@@ -293,6 +369,9 @@ const GroupDetailsScreen = ({ route, navigation }) => {
       showSnackbar('You have already paid your share for this expense.', 'info');
       return;
     }
+
+    // Store split item for post-payment confirmation
+    quickPaySplitRef.current = item;
 
     // Trigger UPI Deep Link & Payment App Selection Sheet
     handleUpiPayNow(item._id);
@@ -717,6 +796,9 @@ const GroupDetailsScreen = ({ route, navigation }) => {
         onClose={() => setUpiModalVisible(false)}
         paymentData={paymentData}
         loading={paymentLoading}
+        onPaymentLaunched={() => {
+          paymentLaunchedRef.current = true;
+        }}
       />
 
       {/* Reusable Snackbar */}
