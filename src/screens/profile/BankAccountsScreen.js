@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -32,6 +33,13 @@ const POPULAR_BANKS = [
 
 const BankAccountsScreen = ({ navigation }) => {
   const { banks, loading, refetch, addBank, editBank, removeBank, makePrimary } = useBanks();
+
+  // Auto refetch when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      refetch(true);
+    }, [refetch])
+  );
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingBank, setEditingBank] = useState(null);
