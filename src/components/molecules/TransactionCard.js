@@ -9,6 +9,7 @@ const TransactionCard = ({
   title,
   category,
   paymentMethod,
+  bankAccount,
   amount,
   type = 'expense',
   onDelete,
@@ -17,6 +18,20 @@ const TransactionCard = ({
 }) => {
   const isIncome = type === 'income';
   const amountColor = isIncome ? colors.success : colors.danger;
+
+  // Extract bank account display string if available
+  let bankDisplayStr = '';
+  if (bankAccount && typeof bankAccount === 'object') {
+    const bName = bankAccount.bankName || bankAccount.nickname || '';
+    const accDigits = bankAccount.accountNumber
+      ? `(••${String(bankAccount.accountNumber).slice(-4)})`
+      : '';
+    if (bName) {
+      bankDisplayStr = accDigits ? `${bName} ${accDigits}` : bName;
+    }
+  } else if (typeof bankAccount === 'string' && bankAccount.trim()) {
+    bankDisplayStr = bankAccount.trim();
+  }
 
   // Swipe Action Buttons (Edit and Delete)
   const renderRightActions = () => {
@@ -84,7 +99,7 @@ const TransactionCard = ({
               {title}
             </Text>
             <Text style={styles.details} numberOfLines={1}>
-              {category} • {paymentMethod}
+              {category} • {paymentMethod}{bankDisplayStr ? ` • ${bankDisplayStr}` : ''}
             </Text>
           </View>
 
