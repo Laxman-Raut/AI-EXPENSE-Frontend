@@ -65,7 +65,6 @@ const formatMobileDisplay = (mobile, email) => {
 const TransactionsScreen = ({ navigation, route }) => {
   const { user } = useAuth();
   const { data: transactions, isLoading: txLoading, refetch } = useTransactions();
-  const { banks, refetch: refetchBanks } = useBanks();
   const deleteTransaction = useDeleteTransaction();
   const { showAlert } = useAlert();
   const { checkAccessAndExecute } = usePremiumAccess();
@@ -132,6 +131,7 @@ const TransactionsScreen = ({ navigation, route }) => {
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'oldest' | 'amount_high' | 'amount_low'
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
+  const [selectedBankId, setSelectedBankId] = useState('All'); // 'All' | 'Unlinked' | bank._id
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('All'); // 'All' | 'UPI' | 'Card' | 'Cash' | 'Bank Transfer'
   const [dateRangeFilter, setDateRangeFilter] = useState('All Time'); // 'All Time' | 'Today' | 'This Week' | 'This Month' | 'Last Month'
 
@@ -139,6 +139,7 @@ const TransactionsScreen = ({ navigation, route }) => {
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (activeFilter !== 'All') count++;
+    if (selectedBankId !== 'All') count++;
     if (selectedPaymentMethod !== 'All') count++;
     if (minAmount.trim()) count++;
     if (maxAmount.trim()) count++;
@@ -146,11 +147,12 @@ const TransactionsScreen = ({ navigation, route }) => {
     if (sortBy !== 'newest') count++;
     if (selectedBankId) count++;
     return count;
-  }, [activeFilter, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy, selectedBankId]);
+  }, [activeFilter, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy]);
 
   const resetAllFilters = () => {
     setSearchQuery('');
     setActiveFilter('All');
+    setSelectedBankId('All');
     setSelectedPaymentMethod('All');
     setMinAmount('');
     setMaxAmount('');
@@ -262,11 +264,38 @@ const TransactionsScreen = ({ navigation, route }) => {
           ? dayjs(t.transactionDate).format('DD MMMM YYYY MMMM dddd').toLowerCase().includes(q)
           : false;
 
-        return descMatch || catMatch || methodMatch || notesMatch || amountMatch || dateMatch;
+        let bankMatch = false;
+        if (t.bankAccount) {
+          if (typeof t.bankAccount === 'object') {
+            bankMatch =
+              (t.bankAccount.bankName || '').toLowerCase().includes(q) ||
+              (t.bankAccount.nickname || '').toLowerCase().includes(q) ||
+              (t.bankAccount.accountNumber || '').includes(q);
+          } else if (typeof t.bankAccount === 'string') {
+            bankMatch = t.bankAccount.toLowerCase().includes(q);
+          }
+        }
+
+        return descMatch || catMatch || methodMatch || notesMatch || amountMatch || dateMatch || bankMatch;
       });
     }
 
-    // 2. Main Category / Type Filter Chip
+    // 2. Bank Account Filter
+    if (selectedBankId !== 'All') {
+      if (selectedBankId === 'Unlinked') {
+        result = result.filter((t) => !t.bankAccount);
+      } else {
+        result = result.filter((t) => {
+          if (!t.bankAccount) return false;
+          if (typeof t.bankAccount === 'object') {
+            return t.bankAccount._id === selectedBankId || t.bankAccount.id === selectedBankId;
+          }
+          return t.bankAccount === selectedBankId;
+        });
+      }
+    }
+
+    // 3. Main Category / Type Filter Chip
     if (activeFilter !== 'All') {
       if (activeFilter === 'Income') {
         result = result.filter((t) => t.type === 'income');
@@ -279,14 +308,14 @@ const TransactionsScreen = ({ navigation, route }) => {
       }
     }
 
-    // 3. Payment Method Filter
+    // 4. Payment Method Filter
     if (selectedPaymentMethod !== 'All') {
       result = result.filter(
         (t) => (t.paymentMethod || '').toLowerCase().includes(selectedPaymentMethod.toLowerCase())
       );
     }
 
-    // 4. Amount Range Filter
+    // 5. Amount Range Filter
     if (minAmount.trim() && !isNaN(Number(minAmount))) {
       result = result.filter((t) => Number(t.amount) >= Number(minAmount));
     }
@@ -294,7 +323,7 @@ const TransactionsScreen = ({ navigation, route }) => {
       result = result.filter((t) => Number(t.amount) <= Number(maxAmount));
     }
 
-    // 5. Date Range Filter Presets
+    // 6. Date Range Filter Presets
     if (dateRangeFilter !== 'All Time') {
       const now = dayjs();
       if (dateRangeFilter === 'Today') {
@@ -310,7 +339,7 @@ const TransactionsScreen = ({ navigation, route }) => {
       }
     }
 
-    // 6. Sorting
+    // 7. Sorting
     if (sortBy === 'newest') {
       result.sort(
         (a, b) => dayjs(b.transactionDate).valueOf() - dayjs(a.transactionDate).valueOf()
@@ -326,7 +355,7 @@ const TransactionsScreen = ({ navigation, route }) => {
     }
 
     return result;
-  }, [transactions, searchQuery, activeFilter, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy]);
+  }, [transactions, searchQuery, selectedBankId, activeFilter, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy]);
 
   // Group filtered transactions by formatted date
   const groupedTxns = useMemo(() => {
@@ -518,6 +547,17 @@ const TransactionsScreen = ({ navigation, route }) => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.activePillsScroll}
         >
+          {selectedBankId !== 'All' && (
+            <TouchableOpacity style={styles.activePill} onPress={() => setSelectedBankId('All')}>
+              <Text style={styles.activePillText}>
+                Bank:{' '}
+                {selectedBankId === 'Unlinked'
+                  ? 'Cash / Unlinked'
+                  : banks?.find((b) => b._id === selectedBankId)?.bankName || 'Selected Bank'}
+              </Text>
+              <Icon name="close" size={12} color="#FFFFFF" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+          )}
           {activeFilter !== 'All' && (
             <TouchableOpacity style={styles.activePill} onPress={() => setActiveFilter('All')}>
               <Text style={styles.activePillText}>{activeFilter}</Text>
@@ -557,6 +597,72 @@ const TransactionsScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           )}
         </ScrollView>
+      )}
+
+      {/* Bank Accounts Horizontal Filter Row */}
+      {banks && banks.length > 0 && (
+        <View style={{ marginBottom: spacing.xs }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipsScroll}
+          >
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setSelectedBankId('All')}
+              style={[styles.bankChip, selectedBankId === 'All' && styles.bankChipActive]}
+            >
+              <Icon
+                name="wallet-outline"
+                size={14}
+                color={selectedBankId === 'All' ? '#FFFFFF' : colors.text.secondary}
+                style={{ marginRight: 4 }}
+              />
+              <Text style={[styles.bankChipText, selectedBankId === 'All' && styles.bankChipTextActive]}>
+                All Banks
+              </Text>
+            </TouchableOpacity>
+
+            {banks.map((b) => {
+              const isSel = selectedBankId === b._id;
+              const mask = b.accountNumber ? `•••• ${b.accountNumber.slice(-4)}` : '';
+              return (
+                <TouchableOpacity
+                  key={b._id}
+                  activeOpacity={0.8}
+                  onPress={() => setSelectedBankId(isSel ? 'All' : b._id)}
+                  style={[styles.bankChip, isSel && styles.bankChipActive]}
+                >
+                  <Icon
+                    name="card-outline"
+                    size={14}
+                    color={isSel ? '#FFFFFF' : colors.text.secondary}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text style={[styles.bankChipText, isSel && styles.bankChipTextActive]}>
+                    {b.bankName} {mask ? `(${mask})` : ''}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setSelectedBankId(selectedBankId === 'Unlinked' ? 'All' : 'Unlinked')}
+              style={[styles.bankChip, selectedBankId === 'Unlinked' && styles.bankChipActive]}
+            >
+              <Icon
+                name="cash-outline"
+                size={14}
+                color={selectedBankId === 'Unlinked' ? '#FFFFFF' : colors.text.secondary}
+                style={{ marginRight: 4 }}
+              />
+              <Text style={[styles.bankChipText, selectedBankId === 'Unlinked' && styles.bankChipTextActive]}>
+                Cash / Unlinked
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
       )}
 
       {/* Filter Chips Horizontal Scroll */}
@@ -647,6 +753,7 @@ const TransactionsScreen = ({ navigation, route }) => {
                   title={txn.description}
                   category={txn.category}
                   paymentMethod={txn.paymentMethod}
+                  bankAccount={txn.bankAccount}
                   amount={formatCurrency(txn.amount, txn.currency || 'INR')}
                   type={txn.type}
                   onEdit={() => navigation.navigate('AddTransaction', { id: txn._id })}
@@ -799,7 +906,49 @@ const TransactionsScreen = ({ navigation, route }) => {
                   })}
                 </View>
 
-                {/* 3. Payment Method */}
+                {/* 3. Bank Account */}
+                <Text style={styles.filterGroupLabel}>Bank Account</Text>
+                <View style={styles.filterOptionsGrid}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setSelectedBankId('All')}
+                    style={[styles.filterChipItem, selectedBankId === 'All' && styles.filterChipItemActive]}
+                  >
+                    <Text style={[styles.filterChipText, selectedBankId === 'All' && styles.filterChipTextActive]}>
+                      All Banks
+                    </Text>
+                  </TouchableOpacity>
+
+                  {banks &&
+                    banks.map((b) => {
+                      const isSel = selectedBankId === b._id;
+                      const mask = b.accountNumber ? `(••${b.accountNumber.slice(-4)})` : '';
+                      return (
+                        <TouchableOpacity
+                          key={b._id}
+                          activeOpacity={0.8}
+                          onPress={() => setSelectedBankId(b._id)}
+                          style={[styles.filterChipItem, isSel && styles.filterChipItemActive]}
+                        >
+                          <Text style={[styles.filterChipText, isSel && styles.filterChipTextActive]}>
+                            {b.bankName} {mask}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setSelectedBankId('Unlinked')}
+                    style={[styles.filterChipItem, selectedBankId === 'Unlinked' && styles.filterChipItemActive]}
+                  >
+                    <Text style={[styles.filterChipText, selectedBankId === 'Unlinked' && styles.filterChipTextActive]}>
+                      Cash / Unlinked
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* 4. Payment Method */}
                 <Text style={styles.filterGroupLabel}>Payment Method</Text>
                 <View style={styles.filterOptionsGrid}>
                   {['All', 'UPI', 'Card', 'Cash', 'Bank Transfer'].map((method) => {
@@ -1333,35 +1482,6 @@ const styles = StyleSheet.create({
     color: colors.danger || '#FF4D67',
     fontWeight: typography.weights.bold,
     fontSize: typography.sizes.sm,
-  },
-  // Bank Account Filter Banner Styles
-  bankFilterBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(75, 140, 255, 0.12)',
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(75, 140, 255, 0.3)',
-    paddingHorizontal: spacing.sm || 12,
-    paddingVertical: spacing.xs || 8,
-    marginHorizontal: spacing.md || 16,
-    marginBottom: spacing.xs || 8,
-  },
-  bankFilterBannerText: {
-    fontSize: typography.sizes?.xs || 12,
-    color: colors.text.secondary,
-  },
-  clearBankFilterBtn: {
-    padding: 2,
-  },
-  bankChip: {
-    borderColor: 'rgba(78, 205, 196, 0.4)',
-    backgroundColor: 'rgba(78, 205, 196, 0.08)',
-  },
-  bankChipActive: {
-    backgroundColor: '#4ECDC4',
-    borderColor: '#4ECDC4',
   },
 });
 

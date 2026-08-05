@@ -117,6 +117,20 @@ const TransactionDetailScreen = ({ navigation, route }) => {
               <Text style={styles.detailLabel}>Payment Method</Text>
               <Text style={styles.detailValue}>{transaction.paymentMethod}</Text>
             </View>
+            {transaction.bankAccount && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Bank Account</Text>
+                <Text style={styles.detailValue}>
+                  {typeof transaction.bankAccount === 'object'
+                    ? `${transaction.bankAccount.bankName || 'Bank'}${
+                        transaction.bankAccount.accountNumber
+                          ? ` (••${String(transaction.bankAccount.accountNumber).slice(-4)})`
+                          : ''
+                      }`
+                    : 'Linked Bank'}
+                </Text>
+              </View>
+            )}
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Date & Time</Text>
               <Text style={styles.detailValue}>{formatDateTime(transaction.transactionDate)}</Text>
