@@ -65,6 +65,7 @@ const formatMobileDisplay = (mobile, email) => {
 const TransactionsScreen = ({ navigation, route }) => {
   const { user } = useAuth();
   const { data: transactions, isLoading: txLoading, refetch } = useTransactions();
+  const { banks } = useBanks();
   const deleteTransaction = useDeleteTransaction();
   const { showAlert } = useAlert();
   const { checkAccessAndExecute } = usePremiumAccess();
