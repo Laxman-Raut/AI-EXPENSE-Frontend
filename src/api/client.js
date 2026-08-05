@@ -6,7 +6,7 @@ import { Platform } from 'react-native';
 // CONNECTION SETTINGS & ADAPTIVE FALLBACKS
 // ─────────────────────────────────────────────────────────────
 // Host machine IP address on your local Wi-Fi network (for physical phone)
-const LOCAL_IP = '10.86.63.181';
+const LOCAL_IP = '10.35.245.181';
 // Android Emulator special loopback IP to host machine
 const EMULATOR_IP = '10.0.2.2';
 
@@ -18,8 +18,8 @@ const getInitialBaseUrl = () => {
     const cleanEnvUrl = process.env.API_URL.trim().replace(/\/+$/, '');
     return cleanEnvUrl.endsWith('/api') ? cleanEnvUrl : `${cleanEnvUrl}/api`;
   }
-  const fallbackIp = Platform.OS === 'android' ? EMULATOR_IP : 'localhost';
-  return `http://${fallbackIp}:5000/api`;
+  // Default to machine's active local Wi-Fi IP address (works for physical phones & emulators)
+  return `http://${LOCAL_IP}:5000/api`;
 };
 
 const BASE_URL = getInitialBaseUrl();
@@ -27,7 +27,7 @@ console.log('[API Client] Initial Base URL:', BASE_URL);
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
+  timeout: 12000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -49,29 +49,42 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// Response interceptor — handle unauthorized responses & errors with local fallback
+// Response interceptor — handle unauthorized responses & errors with adaptive fallbacks
 apiClient.interceptors.response.use(
   (response) => {
     return response;
   },
   async (error) => {
+    const originalRequest = error.config;
+
     if (error.response?.status === 401) {
-      await AsyncStorage.removeItem('auth_token');
-      await AsyncStorage.removeItem('user');
+      if (!originalRequest?.url?.includes('/auth/login')) {
+        await AsyncStorage.removeItem('auth_token');
+        await AsyncStorage.removeItem('user');
+      }
     }
 
-    // Network Error Fallback: If deployed Render URL is cold-starting, sleeping, or un-reachable,
-    // retry once using local dev server URL
-    const originalRequest = error.config;
+    // Network Error Fallback Chain:
+    // Retry 1: Try EMULATOR_IP (10.0.2.2) or localhost if LOCAL_IP fails
+    // Retry 2: Try Deployed Render URL if local server is unreachable
     if (
       (error.code === 'ECONNABORTED' || error.message === 'Network Error' || !error.response) &&
-      !originalRequest._retryWithLocal
+      (!originalRequest._retryCount || originalRequest._retryCount < 2)
     ) {
-      originalRequest._retryWithLocal = true;
-      const fallbackIp = Platform.OS === 'android' ? EMULATOR_IP : 'localhost';
-      originalRequest.baseURL = `http://${fallbackIp}:5000/api`;
-      console.log('[API Client] Network error on primary server. Falling back to local server:', originalRequest.baseURL);
-      return apiClient(originalRequest);
+      originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
+
+      if (originalRequest._retryCount === 1) {
+        const altIp = Platform.OS === 'android' ? EMULATOR_IP : 'localhost';
+        originalRequest.baseURL = `http://${altIp}:5000/api`;
+        console.log('[API Client] Retrying network request with alternate IP:', originalRequest.baseURL);
+        return apiClient(originalRequest);
+      }
+
+      if (originalRequest._retryCount === 2) {
+        originalRequest.baseURL = RENDER_BASE_URL;
+        console.log('[API Client] Retrying network request with Render Deployed URL:', RENDER_BASE_URL);
+        return apiClient(originalRequest);
+      }
     }
 
     return Promise.reject(error);
