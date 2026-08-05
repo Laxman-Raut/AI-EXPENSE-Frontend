@@ -21,7 +21,7 @@ import {
 } from '../../hooks/useRecurringTransactions';
 import dayjs from 'dayjs';
 
-const FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'];
+const FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly', 'emi'];
 const PAYMENT_METHODS = ['Cash', 'UPI', 'Credit Card', 'Debit Card', 'Wallet', 'Bank Transfer'];
 
 const AddEditRecurringScreen = ({ navigation, route }) => {
@@ -40,6 +40,7 @@ const AddEditRecurringScreen = ({ navigation, route }) => {
   const [category, setCategory] = useState('Food');
   const [description, setDescription] = useState('');
   const [frequency, setFrequency] = useState('monthly');
+  const [totalInstallments, setTotalInstallments] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [startDate, setStartDate] = useState(new Date());
   const [note, setNote] = useState('');
@@ -60,6 +61,7 @@ const AddEditRecurringScreen = ({ navigation, route }) => {
       setCategory(recurringData.category);
       setDescription(recurringData.description);
       setFrequency(recurringData.frequency);
+      setTotalInstallments(recurringData.totalInstallments ? String(recurringData.totalInstallments) : '');
       setPaymentMethod(recurringData.paymentMethod || 'UPI');
       setStartDate(new Date(recurringData.startDate));
       setNote(recurringData.note || '');
@@ -73,13 +75,20 @@ const AddEditRecurringScreen = ({ navigation, route }) => {
     }
   }, [route.params?.selectedCategory]);
 
+  const handleSelectFrequency = (f) => {
+    setFrequency(f);
+    if (f === 'emi' && category === 'Food') {
+      setCategory('EMI/Bill');
+    }
+  };
+
   const handleSave = async () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       showAlert('Error', 'Please enter a valid amount.');
       return;
     }
     if (!description.trim()) {
-      showAlert('Error', 'Please enter a description (e.g. Rent, Subscription).');
+      showAlert('Error', 'Please enter a description (e.g. Home Loan EMI, Rent).');
       return;
     }
     if (!category) {
@@ -93,6 +102,7 @@ const AddEditRecurringScreen = ({ navigation, route }) => {
       category,
       description: description.trim(),
       frequency,
+      totalInstallments: totalInstallments ? Number(totalInstallments) : null,
       paymentMethod,
       startDate: startDate.toISOString(),
       note: note.trim(),
@@ -192,11 +202,11 @@ const AddEditRecurringScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 key={f}
                 style={[styles.freqChip, frequency === f ? styles.activeFreqChip : null]}
-                onPress={() => setFrequency(f)}
+                onPress={() => handleSelectFrequency(f)}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.freqChipText, frequency === f ? styles.activeFreqChipText : null]}>
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                  {f === 'emi' ? 'EMI' : f.charAt(0).toUpperCase() + f.slice(1)}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -211,11 +221,26 @@ const AddEditRecurringScreen = ({ navigation, route }) => {
             <TextInput
               value={description}
               onChangeText={setDescription}
-              placeholder="e.g. Office Rent, Netflix Subscription"
+              placeholder={frequency === 'emi' ? "e.g. Car Loan EMI, iPhone EMI" : "e.g. Office Rent, Netflix Subscription"}
               placeholderTextColor={colors.text.muted}
               style={styles.fieldValueInput}
             />
           </View>
+
+          {/* Total Installments Input (Only for EMI) */}
+          {frequency === 'emi' ? (
+            <View style={styles.fieldRow}>
+              <Text style={styles.fieldLabel}>Installments</Text>
+              <TextInput
+                value={totalInstallments}
+                onChangeText={setTotalInstallments}
+                placeholder="e.g. 12 or 24 (Optional)"
+                placeholderTextColor={colors.text.muted}
+                keyboardType="numeric"
+                style={styles.fieldValueInput}
+              />
+            </View>
+          ) : null}
 
           {/* Category Dropdown Picker */}
           <TouchableOpacity

@@ -106,9 +106,10 @@ const RecurringTransactionsScreen = ({ navigation }) => {
     const isExpense = item.type === 'expense';
     const isActive = item.status === 'active';
     
-    // Choose icon based on category
+    // Choose icon based on category and frequency
     let iconName = 'repeat-outline';
-    if (item.category === 'Food') iconName = 'fast-food-outline';
+    if (item.frequency === 'emi') iconName = 'calculator-outline';
+    else if (item.category === 'Food') iconName = 'fast-food-outline';
     else if (item.category === 'Shopping') iconName = 'bag-handle-outline';
     else if (item.category === 'Travel') iconName = 'car-outline';
     else if (item.category === 'Grocery') iconName = 'cart-outline';
@@ -119,6 +120,13 @@ const RecurringTransactionsScreen = ({ navigation }) => {
     else if (item.category === 'Subscriptions') iconName = 'tv-outline';
 
     const cardBgColor = isActive ? colors.surface : colors.surface + '80'; // Dim if paused
+
+    const freqLabel =
+      item.frequency === 'emi'
+        ? item.totalInstallments
+          ? `EMI (${item.paidInstallments || 0}/${item.totalInstallments})`
+          : 'EMI'
+        : item.frequency.toUpperCase();
 
     return (
       <Card style={[styles.card, { backgroundColor: cardBgColor }, shadow.sm]}>
@@ -135,7 +143,7 @@ const RecurringTransactionsScreen = ({ navigation }) => {
               </Text>
               <View style={[styles.freqBadge, { backgroundColor: isActive ? colors.primary + '15' : colors.text.muted + '20' }]}>
                 <Text style={[styles.freqText, { color: isActive ? colors.primary : colors.text.muted }]}>
-                  {item.frequency.toUpperCase()}
+                  {freqLabel}
                 </Text>
               </View>
             </View>
