@@ -1,8 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+  ActivityIndicator,
+  ScrollView,
+} from 'react-native';
 import { useSelector } from 'react-redux';
 import { LineChart, PieChart } from 'react-native-gifted-charts';
 import Icon from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import Screen from '../../components/templates/Screen';
@@ -10,556 +19,609 @@ import Card from '../../components/molecules/Card';
 import { colors, spacing, typography, radius } from '../../theme';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useTransactions } from '../../hooks/useTransactions';
+import BankLogo from '../../components/atoms/BankLogo';
 
 dayjs.extend(isBetween);
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const TIMEFRAMES = ['1D', '5D', '1M', '6M', 'YTD', '1Y', '5Y'];
-
-const CATEGORY_COLORS = [
-  '#8A3FFC', // Purple
-  '#FF6037', // Orange/Accent
-  '#00D26A', // Mint Green
-  '#FF4D67', // Rose Red
-  '#FFB648', // Amber Gold
-  '#4B8CFF', // Tech Blue
-  '#AF52DE', // Purple-Pink
-  '#5AC8FA', // Sky Blue
-  '#FFCC00', // Yellow
-  '#8E8E93', // Muted Grey
+const PERIODS = [
+  { id: 'today', label: 'Today' },
+  { id: 'month', label: 'This Month' },
+  { id: 'year', label: 'This Year' },
+  { id: 'all', label: 'All Time' },
 ];
 
+const CATEGORY_COLORS = [
+  '#FF9500', // Food - Orange
+  '#FF2D55', // Shopping - Pink
+  '#34C759', // Bills - Green
+  '#5856D6', // Travel - Purple
+  '#00D26A', // Salary - Mint Green
+  '#AF52DE', // Investments - Violet
+  '#FF3B30', // Health - Red
+  '#5AC8FA', // Entertainment - Sky Blue
+  '#FFCC00', // Education - Yellow
+  '#8E8E93', // Others - Grey
+];
+
+const getCategoryIcon = (cat = '') => {
+  const c = cat.toLowerCase();
+  if (c.includes('food') || c.includes('dining')) return 'fast-food';
+  if (c.includes('shop') || c.includes('grocer')) return 'bag-handle';
+  if (c.includes('travel') || c.includes('flight') || c.includes('cab')) return 'airplane';
+  if (c.includes('bill') || c.includes('recharge') || c.includes('utility')) return 'receipt';
+  if (c.includes('salary') || c.includes('income')) return 'cash';
+  if (c.includes('invest') || c.includes('stock')) return 'trending-up';
+  if (c.includes('health') || c.includes('med')) return 'heart-pulse';
+  if (c.includes('entertain') || c.includes('movie')) return 'game-controller';
+  return 'pie-chart';
+};
+
 const AnalyticsScreen = () => {
-  const [activeTab, setActiveTab] = useState('EXPENSES'); // 'EXPENSES' | 'INCOME'
-  const [timeframe, setTimeframe] = useState('1M');
+  const [selectedPeriod, setSelectedPeriod] = useState('month'); // 'today' | 'month' | 'year' | 'all'
+  const [chartType, setChartType] = useState('expense'); // 'expense' | 'income'
 
-  // Active User Currency from Redux
   const userCurrency = useSelector((state) => state.auth?.user?.currency || state.app?.currency || 'INR');
-
-  // Fetch all transactions
   const { data: transactions = [], isLoading } = useTransactions();
 
   // ─────────────────────────────────────────────────────────────
-  // 1. TIMEFRAME FILTERING & DATA GROUPING
+  // 1. FILTER TRANSACTIONS BY SELECTED PERIOD
   // ─────────────────────────────────────────────────────────────
-  const analyticsData = useMemo(() => {
+  const periodFilteredTxns = useMemo(() => {
     const now = dayjs();
-    const type = activeTab === 'EXPENSES' ? 'expense' : 'income';
-    
-    // Filter transactions by type first
-    const typeFiltered = transactions.filter(t => t.type === type);
-
-    let chartData = [];
-    let timeframeFiltered = [];
-    let title = '';
-
-    if (timeframe === '1D') {
-      title = 'Today';
-      const startOfToday = now.startOf('day');
-      const endOfToday = now.endOf('day');
-
-      timeframeFiltered = typeFiltered.filter(t => {
-        const d = dayjs(t.transactionDate);
+    return transactions.filter((t) => {
+      const d = dayjs(t.transactionDate || t.createdAt);
+      if (selectedPeriod === 'today') {
         return d.isSame(now, 'day');
+      }
+      if (selectedPeriod === 'month') {
+        return d.isSame(now, 'month');
+      }
+      if (selectedPeriod === 'year') {
+        return d.isSame(now, 'year');
+      }
+      return true; // 'all'
+    });
+  }, [transactions, selectedPeriod]);
+
+  // ─────────────────────────────────────────────────────────────
+  // 2. OVERVIEW STATS (Income, Expenses, Net Savings, Savings Rate)
+  // ─────────────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    let totalIncome = 0;
+    let totalExpense = 0;
+
+    periodFilteredTxns.forEach((t) => {
+      const amt = Number(t.amount) || 0;
+      if (t.type === 'income') {
+        totalIncome += amt;
+      } else {
+        totalExpense += amt;
+      }
+    });
+
+    const netSavings = totalIncome - totalExpense;
+    const savingsRate = totalIncome > 0 ? Math.max(0, Math.round((netSavings / totalIncome) * 100)) : 0;
+
+    return {
+      totalIncome,
+      totalExpense,
+      netSavings,
+      savingsRate,
+    };
+  }, [periodFilteredTxns]);
+
+  // ─────────────────────────────────────────────────────────────
+  // 3. TREND LINE CHART DATA (Day / Month / Year)
+  // ─────────────────────────────────────────────────────────────
+  const trendChartData = useMemo(() => {
+    const now = dayjs();
+    const isExp = chartType === 'expense';
+    const filtered = periodFilteredTxns.filter((t) => (isExp ? t.type === 'expense' : t.type === 'income'));
+
+    let points = [];
+
+    if (selectedPeriod === 'today') {
+      const hours = [0, 4, 8, 12, 16, 20, 23];
+      const hourTotals = Array(7).fill(0);
+      filtered.forEach((t) => {
+        const h = dayjs(t.transactionDate || t.createdAt).hour();
+        const idx = Math.min(6, Math.floor(h / 4));
+        hourTotals[idx] += Number(t.amount) || 0;
       });
-
-      const hours = Array.from({ length: 12 }, (_, i) => i * 2); // 0, 2, 4, 6, ..., 22
-      const grouped = Array(12).fill(0);
-      
-      timeframeFiltered.forEach(t => {
-        const hour = dayjs(t.transactionDate).hour();
-        const intervalIdx = Math.floor(hour / 2);
-        if (intervalIdx >= 0 && intervalIdx < 12) {
-          grouped[intervalIdx] += t.amount;
-        }
-      });
-
-      let runningSum = 0;
-      chartData = hours.map((hour, idx) => {
-        runningSum += grouped[idx];
-        const timeLabel = dayjs().hour(hour).minute(0).format('hh:mm A');
-        return {
-          value: runningSum,
-          label: idx % 3 === 0 ? dayjs().hour(hour).format('HH:mm') : '',
-          dateStr: dayjs().format('DD MMM YYYY'),
-          timeStr: timeLabel,
-        };
-      });
-
-    } else if (timeframe === '5D') {
-      title = 'Last 5 Days';
-      const startOf5Days = now.subtract(4, 'day').startOf('day');
-
-      timeframeFiltered = typeFiltered.filter(t => {
-        const d = dayjs(t.transactionDate);
-        return d.isAfter(startOf5Days) || d.isSame(startOf5Days, 'day');
-      });
-
-      const days = Array.from({ length: 5 }, (_, i) => now.subtract(4 - i, 'day'));
-      const grouped = Array(5).fill(0);
-
-      timeframeFiltered.forEach(t => {
-        const tDate = dayjs(t.transactionDate);
-        const dayIdx = days.findIndex(d => d.isSame(tDate, 'day'));
-        if (dayIdx !== -1) {
-          grouped[dayIdx] += t.amount;
-        }
-      });
-
-      chartData = days.map((day, idx) => ({
-        value: grouped[idx],
-        label: day.format('DD MMM'),
-        dateStr: day.format('DD MMMM YYYY'),
-        timeStr: '',
+      points = hours.map((h, i) => ({
+        value: hourTotals[i],
+        label: `${h}:00`,
       }));
-
-    } else if (timeframe === '1M') {
-      title = 'Last 30 Days';
-      const startOf30Days = now.subtract(29, 'day').startOf('day');
-
-      timeframeFiltered = typeFiltered.filter(t => {
-        const d = dayjs(t.transactionDate);
-        return d.isAfter(startOf30Days) || d.isSame(startOf30Days, 'day');
+    } else if (selectedPeriod === 'month') {
+      const daysInMonth = now.daysInMonth();
+      const interval = Math.ceil(daysInMonth / 6);
+      const dayTotals = {};
+      filtered.forEach((t) => {
+        const dayNum = dayjs(t.transactionDate || t.createdAt).date();
+        dayTotals[dayNum] = (dayTotals[dayNum] || 0) + (Number(t.amount) || 0);
       });
-
-      const days = Array.from({ length: 30 }, (_, i) => now.subtract(29 - i, 'day'));
-      const grouped = Array(30).fill(0);
-
-      timeframeFiltered.forEach(t => {
-        const tDate = dayjs(t.transactionDate);
-        const dayIdx = days.findIndex(d => d.isSame(tDate, 'day'));
-        if (dayIdx !== -1) {
-          grouped[dayIdx] += t.amount;
-        }
+      for (let d = 1; d <= daysInMonth; d += interval) {
+        points.push({
+          value: dayTotals[d] || 0,
+          label: `${d} ${now.format('MMM')}`,
+        });
+      }
+    } else if (selectedPeriod === 'year') {
+      const monthTotals = Array(12).fill(0);
+      filtered.forEach((t) => {
+        const m = dayjs(t.transactionDate || t.createdAt).month();
+        monthTotals[m] += Number(t.amount) || 0;
       });
-
-      chartData = days.map((day, idx) => ({
-        value: grouped[idx],
-        label: idx % 6 === 0 ? day.format('DD MMM') : '',
-        dateStr: day.format('DD MMMM YYYY'),
-        timeStr: '',
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      points = monthNames.map((m, i) => ({
+        value: monthTotals[i],
+        label: m,
       }));
-
-    } else if (timeframe === '6M') {
-      title = 'Last 6 Months';
-      const startOf6Months = now.subtract(5, 'month').startOf('month');
-
-      timeframeFiltered = typeFiltered.filter(t => {
-        const d = dayjs(t.transactionDate);
-        return d.isAfter(startOf6Months) || d.isSame(startOf6Months, 'month');
-      });
-
+    } else {
+      // All Time: group by last 6 months
       const months = Array.from({ length: 6 }, (_, i) => now.subtract(5 - i, 'month'));
-      const grouped = Array(6).fill(0);
-
-      timeframeFiltered.forEach(t => {
-        const tDate = dayjs(t.transactionDate);
-        const monthIdx = months.findIndex(m => m.isSame(tDate, 'month'));
-        if (monthIdx !== -1) {
-          grouped[monthIdx] += t.amount;
+      const monthTotals = Array(6).fill(0);
+      filtered.forEach((t) => {
+        const d = dayjs(t.transactionDate || t.createdAt);
+        const idx = months.findIndex((m) => m.isSame(d, 'month'));
+        if (idx !== -1) {
+          monthTotals[idx] += Number(t.amount) || 0;
         }
       });
-
-      chartData = months.map((month, idx) => ({
-        value: grouped[idx],
-        label: month.format('MMM'),
-        dateStr: month.format('MMMM YYYY'),
-        timeStr: '',
-      }));
-
-    } else if (timeframe === 'YTD') {
-      title = 'Year to Date';
-      const startOfYear = now.startOf('year');
-
-      timeframeFiltered = typeFiltered.filter(t => {
-        const d = dayjs(t.transactionDate);
-        return d.isAfter(startOfYear) || d.isSame(startOfYear, 'day');
-      });
-
-      const currentMonth = now.month();
-      const months = Array.from({ length: currentMonth + 1 }, (_, i) => now.month(i));
-      const grouped = Array(currentMonth + 1).fill(0);
-
-      timeframeFiltered.forEach(t => {
-        const tDate = dayjs(t.transactionDate);
-        if (tDate.year() === now.year()) {
-          const mIdx = tDate.month();
-          if (mIdx < grouped.length) {
-            grouped[mIdx] += t.amount;
-          }
-        }
-      });
-
-      chartData = months.map((month, idx) => ({
-        value: grouped[idx],
-        label: month.format('MMM'),
-        dateStr: month.format('MMMM YYYY'),
-        timeStr: '',
-      }));
-
-    } else if (timeframe === '1Y') {
-      title = 'Last 12 Months';
-      const startOf12Months = now.subtract(11, 'month').startOf('month');
-
-      timeframeFiltered = typeFiltered.filter(t => {
-        const d = dayjs(t.transactionDate);
-        return d.isAfter(startOf12Months) || d.isSame(startOf12Months, 'month');
-      });
-
-      const months = Array.from({ length: 12 }, (_, i) => now.subtract(11 - i, 'month'));
-      const grouped = Array(12).fill(0);
-
-      timeframeFiltered.forEach(t => {
-        const tDate = dayjs(t.transactionDate);
-        const monthIdx = months.findIndex(m => m.isSame(tDate, 'month'));
-        if (monthIdx !== -1) {
-          grouped[monthIdx] += t.amount;
-        }
-      });
-
-      chartData = months.map((month, idx) => ({
-        value: grouped[idx],
-        label: idx % 3 === 0 ? month.format('MMM') : '',
-        dateStr: month.format('MMMM YYYY'),
-        timeStr: '',
-      }));
-
-    } else if (timeframe === '5Y') {
-      title = 'Last 5 Years';
-      const currentYear = now.year();
-      const years = Array.from({ length: 5 }, (_, i) => currentYear - 4 + i);
-
-      timeframeFiltered = typeFiltered.filter(t => {
-        const y = dayjs(t.transactionDate).year();
-        return y >= years[0] && y <= years[4];
-      });
-
-      const grouped = {};
-      years.forEach(yr => { grouped[yr] = 0; });
-
-      timeframeFiltered.forEach(t => {
-        const y = dayjs(t.transactionDate).year();
-        if (grouped[y] !== undefined) {
-          grouped[y] += t.amount;
-        }
-      });
-
-      chartData = years.map(yr => ({
-        value: grouped[yr],
-        label: String(yr),
-        dateStr: `Year ${yr}`,
-        timeStr: '',
+      points = months.map((m, i) => ({
+        value: monthTotals[i],
+        label: m.format('MMM'),
       }));
     }
 
-    // Realistic Mock Fallback Generator if there's no transaction data in this period
-    const hasData = timeframeFiltered.length > 0;
+    const hasData = points.some((p) => p.value > 0);
+    return { points, hasData };
+  }, [periodFilteredTxns, selectedPeriod, chartType]);
 
-    // Ensure chartData values are valid numbers (gifted-charts crashes on NaN/undefined)
-    chartData = chartData.map(item => ({
-      ...item,
-      value: isNaN(item.value) || item.value < 0 ? 0 : item.value,
-    }));
+  // ─────────────────────────────────────────────────────────────
+  // 4. CATEGORY EXPENSE BREAKDOWN (Where did money go?)
+  // ─────────────────────────────────────────────────────────────
+  const categoryBreakdown = useMemo(() => {
+    const expenses = periodFilteredTxns.filter((t) => t.type === 'expense');
+    const catMap = {};
+    let totalCatExpense = 0;
 
-    // Calculate total & average
-    const total = timeframeFiltered.reduce((sum, t) => sum + t.amount, 0);
-    const average = chartData.length > 0 ? total / chartData.length : 0;
-
-    // Category Breakdown calculations
-    const catGroups = {};
-    const breakDownSource = hasData ? timeframeFiltered : [];
-    breakDownSource.forEach(t => {
+    expenses.forEach((t) => {
       const cat = t.category || 'Others';
-      catGroups[cat] = (catGroups[cat] || 0) + t.amount;
+      const amt = Number(t.amount) || 0;
+      catMap[cat] = (catMap[cat] || 0) + amt;
+      totalCatExpense += amt;
     });
 
-    const categoryBreakdown = Object.keys(catGroups)
-      .map((name, index) => {
-        const amt = catGroups[name];
-        const pct = total > 0 ? Math.round((amt / total) * 100) : 0;
+    const list = Object.keys(catMap)
+      .map((cat, idx) => {
+        const amt = catMap[cat];
+        const pct = totalCatExpense > 0 ? Math.round((amt / totalCatExpense) * 100) : 0;
         return {
-          name,
+          name: cat,
           amount: amt,
           percentage: pct,
-          color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+          color: CATEGORY_COLORS[idx % CATEGORY_COLORS.length],
+          icon: getCategoryIcon(cat),
         };
       })
       .sort((a, b) => b.amount - a.amount);
 
-    // Format category data for PieChart
-    const pieData = categoryBreakdown.length > 0
-      ? categoryBreakdown.map(c => ({
-          value: c.percentage || 1,
-          color: c.color,
-          name: c.name,
-          text: `${c.percentage}%`,
-        }))
-      : [{ value: 100, color: colors.divider, name: 'No data', text: '0%' }];
+    const pieData =
+      list.length > 0
+        ? list.map((c) => ({
+            value: c.percentage || 1,
+            color: c.color,
+            text: `${c.percentage}%`,
+          }))
+        : [{ value: 100, color: 'rgba(255, 255, 255, 0.1)', text: '0%' }];
 
-    return {
-      chartData,
-      timeframeFiltered,
-      total,
-      average,
-      categoryBreakdown,
-      pieData,
-      title,
-      hasData,
-    };
-  }, [transactions, activeTab, timeframe, userCurrency]);
-
-  // Calculate precise spacing to fit the LineChart exactly within container width (taking padding into account)
-  const chartWidth = SCREEN_WIDTH - 48; // Card inner width (SCREEN_WIDTH - card margins 32 - card paddings 16)
-  const yAxisLabelWidth = 35;
-  const initialSpacing = 10;
-  const endSpacing = 10;
-  const gridWidth = chartWidth - yAxisLabelWidth - initialSpacing - endSpacing - 10; // 10px right safety margin
-
-  const chartSpacing = useMemo(() => {
-    const N = analyticsData.chartData.length;
-    if (N <= 1) return 0;
-    return gridWidth / (N - 1);
-  }, [analyticsData.chartData, gridWidth]);
+    return { list, pieData, totalCatExpense };
+  }, [periodFilteredTxns]);
 
   // ─────────────────────────────────────────────────────────────
-  // RENDER SECTIONS
+  // 5. OUTFLOW BANK BREAKDOWN (Money spent from which bank?)
   // ─────────────────────────────────────────────────────────────
+  const outflowBankBreakdown = useMemo(() => {
+    const expenses = periodFilteredTxns.filter((t) => t.type === 'expense');
+    const bankMap = {};
+    let totalOutflow = 0;
+
+    expenses.forEach((t) => {
+      const amt = Number(t.amount) || 0;
+      let bankName = 'Unlinked / Cash';
+      let accNo = '';
+
+      if (t.bankAccount) {
+        if (typeof t.bankAccount === 'object') {
+          bankName = t.bankAccount.nickname || t.bankAccount.bankName || 'Bank Account';
+          accNo = t.bankAccount.accountNumber || '';
+        } else {
+          bankName = 'Linked Bank';
+        }
+      }
+
+      if (!bankMap[bankName]) {
+        bankMap[bankName] = { bankName, accNo, amount: 0, count: 0 };
+      }
+      bankMap[bankName].amount += amt;
+      bankMap[bankName].count += 1;
+      totalOutflow += amt;
+    });
+
+    const list = Object.values(bankMap)
+      .map((b) => ({
+        ...b,
+        percentage: totalOutflow > 0 ? Math.round((b.amount / totalOutflow) * 100) : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    return { list, totalOutflow };
+  }, [periodFilteredTxns]);
+
+  // ─────────────────────────────────────────────────────────────
+  // 6. INFLOW BANK BREAKDOWN (Money received in which bank?)
+  // ─────────────────────────────────────────────────────────────
+  const inflowBankBreakdown = useMemo(() => {
+    const incomes = periodFilteredTxns.filter((t) => t.type === 'income');
+    const bankMap = {};
+    let totalInflow = 0;
+
+    incomes.forEach((t) => {
+      const amt = Number(t.amount) || 0;
+      let bankName = 'Unlinked / Cash';
+      let accNo = '';
+
+      if (t.bankAccount) {
+        if (typeof t.bankAccount === 'object') {
+          bankName = t.bankAccount.nickname || t.bankAccount.bankName || 'Bank Account';
+          accNo = t.bankAccount.accountNumber || '';
+        } else {
+          bankName = 'Deposit Bank';
+        }
+      }
+
+      if (!bankMap[bankName]) {
+        bankMap[bankName] = { bankName, accNo, amount: 0, count: 0 };
+      }
+      bankMap[bankName].amount += amt;
+      bankMap[bankName].count += 1;
+      totalInflow += amt;
+    });
+
+    const list = Object.values(bankMap)
+      .map((b) => ({
+        ...b,
+        percentage: totalInflow > 0 ? Math.round((b.amount / totalInflow) * 100) : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    return { list, totalInflow };
+  }, [periodFilteredTxns]);
 
   if (isLoading) {
     return (
       <View style={styles.loaderContainer}>
         <ActivityIndicator color={colors.primary} size="large" />
+        <Text style={styles.loadingText}>Analyzing financial data...</Text>
       </View>
     );
   }
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={styles.headerTitle}>Analytics</Text>
-      <View style={styles.headerSubtitleBox}>
-        <Icon name="analytics-outline" size={16} color={colors.primary} />
-        <Text style={styles.headerSubtitle}>Real-time Insights</Text>
+      <View>
+        <Text style={styles.headerTitle}>Analytics & Insights</Text>
+        <Text style={styles.headerSubtitle}>Complete Money Flow Breakdown</Text>
+      </View>
+
+      <View style={styles.headerBadge}>
+        <Icon name="stats-chart" size={14} color={colors.primary} />
+        <Text style={styles.headerBadgeText}>LIVE</Text>
       </View>
     </View>
   );
 
+  const gridWidth = SCREEN_WIDTH - 64;
+
   return (
     <View style={styles.root}>
-      <Screen
-        scrollable
-        header={renderHeader()}
-        style={styles.contentContainer}
-      >
-        {/* Toggle Selector for Expenses vs Income */}
-        <View style={styles.tabToggleContainer}>
-          <TouchableOpacity
-            style={[styles.toggleTab, activeTab === 'EXPENSES' ? styles.activeExpenseTab : null]}
-            onPress={() => setActiveTab('EXPENSES')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleTabText, activeTab === 'EXPENSES' ? styles.activeExpenseTabText : null]}>
-              Expenses
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleTab, activeTab === 'INCOME' ? styles.activeIncomeTab : null]}
-            onPress={() => setActiveTab('INCOME')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleTabText, activeTab === 'INCOME' ? styles.activeIncomeTabText : null]}>
-              Income
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Timeframe Selector Pill Row */}
-        <View style={styles.timeframeContainer}>
-          {TIMEFRAMES.map((tf) => {
-            const isActive = timeframe === tf;
+      <Screen scrollable header={renderHeader()} style={styles.contentContainer}>
+        {/* Period Selector Tabs (Today, Month, Year, All) */}
+        <View style={styles.periodPillRow}>
+          {PERIODS.map((p) => {
+            const isSel = selectedPeriod === p.id;
             return (
               <TouchableOpacity
-                key={tf}
-                style={[
-                  styles.timeframeTab,
-                  isActive ? styles.activeTimeframeTab : null
-                ]}
-                onPress={() => setTimeframe(tf)}
-                activeOpacity={0.7}
+                key={p.id}
+                style={[styles.periodPill, isSel && styles.periodPillSelected]}
+                onPress={() => setSelectedPeriod(p.id)}
+                activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    styles.timeframeTabText,
-                    isActive ? styles.activeTimeframeTabText : null
-                  ]}
-                >
-                  {tf}
+                <Text style={[styles.periodPillText, isSel && styles.periodPillTextSelected]}>
+                  {p.label}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* Spending Trend Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{analyticsData.title}</Text>
+        {/* Hero 4-Grid Financial Overview Cards */}
+        <View style={styles.statsGrid}>
+          {/* Total Income */}
+          <LinearGradient
+            colors={['#142823', '#0B1714']}
+            style={[styles.statBox, { borderColor: 'rgba(0, 210, 106, 0.3)' }]}
+          >
+            <View style={styles.statIconBgSuccess}>
+              <Icon name="arrow-down-left" size={16} color="#00D26A" />
+            </View>
+            <Text style={styles.statLabel}>Total Income</Text>
+            <Text style={[styles.statValue, { color: '#00D26A' }]}>
+              {formatCurrency(stats.totalIncome, 'INR', userCurrency)}
+            </Text>
+          </LinearGradient>
+
+          {/* Total Expenses */}
+          <LinearGradient
+            colors={['#2E161C', '#1A0B0E']}
+            style={[styles.statBox, { borderColor: 'rgba(255, 77, 103, 0.3)' }]}
+          >
+            <View style={styles.statIconBgDanger}>
+              <Icon name="arrow-up-right" size={16} color="#FF4D67" />
+            </View>
+            <Text style={styles.statLabel}>Total Spent</Text>
+            <Text style={[styles.statValue, { color: '#FF4D67' }]}>
+              {formatCurrency(stats.totalExpense, 'INR', userCurrency)}
+            </Text>
+          </LinearGradient>
+
+          {/* Net Balance / Savings */}
+          <LinearGradient
+            colors={['#192238', '#0E1424']}
+            style={[styles.statBox, { borderColor: 'rgba(138, 63, 252, 0.3)' }]}
+          >
+            <View style={styles.statIconBgPrimary}>
+              <Icon name="wallet-outline" size={16} color={colors.primary} />
+            </View>
+            <Text style={styles.statLabel}>Net Balance</Text>
+            <Text style={[styles.statValue, { color: stats.netSavings >= 0 ? colors.text.primary : '#FF4D67' }]}>
+              {formatCurrency(stats.netSavings, 'INR', userCurrency)}
+            </Text>
+          </LinearGradient>
+
+          {/* Savings Rate */}
+          <LinearGradient
+            colors={['#2A2415', '#19150B']}
+            style={[styles.statBox, { borderColor: 'rgba(255, 182, 72, 0.3)' }]}
+          >
+            <View style={styles.statIconBgAmber}>
+              <Icon name="pie-chart-outline" size={16} color="#FFB648" />
+            </View>
+            <Text style={styles.statLabel}>Savings Rate</Text>
+            <Text style={[styles.statValue, { color: '#FFB648' }]}>
+              {stats.savingsRate}% Saved
+            </Text>
+          </LinearGradient>
+        </View>
+
+        {/* Section 1: Financial Trend Chart (Expenses vs Income Toggle) */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Financial Trend</Text>
+            <View style={styles.chartToggleContainer}>
+              <TouchableOpacity
+                style={[styles.chartToggleBtn, chartType === 'expense' && styles.chartToggleBtnActiveExp]}
+                onPress={() => setChartType('expense')}
+              >
+                <Text style={[styles.chartToggleText, chartType === 'expense' && styles.chartToggleTextActiveExp]}>
+                  Expense
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.chartToggleBtn, chartType === 'income' && styles.chartToggleBtnActiveInc]}
+                onPress={() => setChartType('income')}
+              >
+                <Text style={[styles.chartToggleText, chartType === 'income' && styles.chartToggleTextActiveInc]}>
+                  Income
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <Card style={styles.chartCard}>
             <LineChart
-              data={analyticsData.chartData}
+              data={trendChartData.points}
               width={gridWidth}
-              height={180}
-              color={activeTab === 'EXPENSES' ? colors.danger : colors.success}
+              height={170}
+              color={chartType === 'expense' ? '#FF4D67' : '#00D26A'}
               thickness={3}
-              startFillColor={activeTab === 'EXPENSES' ? colors.danger : colors.success}
-              endFillColor={activeTab === 'EXPENSES' ? colors.danger : colors.success}
-              startOpacity={0.25}
+              startFillColor={chartType === 'expense' ? '#FF4D67' : '#00D26A'}
+              endFillColor={chartType === 'expense' ? '#FF4D67' : '#00D26A'}
+              startOpacity={0.2}
               endOpacity={0.01}
-              initialSpacing={initialSpacing}
-              endSpacing={endSpacing}
-              spacing={chartSpacing}
               noOfSections={4}
-              rulesColor="rgba(255, 255, 255, 0.04)"
+              rulesColor="rgba(255, 255, 255, 0.05)"
               rulesType="solid"
               yAxisColor="transparent"
               xAxisColor="transparent"
-              yAxisLabelWidth={yAxisLabelWidth}
               yAxisTextStyle={styles.axisText}
               xAxisLabelTextStyle={styles.axisText}
-              hideDataPoints={true}
+              hideDataPoints={false}
+              dataPointsColor={chartType === 'expense' ? '#FF4D67' : '#00D26A'}
+              dataPointsRadius={4}
               curved
-              overflowTop={35}
-              overflowBottom={15}
               animateOnDataChange
-              animationDuration={600}
-              
-              // 1. DIRECT PROPS (destructured by some versions of the library components)
-              showPointerStrip={true}
-              pointerStripWidth={1.5}
-              pointerStripColor={activeTab === 'EXPENSES' ? 'rgba(255, 77, 103, 0.35)' : 'rgba(0, 210, 106, 0.35)'}
-              pointerStripUptoDataPoint={false}
-              pointerStripType="dashed"
-              pointerColor={activeTab === 'EXPENSES' ? colors.danger : colors.success}
-              pointerRadius={6}
-              pointerWidth={2}
-              activatePointersOnLongPress={false}
-              activatePointersInstantlyOnTouch={true}
-              pointerLabelWidth={130}
-              pointerLabelHeight={64}
-              shiftPointerLabelX={-65}
-              shiftPointerLabelY={-74}
-              pointerLabelComponent={(items) => {
-                if (!items || items.length === 0) return null;
-                const item = items[0];
-                if (!item || item.value === undefined) return null;
-                return (
-                  <View style={styles.tooltipContainer}>
-                    <Text style={styles.tooltipAmount}>{formatCurrency(item.value, 'INR', userCurrency)}</Text>
-                    <Text style={styles.tooltipDate}>{item.dateStr || item.label}</Text>
-                    {item.timeStr ? <Text style={styles.tooltipTime}>{item.timeStr}</Text> : null}
-                  </View>
-                );
-              }}
-              
-              // 2. POINTERCONFIG PROP OBJECT (required by other versions to attach touch listeners)
-              pointerConfig={{
-                showPointerStrip: true,
-                pointerStripWidth: 1.5,
-                pointerStripColor: activeTab === 'EXPENSES' ? 'rgba(255, 77, 103, 0.35)' : 'rgba(0, 210, 106, 0.35)',
-                pointerStripUptoPoint: false,
-                pointerStripType: 'dashed',
-                pointerColor: activeTab === 'EXPENSES' ? colors.danger : colors.success,
-                pointerRadius: 6,
-                pointerWidth: 2,
-                activatePointersOnLongPress: false,
-                activatePointersInstantlyOnTouch: true,
-                pointerLabelWidth: 130,
-                pointerLabelHeight: 64,
-                shiftPointerLabelX: -65,
-                shiftPointerLabelY: -74,
-                pointerLabelComponent: (items) => {
-                  if (!items || items.length === 0) return null;
-                  const item = items[0];
-                  if (!item || item.value === undefined) return null;
-                  return (
-                    <View style={styles.tooltipContainer}>
-                      <Text style={styles.tooltipAmount}>{formatCurrency(item.value, 'INR', userCurrency)}</Text>
-                      <Text style={styles.tooltipDate}>{item.dateStr || item.label}</Text>
-                      {item.timeStr ? <Text style={styles.tooltipTime}>{item.timeStr}</Text> : null}
-                    </View>
-                  );
-                }
-              }}
+              animationDuration={500}
             />
-            {!analyticsData.hasData && (
-              <View style={styles.noDataOverlay} pointerEvents="none">
-                <Text style={styles.noDataText}>No Data Available</Text>
+          </Card>
+        </View>
+
+        {/* Section 2: Where Did Money Go? (Category Expense Breakdown) */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Where Did Money Go? (Category Expenses)</Text>
+          <Card style={styles.cardContainer}>
+            <View style={styles.donutRow}>
+              <View style={styles.donutWrapper}>
+                <PieChart
+                  data={categoryBreakdown.pieData}
+                  donut
+                  radius={64}
+                  innerRadius={44}
+                  innerCircleColor={colors.card}
+                  showText={false}
+                />
+                <View style={styles.donutCenterText}>
+                  <Text style={styles.donutCenterVal}>
+                    {formatCurrency(categoryBreakdown.totalCatExpense, 'INR', userCurrency)}
+                  </Text>
+                  <Text style={styles.donutCenterSub}>SPENT</Text>
+                </View>
+              </View>
+
+              <View style={styles.catLegendList}>
+                {categoryBreakdown.list.length > 0 ? (
+                  categoryBreakdown.list.slice(0, 4).map((cat) => (
+                    <View key={cat.name} style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: cat.color }]} />
+                      <Text style={styles.legendName} numberOfLines={1}>
+                        {cat.name}
+                      </Text>
+                      <Text style={styles.legendPct}>{cat.percentage}%</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.emptyLegendText}>No expenses recorded</Text>
+                )}
+              </View>
+            </View>
+
+            {/* Category Progress Bars List */}
+            {categoryBreakdown.list.map((cat) => (
+              <View key={cat.name} style={styles.catBarRow}>
+                <View style={styles.catBarHeader}>
+                  <View style={styles.catBarLeft}>
+                    <Icon name={cat.icon} size={15} color={cat.color} style={{ marginRight: 6 }} />
+                    <Text style={styles.catBarName}>{cat.name}</Text>
+                  </View>
+                  <View style={styles.catBarRight}>
+                    <Text style={styles.catBarAmt}>{formatCurrency(cat.amount, 'INR', userCurrency)}</Text>
+                    <Text style={styles.catBarPct}> ({cat.percentage}%)</Text>
+                  </View>
+                </View>
+                <View style={styles.barTrack}>
+                  <View
+                    style={[
+                      styles.barFill,
+                      { width: `${Math.min(100, cat.percentage)}%`, backgroundColor: cat.color },
+                    ]}
+                  />
+                </View>
+              </View>
+            ))}
+          </Card>
+        </View>
+
+        {/* Section 3: Money Spent From Which Bank? (Outflow Breakdown) */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Money Spent From Which Bank?</Text>
+            <View style={styles.bankTagOutflow}>
+              <Icon name="arrow-up" size={12} color="#FF4D67" />
+              <Text style={styles.bankTagOutflowText}>OUTFLOW</Text>
+            </View>
+          </View>
+
+          <Card style={styles.cardContainer}>
+            {outflowBankBreakdown.list.length > 0 ? (
+              outflowBankBreakdown.list.map((bank) => (
+                <View key={bank.bankName} style={styles.bankItemRow}>
+                  <View style={styles.bankItemHeader}>
+                    <View style={styles.bankItemLeft}>
+                      <BankLogo bankName={bank.bankName} size={28} style={{ marginRight: 8 }} />
+                      <View>
+                        <Text style={styles.bankItemName}>{bank.bankName}</Text>
+                        <Text style={styles.bankItemSub}>{bank.count} Outgoing Transactions</Text>
+                      </View>
+                    </View>
+                    <View style={styles.bankItemRight}>
+                      <Text style={[styles.bankItemAmt, { color: '#FF4D67' }]}>
+                        -{formatCurrency(bank.amount, 'INR', userCurrency)}
+                      </Text>
+                      <Text style={styles.bankItemPct}>{bank.percentage}% of Outflow</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.barTrack}>
+                    <View
+                      style={[
+                        styles.barFill,
+                        { width: `${Math.min(100, bank.percentage)}%`, backgroundColor: '#FF4D67' },
+                      ]}
+                    />
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyBankState}>
+                <Icon name="card-outline" size={32} color={colors.text.muted} />
+                <Text style={styles.emptyBankText}>No bank outflows recorded in this period</Text>
               </View>
             )}
           </Card>
         </View>
 
-        {/* Insights/Totals Row Cards */}
-        <View style={styles.insightsRow}>
-          <Card style={styles.insightBox}>
-            <Text style={styles.insightLabel}>Total {activeTab === 'EXPENSES' ? 'Spent' : 'Earned'}</Text>
-            <Text style={[styles.insightValue, { color: activeTab === 'EXPENSES' ? colors.danger : colors.success }]}>
-              {formatCurrency(analyticsData.total, 'INR', userCurrency)}
-            </Text>
-          </Card>
-          <Card style={styles.insightBox}>
-            <Text style={styles.insightLabel}>Average ({timeframe.toLowerCase()})</Text>
-            <Text style={styles.insightValue}>
-              {formatCurrency(analyticsData.average, 'INR', userCurrency)}
-            </Text>
-          </Card>
-        </View>
-
-        {/* Category Breakdown Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Category Breakdown</Text>
-          <Card style={styles.pieCard}>
-            <View style={styles.pieContainer}>
-              <PieChart
-                data={analyticsData.pieData}
-                donut
-                radius={76}
-                innerRadius={52}
-                innerCircleColor={colors.card}
-                showText={false}
-              />
-              <View style={styles.pieCenterTextContainer}>
-                <Text style={styles.pieCenterTotal}>
-                  {formatCurrency(analyticsData.total, 'INR', userCurrency)}
-                </Text>
-                <Text style={styles.pieCenterLabel}>Total</Text>
-              </View>
+        {/* Section 4: Money Received In Which Bank? (Inflow Breakdown) */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Money Received In Which Bank?</Text>
+            <View style={styles.bankTagInflow}>
+              <Icon name="arrow-down" size={12} color="#00D26A" />
+              <Text style={styles.bankTagInflowText}>INFLOW</Text>
             </View>
+          </View>
 
-            {/* Custom Pie Legend table */}
-            <View style={styles.legendContainer}>
-              {analyticsData.categoryBreakdown.length > 0 ? (
-                analyticsData.categoryBreakdown.slice(0, 5).map((item) => (
-                  <View key={item.name} style={styles.legendItem}>
-                    <View style={styles.legendLeft}>
-                      <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                      <Text style={styles.legendLabel} numberOfLines={1}>
-                        {item.name}
-                      </Text>
+          <Card style={styles.cardContainer}>
+            {inflowBankBreakdown.list.length > 0 ? (
+              inflowBankBreakdown.list.map((bank) => (
+                <View key={bank.bankName} style={styles.bankItemRow}>
+                  <View style={styles.bankItemHeader}>
+                    <View style={styles.bankItemLeft}>
+                      <BankLogo bankName={bank.bankName} size={28} style={{ marginRight: 8 }} />
+                      <View>
+                        <Text style={styles.bankItemName}>{bank.bankName}</Text>
+                        <Text style={styles.bankItemSub}>{bank.count} Incoming Deposits</Text>
+                      </View>
                     </View>
-                    <View style={styles.legendRight}>
-                      <Text style={styles.legendValue}>{item.percentage}%</Text>
-                      <Text style={styles.legendAmt}>{formatCurrency(item.amount, 'INR', userCurrency)}</Text>
+                    <View style={styles.bankItemRight}>
+                      <Text style={[styles.bankItemAmt, { color: '#00D26A' }]}>
+                        +{formatCurrency(bank.amount, 'INR', userCurrency)}
+                      </Text>
+                      <Text style={styles.bankItemPct}>{bank.percentage}% of Inflow</Text>
                     </View>
                   </View>
-                ))
-              ) : (
-                <Text style={styles.noLegendText}>No transactions in this period</Text>
-              )}
-            </View>
+
+                  <View style={styles.barTrack}>
+                    <View
+                      style={[
+                        styles.barFill,
+                        { width: `${Math.min(100, bank.percentage)}%`, backgroundColor: '#00D26A' },
+                      ]}
+                    />
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyBankState}>
+                <Icon name="wallet-outline" size={32} color={colors.text.muted} />
+                <Text style={styles.emptyBankText}>No bank deposits recorded in this period</Text>
+              </View>
+            )}
           </Card>
         </View>
 
-        {/* Bottom spacer for breathing room */}
         <View style={{ height: spacing.xxl }} />
       </Screen>
     </View>
@@ -572,8 +634,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   contentContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
   },
   loaderContainer: {
     flex: 1,
@@ -581,278 +643,358 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingText: {
+    fontSize: 13,
+    color: colors.text.secondary,
+    marginTop: spacing.sm,
+  },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   headerTitle: {
-    fontSize: typography.sizes.xxl,
-    fontWeight: typography.weights.bold,
+    fontSize: typography.sizes.lg,
+    fontWeight: '800',
     color: colors.text.primary,
-  },
-  headerSubtitleBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-    backgroundColor: colors.primary + '12',
-    borderRadius: radius.full,
   },
   headerSubtitle: {
-    color: colors.primary,
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.bold,
-  },
-  tabToggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: colors.card,
-    borderRadius: radius.full,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.md,
-  },
-  toggleTab: {
-    flex: 1,
-    height: 38,
-    borderRadius: radius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  toggleTabText: {
+    fontSize: 11,
     color: colors.text.secondary,
-    fontSize: typography.sizes.xs + 1,
-    fontWeight: typography.weights.bold,
+    marginTop: 1,
   },
-  activeExpenseTab: {
-    backgroundColor: 'rgba(255, 77, 103, 0.15)',
-    borderWidth: 1,
-    borderColor: colors.danger,
-  },
-  activeExpenseTabText: {
-    color: colors.danger,
-  },
-  activeIncomeTab: {
-    backgroundColor: 'rgba(0, 210, 106, 0.15)',
-    borderWidth: 1,
-    borderColor: colors.success,
-  },
-  activeIncomeTabText: {
-    color: colors.success,
-  },
-  timeframeContainer: {
+  headerBadge: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: colors.card,
-    borderRadius: radius.full,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.xl,
-  },
-  timeframeTab: {
-    flex: 1,
-    height: 32,
-    borderRadius: radius.full,
-    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(138, 63, 252, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    gap: 4,
   },
-  activeTimeframeTab: {
+  headerBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  periodPillRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: radius.full,
+    padding: 3,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  periodPill: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: radius.full,
+  },
+  periodPillSelected: {
     backgroundColor: colors.primary,
   },
-  timeframeTabText: {
+  periodPillText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: colors.text.secondary,
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.bold,
   },
-  activeTimeframeTabText: {
+  periodPillTextSelected: {
     color: '#FFFFFF',
+    fontWeight: '700',
   },
-  section: {
-    marginBottom: spacing.xl,
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  statBox: {
+    width: (SCREEN_WIDTH - spacing.md * 2 - spacing.sm) / 2,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+  },
+  statIconBgSuccess: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 210, 106, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  statIconBgDanger: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 77, 103, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  statIconBgPrimary: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(138, 63, 252, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  statIconBgAmber: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 182, 72, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: colors.text.secondary,
+    fontWeight: '500',
+  },
+  statValue: {
+    fontSize: 15,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  sectionContainer: {
+    marginBottom: spacing.lg,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
   },
   sectionTitle: {
-    fontSize: typography.sizes.md + 2,
-    fontWeight: typography.weights.bold,
+    fontSize: 14,
+    fontWeight: '700',
     color: colors.text.primary,
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  chartToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: radius.md,
+    padding: 2,
+  },
+  chartToggleBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.md - 2,
+  },
+  chartToggleBtnActiveExp: {
+    backgroundColor: 'rgba(255, 77, 103, 0.2)',
+  },
+  chartToggleBtnActiveInc: {
+    backgroundColor: 'rgba(0, 210, 106, 0.2)',
+  },
+  chartToggleText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text.muted,
+  },
+  chartToggleTextActiveExp: {
+    color: '#FF4D67',
+    fontWeight: '700',
+  },
+  chartToggleTextActiveInc: {
+    color: '#00D26A',
+    fontWeight: '700',
   },
   chartCard: {
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
     paddingHorizontal: spacing.xs,
     backgroundColor: colors.card,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
   },
   axisText: {
     color: colors.text.muted,
     fontSize: 9,
-    fontWeight: '500',
   },
-  insightsRow: {
+  cardContainer: {
+    backgroundColor: colors.card,
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  donutRow: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  insightBox: {
-    flex: 1,
-    padding: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  insightLabel: {
-    fontSize: typography.sizes.xs,
-    color: colors.text.muted,
-    fontWeight: typography.weights.semibold,
-    marginBottom: 4,
-  },
-  insightValue: {
-    fontSize: typography.sizes.md + 2,
-    fontWeight: typography.weights.bold,
-    color: colors.text.primary,
-  },
-  pieCard: {
-    padding: spacing.md,
-    flexDirection: 'column',
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  pieContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: spacing.md,
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  donutWrapper: {
     position: 'relative',
-  },
-  pieCenterTextContainer: {
-    position: 'absolute',
+    alignItems: 'center',
     justifyContent: 'center',
+  },
+  donutCenterText: {
+    position: 'absolute',
     alignItems: 'center',
   },
-  pieCenterTotal: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
+  donutCenterVal: {
+    fontSize: 11,
+    fontWeight: '800',
     color: colors.text.primary,
   },
-  pieCenterLabel: {
-    fontSize: 9,
+  donutCenterSub: {
+    fontSize: 8,
+    fontWeight: '800',
     color: colors.text.muted,
-    fontWeight: typography.weights.bold,
-    textTransform: 'uppercase',
-    marginTop: 2,
   },
-  legendContainer: {
-    width: '100%',
-    paddingHorizontal: spacing.xs,
-    marginTop: spacing.md,
-    gap: spacing.sm,
+  catLegendList: {
+    flex: 1,
+    marginLeft: spacing.md,
+    gap: 6,
   },
   legendItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  legendLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
   },
   legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    marginRight: 6,
   },
-  legendLabel: {
-    fontSize: typography.sizes.xs,
-    color: colors.text.secondary,
-    fontWeight: typography.weights.semibold,
+  legendName: {
     flex: 1,
-  },
-  legendRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  legendValue: {
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.bold,
-    color: colors.text.primary,
-  },
-  legendAmt: {
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.semibold,
+    fontSize: 11,
     color: colors.text.secondary,
-    width: 65,
-    textAlign: 'right',
-  },
-  noLegendText: {
-    textAlign: 'center',
-    color: colors.text.muted,
-    fontSize: typography.sizes.xs,
-    marginVertical: spacing.md,
-  },
-  tooltipContainer: {
-    backgroundColor: 'rgba(18, 19, 26, 0.95)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 110,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
-    elevation: 8,
-  },
-  tooltipAmount: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  tooltipDate: {
-    color: colors.text.secondary,
-    fontSize: 9,
     fontWeight: '600',
   },
-  tooltipTime: {
+  legendPct: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  emptyLegendText: {
+    fontSize: 11,
     color: colors.text.muted,
-    fontSize: 8,
-    fontWeight: '500',
-    marginTop: 1,
   },
-  noDataOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
+  catBarRow: {
+    marginBottom: spacing.sm,
+  },
+  catBarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    zIndex: 10,
+    marginBottom: 4,
   },
-  noDataText: {
+  catBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  catBarName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  catBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  catBarAmt: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  catBarPct: {
+    fontSize: 11,
     color: colors.text.secondary,
-    fontSize: typography.sizes.xs + 1,
-    fontWeight: typography.weights.bold,
-    backgroundColor: colors.card,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.divider,
+  },
+  barTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  bankTagOutflow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 77, 103, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 3,
+  },
+  bankTagOutflowText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FF4D67',
+  },
+  bankTagInflow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 210, 106, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 3,
+  },
+  bankTagInflowText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#00D26A',
+  },
+  bankItemRow: {
+    marginBottom: spacing.md,
+  },
+  bankItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  bankItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  bankItemName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  bankItemSub: {
+    fontSize: 10,
+    color: colors.text.secondary,
+  },
+  bankItemRight: {
+    alignItems: 'flex-end',
+  },
+  bankItemAmt: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  bankItemPct: {
+    fontSize: 10,
+    color: colors.text.muted,
+  },
+  emptyBankState: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+  },
+  emptyBankText: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
 });
 
