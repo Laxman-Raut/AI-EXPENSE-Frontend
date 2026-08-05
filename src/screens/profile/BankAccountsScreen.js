@@ -20,6 +20,7 @@ import Card from '../../components/molecules/Card';
 import { colors, spacing, typography, radius } from '../../theme';
 import useBanks from '../../hooks/useBanks';
 import Snackbar from '../../components/Snackbar';
+import BankLogo from '../../components/atoms/BankLogo';
 
 const POPULAR_BANKS = [
   { name: 'State Bank of India', code: 'SBIN' },
@@ -200,9 +201,7 @@ const BankAccountsScreen = ({ navigation }) => {
     return (
       <Card style={[styles.bankCard, isPrimaryAccount && styles.primaryCardBorder]}>
         <View style={styles.cardHeader}>
-          <View style={styles.bankIconCircle}>
-            <Icon name="card-outline" size={24} color={colors.primary} />
-          </View>
+          <BankLogo bankName={item.bankName} size={40} />
           <View style={styles.bankMeta}>
             <View style={styles.bankTitleRow}>
               <Text style={styles.bankName}>{item.bankName}</Text>

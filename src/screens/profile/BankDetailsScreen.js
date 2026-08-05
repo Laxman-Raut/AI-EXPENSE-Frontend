@@ -22,6 +22,7 @@ import { useTransactions, useDeleteTransaction } from '../../hooks/useTransactio
 import useBanks from '../../hooks/useBanks';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useAlert } from '../../context/AlertContext';
+import BankLogo from '../../components/atoms/BankLogo';
 
 const formatDateGroup = (dateInput) => {
   const d = dayjs(dateInput);
@@ -192,9 +193,7 @@ const BankDetailsScreen = ({ navigation, route }) => {
       >
         <View style={styles.bankCardHeader}>
           <View style={styles.bankIconGroup}>
-            <View style={styles.bankCardIconBg}>
-              <Icon name="business" size={20} color={colors.primary} />
-            </View>
+            <BankLogo bankName={bank.bankName} size={36} />
             <View>
               <Text style={styles.bankNameText}>{bank.bankName}</Text>
               {bank.accountType && (

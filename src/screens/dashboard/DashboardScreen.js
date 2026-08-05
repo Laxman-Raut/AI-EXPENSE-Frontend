@@ -20,6 +20,7 @@ import subscriptionService from '../../services/subscriptionService';
 import { checkAndIncrementDailyPromo } from '../../services/subscriptionPromoStorage';
 import SubscriptionPromoModal from '../../components/organisms/SubscriptionPromoModal';
 import useBanks from '../../hooks/useBanks';
+import BankLogo from '../../components/atoms/BankLogo';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -444,7 +445,7 @@ const DashboardScreen = ({ navigation }) => {
                     }}
                   >
                     <View style={styles.bankSlotIconWrapper}>
-                      <Icon name="card" size={18} color={bank.isPrimary ? colors.primary : '#4ECDC4'} />
+                      <BankLogo bankName={bank.bankName} size={28} />
                       {bank.isPrimary && <View style={styles.primaryBadgeDot} />}
                     </View>
                     <Text style={styles.bankSlotName} numberOfLines={1}>
