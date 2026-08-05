@@ -507,7 +507,9 @@ const AddTransactionScreen = ({ navigation, route }) => {
         {banks && banks.length > 0 && (
           <>
             <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Bank Account</Text>
+              <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>
+                {isExpense ? 'Payment Bank Account' : 'Deposit Bank Account'}
+              </Text>
               <TouchableOpacity
                 onPress={() => navigation.navigate('Profile', { screen: 'BankAccounts' })}
                 activeOpacity={0.7}

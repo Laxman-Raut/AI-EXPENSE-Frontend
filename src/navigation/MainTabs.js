@@ -35,6 +35,7 @@ import CreateSplitRequestScreen from '../screens/groups/CreateSplitRequestScreen
 import SplitRequestDetailScreen from '../screens/groups/SplitRequestDetailScreen';
 
 import BankAccountsScreen from '../screens/profile/BankAccountsScreen';
+import BankDetailsScreen from '../screens/profile/BankDetailsScreen';
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
@@ -67,6 +68,7 @@ const AnimatedTabIcon = ({ name, color, focused }) => {
 const DashboardStackScreen = () => (
   <DashboardStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
     <DashboardStack.Screen name="TodayHome" component={DashboardScreen} />
+    <DashboardStack.Screen name="BankDetails" component={BankDetailsScreen} />
     <DashboardStack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
     <DashboardStack.Screen name="AddTransaction" component={AddTransactionScreen} />
     <DashboardStack.Screen name="ReceiptScanner" component={ReceiptScannerScreen} />
@@ -108,6 +110,7 @@ const ProfileStackScreen = () => (
     <ProfileStack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
     <ProfileStack.Screen name="PremiumFeatures" component={PremiumFeaturesScreen} />
     <ProfileStack.Screen name="BankAccounts" component={BankAccountsScreen} />
+    <ProfileStack.Screen name="BankDetails" component={BankDetailsScreen} />
   </ProfileStack.Navigator>
 );
 
@@ -115,6 +118,7 @@ const ProfileStackScreen = () => (
 const TransactionsStackScreen = () => (
   <TransactionsStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
     <TransactionsStack.Screen name="TransactionsList" component={TransactionsScreen} />
+    <TransactionsStack.Screen name="BankDetails" component={BankDetailsScreen} />
     <TransactionsStack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
     <TransactionsStack.Screen name="AddTransaction" component={AddTransactionScreen} />
     <TransactionsStack.Screen name="ReceiptScanner" component={ReceiptScannerScreen} />

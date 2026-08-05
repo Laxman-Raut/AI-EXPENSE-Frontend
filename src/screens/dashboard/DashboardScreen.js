@@ -437,12 +437,9 @@ const DashboardScreen = ({ navigation }) => {
                       bank.isPrimary && styles.bankGridSlotPrimary
                     ]}
                     onPress={() => {
-                      navigation.navigate('Wallet', {
-                        screen: 'TransactionsList',
-                        params: {
-                          selectedBankId: bank._id,
-                          selectedBankName: bank.bankName || bank.nickname || 'Bank',
-                        },
+                      navigation.navigate('BankDetails', {
+                        bankId: bank._id,
+                        bank: bank,
                       });
                     }}
                   >
