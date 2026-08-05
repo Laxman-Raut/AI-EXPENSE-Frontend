@@ -21,6 +21,7 @@ import { checkAndIncrementDailyPromo } from '../../services/subscriptionPromoSto
 import SubscriptionPromoModal from '../../components/organisms/SubscriptionPromoModal';
 import useBanks from '../../hooks/useBanks';
 import BankLogo from '../../components/atoms/BankLogo';
+import savingsApi from '../../api/savings';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -65,11 +66,22 @@ const DashboardScreen = ({ navigation }) => {
   }, [isPro]);
 
   const { banks, loading: banksLoading, refetch: refetchBanks } = useBanks();
+  const [savingsData, setSavingsData] = useState(null);
+
+  const fetchSavingsData = React.useCallback(async () => {
+    try {
+      const res = await savingsApi.getSavingsJars();
+      if (res && res.success) {
+        setSavingsData(res);
+      }
+    } catch (_) {}
+  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
       refetchBanks(true);
-    }, [refetchBanks])
+      fetchSavingsData();
+    }, [refetchBanks, fetchSavingsData])
   );
 
   const [refreshing, setRefreshing] = useState(false);
@@ -77,7 +89,7 @@ const DashboardScreen = ({ navigation }) => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchSummary(), refetchRecent(), refetchBanks(true)]);
+    await Promise.all([refetchSummary(), refetchRecent(), refetchBanks(true), fetchSavingsData()]);
     setRefreshing(false);
   };
 
@@ -493,6 +505,60 @@ const DashboardScreen = ({ navigation }) => {
 
               return null;
             })}
+          </View>
+        </Card>
+
+        {/* Savings Jars Widget Card */}
+        <Card style={styles.bankAccountsCard}>
+          <View style={styles.bankHeaderRow}>
+            <View style={styles.bankTitleGroup}>
+              <View style={[styles.bankHeaderIconBg, { backgroundColor: (colors.success || '#34C759') + '20' }]}>
+                <Icon name="trophy" size={16} color={colors.success || '#34C759'} />
+              </View>
+              <Text style={styles.bankHeaderTitle}>Savings Jars</Text>
+              {savingsData?.summary?.activeJarsCount > 0 && (
+                <View style={[styles.bankCountBadge, { backgroundColor: (colors.success || '#34C759') + '20' }]}>
+                  <Text style={[styles.bankCountBadgeText, { color: colors.success || '#34C759' }]}>
+                    {savingsData.summary.activeJarsCount} Active
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('Savings')}
+              style={styles.bankManageBtn}
+            >
+              <Text style={styles.bankManageBtnText}>View All</Text>
+              <Icon name="chevron-forward" size={14} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+            <View>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: colors.text.secondary, letterSpacing: 0.8 }}>
+                TOTAL SAVINGS
+              </Text>
+              <Text style={{ fontSize: 22, fontWeight: '800', color: colors.success || '#34C759', marginTop: 2 }}>
+                {formatCurrency(savingsData?.summary?.totalSavings || 0)}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={{
+                backgroundColor: colors.primary,
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 20,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+              }}
+              onPress={() => navigation.navigate('CreateSavingsJar')}
+            >
+              <Icon name="add" size={16} color="#FFF" />
+              <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 12 }}>New Jar</Text>
+            </TouchableOpacity>
           </View>
         </Card>
 

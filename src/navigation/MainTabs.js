@@ -37,6 +37,13 @@ import SplitRequestDetailScreen from '../screens/groups/SplitRequestDetailScreen
 import BankAccountsScreen from '../screens/profile/BankAccountsScreen';
 import BankDetailsScreen from '../screens/profile/BankDetailsScreen';
 
+import SavingsScreen from '../screens/savings/SavingsScreen';
+import CreateSavingsJarScreen from '../screens/savings/CreateSavingsJarScreen';
+import SavingsDetailsScreen from '../screens/savings/SavingsDetailsScreen';
+import DepositScreen from '../screens/savings/DepositScreen';
+import WithdrawScreen from '../screens/savings/WithdrawScreen';
+import TransferScreen from '../screens/savings/TransferScreen';
+
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
 const TransactionsStack = createNativeStackNavigator();
@@ -82,6 +89,12 @@ const DashboardStackScreen = () => (
     <DashboardStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
     <DashboardStack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
     <DashboardStack.Screen name="PremiumFeatures" component={PremiumFeaturesScreen} />
+    <DashboardStack.Screen name="Savings" component={SavingsScreen} />
+    <DashboardStack.Screen name="CreateSavingsJar" component={CreateSavingsJarScreen} />
+    <DashboardStack.Screen name="SavingsDetails" component={SavingsDetailsScreen} />
+    <DashboardStack.Screen name="Deposit" component={DepositScreen} />
+    <DashboardStack.Screen name="Withdraw" component={WithdrawScreen} />
+    <DashboardStack.Screen name="Transfer" component={TransferScreen} />
   </DashboardStack.Navigator>
 );
 
@@ -112,6 +125,12 @@ const ProfileStackScreen = () => (
     <ProfileStack.Screen name="PremiumFeatures" component={PremiumFeaturesScreen} />
     <ProfileStack.Screen name="BankAccounts" component={BankAccountsScreen} />
     <ProfileStack.Screen name="BankDetails" component={BankDetailsScreen} />
+    <ProfileStack.Screen name="Savings" component={SavingsScreen} />
+    <ProfileStack.Screen name="CreateSavingsJar" component={CreateSavingsJarScreen} />
+    <ProfileStack.Screen name="SavingsDetails" component={SavingsDetailsScreen} />
+    <ProfileStack.Screen name="Deposit" component={DepositScreen} />
+    <ProfileStack.Screen name="Withdraw" component={WithdrawScreen} />
+    <ProfileStack.Screen name="Transfer" component={TransferScreen} />
   </ProfileStack.Navigator>
 );
 
@@ -132,6 +151,12 @@ const TransactionsStackScreen = () => (
     <TransactionsStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
     <TransactionsStack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
     <TransactionsStack.Screen name="PremiumFeatures" component={PremiumFeaturesScreen} />
+    <TransactionsStack.Screen name="Savings" component={SavingsScreen} />
+    <TransactionsStack.Screen name="CreateSavingsJar" component={CreateSavingsJarScreen} />
+    <TransactionsStack.Screen name="SavingsDetails" component={SavingsDetailsScreen} />
+    <TransactionsStack.Screen name="Deposit" component={DepositScreen} />
+    <TransactionsStack.Screen name="Withdraw" component={WithdrawScreen} />
+    <TransactionsStack.Screen name="Transfer" component={TransferScreen} />
   </TransactionsStack.Navigator>
 );
 
