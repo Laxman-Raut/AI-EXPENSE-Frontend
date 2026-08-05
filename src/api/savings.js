@@ -84,6 +84,31 @@ export const getAISuggestions = async () => {
   return response.data;
 };
 
+/**
+ * Get user's Periodic Savings Goal & progress
+ */
+export const getSavingsGoal = async () => {
+  const response = await apiClient.get('/savings/goal');
+  return response.data;
+};
+
+/**
+ * Set or Update Periodic Savings Goal
+ * @param {Object} payload { targetAmount, period, notes }
+ */
+export const setSavingsGoal = async (payload) => {
+  const response = await apiClient.post('/savings/goal', payload);
+  return response.data;
+};
+
+/**
+ * Delete Periodic Savings Goal
+ */
+export const deleteSavingsGoal = async () => {
+  const response = await apiClient.delete('/savings/goal');
+  return response.data;
+};
+
 export default {
   getSavingsJars,
   getJarById,
@@ -94,4 +119,7 @@ export default {
   withdrawFromJar,
   transferMoney,
   getAISuggestions,
+  getSavingsGoal,
+  setSavingsGoal,
+  deleteSavingsGoal,
 };

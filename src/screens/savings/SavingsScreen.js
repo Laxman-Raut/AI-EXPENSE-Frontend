@@ -5,6 +5,8 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  TextInput,
+  Modal,
   ActivityIndicator,
   RefreshControl,
   Alert,
@@ -31,8 +33,76 @@ const SavingsScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [goalModalVisible, setGoalModalVisible] = useState(false);
+  const [goalTargetAmount, setGoalTargetAmount] = useState('');
+  const [goalPeriod, setGoalPeriod] = useState('monthly');
+  const [goalNotes, setGoalNotes] = useState('');
+  const [savingGoalLoading, setSavingGoalLoading] = useState(false);
+
   const subscription = useSelector((state) => state.subscription?.subscription);
   const isPremium = subscription?.plan === 'pro' && subscription?.status === 'active';
+
+  const handleOpenGoalModal = () => {
+    const existing = summary.periodicGoal?.goal;
+    if (existing) {
+      setGoalTargetAmount(String(existing.targetAmount));
+      setGoalPeriod(existing.period || 'monthly');
+      setGoalNotes(existing.notes || '');
+    } else {
+      setGoalTargetAmount('');
+      setGoalPeriod('monthly');
+      setGoalNotes('');
+    }
+    setGoalModalVisible(true);
+  };
+
+  const handleSaveGoal = async () => {
+    const amountNum = Number(goalTargetAmount);
+    if (!goalTargetAmount || isNaN(amountNum) || amountNum <= 0) {
+      Alert.alert('Invalid Target', 'Please enter a valid savings target amount greater than 0.');
+      return;
+    }
+
+    setSavingGoalLoading(true);
+    try {
+      await savingsApi.setSavingsGoal({
+        targetAmount: amountNum,
+        period: goalPeriod,
+        notes: goalNotes.trim(),
+      });
+      setGoalModalVisible(false);
+      fetchData(true);
+      Alert.alert('Success', `${goalPeriod.charAt(0).toUpperCase() + goalPeriod.slice(1)} Savings Goal updated! 🎉`);
+    } catch (err) {
+      console.log('[SavingsScreen] Save goal error:', err);
+      Alert.alert('Error', err?.response?.data?.message || 'Failed to save Savings Goal');
+    } finally {
+      setSavingGoalLoading(false);
+    }
+  };
+
+  const handleDeleteGoal = async () => {
+    Alert.alert(
+      'Remove Savings Goal',
+      'Are you sure you want to remove your target savings goal?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await savingsApi.deleteSavingsGoal();
+              setGoalModalVisible(false);
+              fetchData(true);
+            } catch (err) {
+              Alert.alert('Error', 'Failed to remove Savings Goal');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const fetchData = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
@@ -263,6 +333,79 @@ const SavingsScreen = ({ navigation }) => {
                   </TouchableOpacity>
                 ) : null}
               </View>
+            {/* Periodic Savings Target / Goal Card */}
+            <View style={styles.goalCard}>
+              <View style={styles.goalHeaderRow}>
+                <View style={styles.goalTitleGroup}>
+                  <Text style={styles.goalCardTitle}>🎯 SAVINGS TARGET</Text>
+                  {summary.periodicGoal?.hasGoal && (
+                    <View style={styles.periodBadge}>
+                      <Text style={styles.periodBadgeText}>
+                        {summary.periodicGoal.goal.period.toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={styles.editGoalBtn}
+                  onPress={handleOpenGoalModal}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.editGoalBtnText}>
+                    {summary.periodicGoal?.hasGoal ? 'Edit Goal' : '+ Set Goal'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {summary.periodicGoal?.hasGoal ? (
+                <View style={styles.goalBody}>
+                  <View style={styles.goalAmountRow}>
+                    <View>
+                      <Text style={styles.goalSavedLabel}>SAVED THIS PERIOD</Text>
+                      <Text style={styles.goalSavedValue}>
+                        {formatCurrency(summary.periodicGoal.goal.savedInPeriod || 0)}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.goalTargetLabel}>TARGET</Text>
+                      <Text style={styles.goalTargetValue}>
+                        {formatCurrency(summary.periodicGoal.goal.targetAmount)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.goalProgressBarTrack}>
+                    <View
+                      style={[
+                        styles.goalProgressBarFill,
+                        {
+                          width: `${summary.periodicGoal.goal.percentage}%`,
+                          backgroundColor: summary.periodicGoal.goal.isGoalAchieved
+                            ? colors.success
+                            : colors.primary,
+                        },
+                      ]}
+                    />
+                  </View>
+
+                  <View style={styles.goalProgressMetaRow}>
+                    <Text style={styles.goalProgressText}>
+                      {summary.periodicGoal.goal.percentage}% Achieved
+                    </Text>
+                    <Text style={styles.goalProgressText}>
+                      {summary.periodicGoal.goal.isGoalAchieved
+                        ? 'Target Achieved! 🎉'
+                        : `${formatCurrency(summary.periodicGoal.goal.remaining)} remaining`}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.noGoalBody}>
+                  <Text style={styles.noGoalText}>
+                    Set a Weekly, Monthly or Yearly Savings Goal to track your discipline!
+                  </Text>
+                </View>
+              )}
             </View>
 
             {/* AI Savings Suggestions Banner (Pro feature) */}
@@ -340,7 +483,81 @@ const SavingsScreen = ({ navigation }) => {
             </View>
           )
         }
-      />
+      {/* Set / Edit Savings Goal Modal */}
+      <Modal
+        visible={goalModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setGoalModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.goalModalContent}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Set Savings Target Goal</Text>
+              <TouchableOpacity onPress={() => setGoalModalVisible(false)}>
+                <Icon name="close" size={24} color={colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.fieldLabel}>Savings Period</Text>
+            <View style={styles.periodChipRow}>
+              {['weekly', 'monthly', 'yearly'].map((p) => (
+                <TouchableOpacity
+                  key={p}
+                  style={[styles.periodChip, goalPeriod === p && styles.periodChipActive]}
+                  onPress={() => setGoalPeriod(p)}
+                >
+                  <Text style={[styles.periodChipText, goalPeriod === p && styles.periodChipTextActive]}>
+                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.fieldLabel}>Target Amount (₹)</Text>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputPrefix}>₹</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={goalTargetAmount}
+                onChangeText={setGoalTargetAmount}
+                placeholder="e.g. 10000"
+                placeholderTextColor={colors.text.muted}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <Text style={styles.fieldLabel}>Notes (Optional)</Text>
+            <TextInput
+              style={[styles.modalInput, { height: 44 }]}
+              value={goalNotes}
+              onChangeText={setGoalNotes}
+              placeholder="e.g. Monthly disciplined savings"
+              placeholderTextColor={colors.text.muted}
+            />
+
+            <View style={styles.modalActionsRow}>
+              {summary.periodicGoal?.hasGoal ? (
+                <TouchableOpacity style={styles.deleteGoalBtn} onPress={handleDeleteGoal}>
+                  <Icon name="trash-outline" size={18} color={colors.danger} />
+                </TouchableOpacity>
+              ) : null}
+
+              <TouchableOpacity
+                style={[styles.saveGoalBtn, { flex: 1 }]}
+                onPress={handleSaveGoal}
+                disabled={savingGoalLoading}
+              >
+                {savingGoalLoading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.saveGoalBtnText}>Save Target Goal</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -695,6 +912,219 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: '700',
     fontSize: 13,
+  },
+  goalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: spacing.md + 2,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  goalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  goalTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  goalCardTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.text.secondary,
+    letterSpacing: 0.8,
+  },
+  periodBadge: {
+    backgroundColor: colors.primary + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  periodBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  editGoalBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: colors.primary + '15',
+  },
+  editGoalBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  goalBody: {
+    marginTop: spacing.sm + 2,
+  },
+  goalAmountRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: spacing.xs,
+  },
+  goalSavedLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.text.muted,
+  },
+  goalSavedValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text.primary,
+    marginTop: 2,
+  },
+  goalTargetLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.text.muted,
+  },
+  goalTargetValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+  goalProgressBarTrack: {
+    height: 10,
+    backgroundColor: colors.border,
+    borderRadius: 5,
+    overflow: 'hidden',
+    marginTop: 4,
+  },
+  goalProgressBarFill: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  goalProgressMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  goalProgressText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text.secondary,
+  },
+  noGoalBody: {
+    marginTop: spacing.sm,
+  },
+  noGoalText: {
+    fontSize: 12,
+    color: colors.text.muted,
+    lineHeight: 18,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  goalModalContent: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  periodChipRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  periodChip: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  periodChipActive: {
+    backgroundColor: colors.primary + '20',
+    borderColor: colors.primary,
+  },
+  periodChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text.muted,
+  },
+  periodChipTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+  },
+  inputPrefix: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginRight: 6,
+  },
+  modalInput: {
+    flex: 1,
+    height: 48,
+    fontSize: 15,
+    color: colors.text.primary,
+  },
+  modalActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+  },
+  deleteGoalBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: colors.danger + '18',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveGoalBtn: {
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveGoalBtnText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
 
