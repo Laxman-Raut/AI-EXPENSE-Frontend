@@ -71,9 +71,12 @@ const buildIntentUri = (deepLink, packageId) => {
 const openUpiApp = async ({ deepLink, packageId, storeUrl, onClose, onPaymentLaunched }) => {
   if (!deepLink) return;
 
+  console.log('[PaymentBottomSheet] Final generated UPI URI:', deepLink);
+
   // On Android, try the Intent URI first (direct app targeting, no URL corruption)
   if (Platform.OS === 'android') {
     const intentUri = buildIntentUri(deepLink, packageId);
+    console.log('[PaymentBottomSheet] Launching Intent URI:', intentUri);
     try {
       const canOpen = await Linking.canOpenURL(intentUri).catch(() => false);
       if (canOpen) {
@@ -82,15 +85,20 @@ const openUpiApp = async ({ deepLink, packageId, storeUrl, onClose, onPaymentLau
         onClose();
         return;
       }
-    } catch (_) { /* fall through */ }
+    } catch (err) {
+      console.log('[PaymentBottomSheet] Error opening Intent URI:', err);
+    }
 
     // Fallback 1: plain upi:// (lets system picker choose, but deepLink is clean)
     try {
+      console.log('[PaymentBottomSheet] Falling back to plain upi:// URI:', deepLink);
       if (onPaymentLaunched) onPaymentLaunched();
       await Linking.openURL(deepLink);
       onClose();
       return;
-    } catch (_) { /* fall through */ }
+    } catch (err) {
+      console.log('[PaymentBottomSheet] Error opening plain upi:// URL:', err);
+    }
 
     // Fallback 2: open Play Store
     Linking.openURL(storeUrl).catch(() => {});
@@ -100,10 +108,12 @@ const openUpiApp = async ({ deepLink, packageId, storeUrl, onClose, onPaymentLau
 
   // iOS — UPI apps register upi:// so plain openURL works
   try {
+    console.log('[PaymentBottomSheet] Launching iOS upi:// URI:', deepLink);
     if (onPaymentLaunched) onPaymentLaunched();
     await Linking.openURL(deepLink);
     onClose();
-  } catch (_) {
+  } catch (err) {
+    console.log('[PaymentBottomSheet] Error opening iOS UPI URL:', err);
     Alert.alert('App not found', 'Please install the UPI app from the App Store.');
   }
 };
@@ -200,6 +210,7 @@ const PaymentBottomSheet = ({
 
   const handleOpenOtherUpi = async () => {
     if (!deepLink) return;
+    console.log('[PaymentBottomSheet] Final generic UPI URI:', deepLink);
     try {
       if (onPaymentLaunched) onPaymentLaunched();
       await Linking.openURL(deepLink);

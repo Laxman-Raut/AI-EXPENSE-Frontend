@@ -20,16 +20,15 @@ import Card from '../../components/molecules/Card';
 import { colors, spacing, typography, radius } from '../../theme';
 import useBanks from '../../hooks/useBanks';
 import Snackbar from '../../components/Snackbar';
-import BankLogo from '../../components/atoms/BankLogo';
 
 const POPULAR_BANKS = [
-  { name: 'State Bank of India', code: 'SBIN' },
-  { name: 'HDFC Bank', code: 'HDFC' },
-  { name: 'ICICI Bank', code: 'ICIC' },
-  { name: 'Axis Bank', code: 'UTIB' },
-  { name: 'Punjab National Bank', code: 'PUNB' },
-  { name: 'Kotak Mahindra Bank', code: 'KKBK' },
-  { name: 'Bank of Baroda', code: 'BARB' },
+  { name: 'State Bank of India', code: 'SBIN', icon: 'account-balance' },
+  { name: 'HDFC Bank', code: 'HDFC', icon: 'account-balance' },
+  { name: 'ICICI Bank', code: 'ICIC', icon: 'account-balance' },
+  { name: 'Axis Bank', code: 'UTIB', icon: 'account-balance' },
+  { name: 'Punjab National Bank', code: 'PUNB', icon: 'account-balance' },
+  { name: 'Kotak Mahindra Bank', code: 'KKBK', icon: 'account-balance' },
+  { name: 'Bank of Baroda', code: 'BARB', icon: 'account-balance' },
 ];
 
 const BankAccountsScreen = ({ navigation }) => {
