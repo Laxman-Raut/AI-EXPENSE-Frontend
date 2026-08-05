@@ -15,6 +15,7 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
 import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
 import { colors, spacing, typography, radius } from '../../theme';
@@ -30,6 +31,7 @@ const POPULAR_BANKS = [
   { name: 'Punjab National Bank', code: 'PUNB' },
   { name: 'Kotak Mahindra Bank', code: 'KKBK' },
   { name: 'Bank of Baroda', code: 'BARB' },
+  { name: 'Paytm Bank', code: 'PAYTM' },
 ];
 
 const BankAccountsScreen = ({ navigation }) => {
@@ -192,126 +194,217 @@ const BankAccountsScreen = ({ navigation }) => {
 
   const maskAccountNumber = (accNo = '') => {
     if (accNo.length <= 4) return accNo;
-    return '•••• ' + accNo.slice(-4);
+    return '•••• •••• ' + accNo.slice(-4);
   };
+
+  const primaryBank = banks.find((b) => b.isPrimary) || banks[0];
 
   const renderBankCard = ({ item }) => {
     const isPrimaryAccount = Boolean(item.isPrimary);
+    const last4 = item.accountNumber ? item.accountNumber.slice(-4) : '••••';
 
     return (
-      <Card style={[styles.bankCard, isPrimaryAccount && styles.primaryCardBorder]}>
+      <LinearGradient
+        colors={
+          isPrimaryAccount
+            ? ['#1A2238', '#0F1626', '#090E1B']
+            : ['#171B2B', '#111422', '#0A0C16']
+        }
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.metallicCard,
+          isPrimaryAccount && styles.primaryMetallicBorder,
+        ]}
+      >
+        {/* Card Header Row */}
         <View style={styles.cardHeader}>
-          <BankLogo bankName={item.bankName} size={40} />
-          <View style={styles.bankMeta}>
-            <View style={styles.bankTitleRow}>
-              <Text style={styles.bankName}>{item.bankName}</Text>
-              {isPrimaryAccount && (
-                <View style={styles.primaryBadge}>
-                  <Text style={styles.primaryBadgeText}>PRIMARY</Text>
-                </View>
-              )}
+          <View style={styles.bankLogoGroup}>
+            <BankLogo bankName={item.bankName} size={42} />
+            <View style={{ marginLeft: spacing.sm }}>
+              <Text style={styles.bankNameText} numberOfLines={1}>
+                {item.bankName}
+              </Text>
+              <Text style={styles.accountTypeSubtext}>
+                {item.accountType || 'Savings'} Account
+              </Text>
             </View>
-            <Text style={styles.accountNoText}>
-              {item.accountType} · {maskAccountNumber(item.accountNumber)}
+          </View>
+
+          <View style={styles.headerRightActions}>
+            {isPrimaryAccount ? (
+              <View style={styles.primaryBadge}>
+                <Icon name="checkmark-circle" size={12} color="#00D26A" style={{ marginRight: 3 }} />
+                <Text style={styles.primaryBadgeText}>PRIMARY</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.setPrimaryPill}
+                onPress={() => handleSetPrimary(item._id)}
+                activeOpacity={0.75}
+              >
+                <Icon name="star-outline" size={12} color={colors.primary} style={{ marginRight: 3 }} />
+                <Text style={styles.setPrimaryPillText}>Set Primary</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.iconEditBtn}
+              onPress={() => openEditModal(item)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Icon name="create-outline" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Embossed Account Number */}
+        <View style={styles.accNumberWrapper}>
+          <Text style={styles.accNumberLabel}>ACCOUNT NUMBER</Text>
+          <Text style={styles.accNumberEmbossed}>
+            •••• •••• •••• {last4}
+          </Text>
+        </View>
+
+        {/* Card Details Footer Row */}
+        <View style={styles.cardFooterRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.holderLabel}>HOLDER NAME</Text>
+            <Text style={styles.holderValue} numberOfLines={1}>
+              {item.accountHolderName}
             </Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.moreBtn}
-            onPress={() => openEditModal(item)}
-            activeOpacity={0.7}
-            hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-          >
-            <Icon name="pencil" size={18} color={colors.text.secondary} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.cardDetails}>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Holder:</Text>
-            <Text style={styles.detailVal}>{item.accountHolderName}</Text>
-          </View>
           {item.upiId ? (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>UPI ID:</Text>
-              <Text style={styles.detailValUpi}>{item.upiId}</Text>
+            <View style={{ alignItems: 'flex-end', flex: 1 }}>
+              <Text style={styles.holderLabel}>UPI ID</Text>
+              <Text style={styles.upiValue} numberOfLines={1}>
+                {item.upiId}
+              </Text>
             </View>
-          ) : null}
-          {item.nickname ? (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Nickname:</Text>
-              <Text style={styles.detailVal}>{item.nickname}</Text>
+          ) : item.nickname ? (
+            <View style={{ alignItems: 'flex-end', flex: 1 }}>
+              <Text style={styles.holderLabel}>LABEL</Text>
+              <Text style={styles.holderValue} numberOfLines={1}>
+                {item.nickname}
+              </Text>
             </View>
           ) : null}
         </View>
 
-        <View style={styles.cardActions}>
-          {!isPrimaryAccount && (
-            <TouchableOpacity
-              style={styles.actionBtnSecondary}
-              onPress={() => handleSetPrimary(item._id)}
-              activeOpacity={0.75}
-            >
-              <Icon name="star-outline" size={14} color={colors.primary} />
-              <Text style={styles.actionBtnSecondaryText}>Set Primary</Text>
-            </TouchableOpacity>
-          )}
+        {/* Bottom Actions Bar */}
+        <View style={styles.cardBottomBar}>
+          <TouchableOpacity
+            style={styles.statementBtn}
+            onPress={() =>
+              navigation.navigate('BankDetails', { bankId: item._id, bank: item })
+            }
+            activeOpacity={0.8}
+          >
+            <Icon name="receipt-outline" size={14} color={colors.primary} style={{ marginRight: 5 }} />
+            <Text style={styles.statementBtnText}>View Statement</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.actionBtnDelete}
+            style={styles.deleteCardBtn}
             onPress={() => handleDeleteBank(item)}
-            activeOpacity={0.75}
+            activeOpacity={0.8}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Icon name="trash-outline" size={14} color={colors.danger} />
-            <Text style={styles.actionBtnDeleteText}>Delete</Text>
+            <Icon name="trash-outline" size={14} color={colors.danger || '#FF4D67'} style={{ marginRight: 4 }} />
+            <Text style={styles.deleteCardBtnText}>Remove</Text>
           </TouchableOpacity>
         </View>
-      </Card>
+      </LinearGradient>
     );
   };
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <TouchableOpacity
-        style={styles.backBtn}
-        onPress={() => navigation.goBack()}
-        activeOpacity={0.7}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-      >
-        <Icon name="arrow-back" size={22} color={colors.text.primary} />
-      </TouchableOpacity>
-      <Text style={styles.headerTitle}>Bank Accounts</Text>
-      <TouchableOpacity
-        style={styles.addBtnHeader}
-        onPress={openAddModal}
-        activeOpacity={0.7}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-      >
-        <Icon name="add" size={26} color={colors.primary} />
-      </TouchableOpacity>
+    <View style={styles.headerContainer}>
+      <View style={styles.topNavRow}>
+        <TouchableOpacity
+          style={styles.navBackBtn}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Icon name="arrow-back" size={22} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        <Text style={styles.navHeaderTitle}>Bank Accounts</Text>
+
+        <TouchableOpacity
+          style={styles.addNavBtn}
+          onPress={openAddModal}
+          activeOpacity={0.8}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Icon name="add" size={20} color="#FFFFFF" />
+          <Text style={styles.addNavBtnText}>Add Bank</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Summary Banner */}
+      {banks && banks.length > 0 && (
+        <View style={styles.summaryBanner}>
+          <View style={styles.summaryBannerLeft}>
+            <View style={styles.summaryIconBg}>
+              <Icon name="wallet" size={18} color={colors.primary} />
+            </View>
+            <View>
+              <Text style={styles.summaryTitle}>
+                {banks.length} Bank Account{banks.length !== 1 ? 's' : ''} Linked
+              </Text>
+              <Text style={styles.summarySubtitle}>
+                Primary: {primaryBank?.nickname || primaryBank?.bankName || 'None'}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.addQuickPill}
+            onPress={openAddModal}
+            activeOpacity={0.8}
+          >
+            <Icon name="add" size={14} color={colors.primary} />
+            <Text style={styles.addQuickPillText}>Link Bank</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 
   return (
     <View style={styles.root}>
-      <Screen header={renderHeader()} style={styles.contentContainer}>
+      <Screen statusBarColor={colors.background} edges={['top', 'left', 'right']}>
+        {renderHeader()}
+
         {loading ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading your bank accounts...</Text>
+            <Text style={styles.loadingText}>Fetching bank accounts...</Text>
           </View>
         ) : banks.length === 0 ? (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconCircle}>
-              <Icon name="card-outline" size={48} color={colors.text.muted} />
+          <View style={styles.emptyStateContainer}>
+            <View style={styles.emptyIconHalo}>
+              <View style={styles.emptyIconInner}>
+                <Icon name="card" size={32} color={colors.primary} />
+              </View>
             </View>
-            <Text style={styles.emptyTitle}>No Bank Accounts Added</Text>
-            <Text style={styles.emptySub}>
-              Link your bank details and UPI ID to streamline reimbursements and expense splitting.
+            <Text style={styles.emptyTitle}>No Bank Accounts Linked</Text>
+            <Text style={styles.emptySubtext}>
+              Link your bank accounts & UPI ID for automatic statement grouping and instant bill splitting.
             </Text>
-            <TouchableOpacity style={styles.addBankBtnPrimary} onPress={openAddModal} activeOpacity={0.85}>
-              <Icon name="add-circle-outline" size={20} color="#fff" />
-              <Text style={styles.addBankBtnPrimaryText}>Add Bank Account</Text>
+            <TouchableOpacity style={styles.addFirstBankBtn} onPress={openAddModal} activeOpacity={0.85}>
+              <LinearGradient
+                colors={['#8A3FFC', '#5E1BDB']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.gradientBtnContent}
+              >
+                <Icon name="add-circle" size={20} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.addFirstBankBtnText}>Link Your First Bank</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         ) : (
@@ -346,19 +439,19 @@ const BankAccountsScreen = ({ navigation }) => {
               <TouchableOpacity
                 activeOpacity={1}
                 style={styles.modalContent}
-                onPress={(e) => {
-                  e.stopPropagation?.();
-                }}
+                onPress={(e) => e.stopPropagation?.()}
               >
+                <View style={styles.modalSheetHandle} />
+
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>
-                    {editingBank ? 'Edit Bank Account' : 'Add Bank Account'}
+                    {editingBank ? 'Edit Bank Account' : 'Link Bank Account'}
                   </Text>
                   <TouchableOpacity
                     onPress={() => setModalVisible(false)}
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   >
-                    <Icon name="close" size={24} color={colors.text.secondary} />
+                    <Icon name="close-circle" size={24} color={colors.text.secondary} />
                   </TouchableOpacity>
                 </View>
 
@@ -367,33 +460,30 @@ const BankAccountsScreen = ({ navigation }) => {
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
                 >
-                  {/* Popular Bank Selector (Only when adding) */}
+                  {/* Popular Bank Chips */}
                   {!editingBank && (
                     <View style={styles.popularSection}>
-                      <Text style={styles.sectionSubLabel}>Select Popular Bank</Text>
+                      <Text style={styles.sectionSubLabel}>SELECT POPULAR BANK</Text>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.popularScroll}>
-                        {POPULAR_BANKS.map((b) => (
-                          <TouchableOpacity
-                            key={b.code}
-                            style={[
-                              styles.popularChip,
-                              bankName === b.name && styles.popularChipSelected,
-                            ]}
-                            onPress={() => {
-                              setBankName(b.name);
-                              setBankCode(b.code);
-                            }}
-                          >
-                            <Text
-                              style={[
-                                styles.popularChipText,
-                                bankName === b.name && styles.popularChipTextSelected,
-                              ]}
+                        {POPULAR_BANKS.map((b) => {
+                          const isSel = bankName === b.name;
+                          return (
+                            <TouchableOpacity
+                              key={b.code}
+                              style={[styles.popularChip, isSel && styles.popularChipSelected]}
+                              onPress={() => {
+                                setBankName(b.name);
+                                setBankCode(b.code);
+                              }}
+                              activeOpacity={0.75}
                             >
-                              {b.name}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
+                              <BankLogo bankName={b.name} size={18} style={{ marginRight: 6 }} />
+                              <Text style={[styles.popularChipText, isSel && styles.popularChipTextSelected]}>
+                                {b.name}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
                       </ScrollView>
                     </View>
                   )}
@@ -406,7 +496,7 @@ const BankAccountsScreen = ({ navigation }) => {
                     value={bankName}
                     onChangeText={setBankName}
                     placeholder="e.g. HDFC Bank, SBI, ICICI"
-                    placeholderTextColor={colors.text.muted}
+                    placeholderTextColor="rgba(255, 255, 255, 0.25)"
                   />
 
                   <Text style={styles.inputLabel}>
@@ -416,8 +506,8 @@ const BankAccountsScreen = ({ navigation }) => {
                     style={styles.textInput}
                     value={accountHolderName}
                     onChangeText={setAccountHolderName}
-                    placeholder="Full name as in bank"
-                    placeholderTextColor={colors.text.muted}
+                    placeholder="Full name as in bank records"
+                    placeholderTextColor="rgba(255, 255, 255, 0.25)"
                   />
 
                   <Text style={styles.inputLabel}>
@@ -428,7 +518,7 @@ const BankAccountsScreen = ({ navigation }) => {
                     value={accountNumber}
                     onChangeText={setAccountNumber}
                     placeholder="9 to 18 digit account number"
-                    placeholderTextColor={colors.text.muted}
+                    placeholderTextColor="rgba(255, 255, 255, 0.25)"
                     keyboardType="numeric"
                   />
 
@@ -461,7 +551,7 @@ const BankAccountsScreen = ({ navigation }) => {
                     value={upiId}
                     onChangeText={setUpiId}
                     placeholder="e.g. name@upi or mobile@paytm"
-                    placeholderTextColor={colors.text.muted}
+                    placeholderTextColor="rgba(255, 255, 255, 0.25)"
                     autoCapitalize="none"
                   />
 
@@ -471,16 +561,23 @@ const BankAccountsScreen = ({ navigation }) => {
                     value={nickname}
                     onChangeText={setNickname}
                     placeholder="e.g. Salary Account, Personal Savings"
-                    placeholderTextColor={colors.text.muted}
+                    placeholderTextColor="rgba(255, 255, 255, 0.25)"
                   />
 
                   {submitting ? (
                     <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: spacing.md }} />
                   ) : (
-                    <TouchableOpacity style={styles.saveBtn} onPress={handleSaveBank} activeOpacity={0.85}>
-                      <Text style={styles.saveBtnText}>
-                        {editingBank ? 'Save Changes' : 'Add Bank Account'}
-                      </Text>
+                    <TouchableOpacity style={styles.saveBtnGradient} onPress={handleSaveBank} activeOpacity={0.85}>
+                      <LinearGradient
+                        colors={['#8A3FFC', '#5E1BDB']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.gradientBtnContent}
+                      >
+                        <Text style={styles.saveBtnText}>
+                          {editingBank ? 'Save Changes' : 'Link Bank Account'}
+                        </Text>
+                      </LinearGradient>
                     </TouchableOpacity>
                   )}
                 </ScrollView>
@@ -505,206 +602,310 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
+  headerContainer: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+  },
+  topNavRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginBottom: spacing.xs,
   },
-  headerTitle: {
-    fontSize: typography.sizes?.lg || 18,
+  navBackBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navHeaderTitle: {
+    fontSize: typography.sizes.md,
     fontWeight: '700',
     color: colors.text.primary,
   },
-  backBtn: {
-    padding: spacing.xs,
+  addNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radius.md,
+    gap: 4,
   },
-  addBtnHeader: {
-    padding: spacing.xs,
+  addNavBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  contentContainer: {
-    flex: 1,
+  summaryBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  summaryBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  summaryIconBg: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'rgba(138, 63, 252, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  summarySubtitle: {
+    fontSize: 10,
+    color: colors.text.secondary,
+    marginTop: 1,
+  },
+  addQuickPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(138, 63, 252, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.full,
+    gap: 2,
+  },
+  addQuickPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
   },
   listContent: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xxl,
     gap: spacing.md,
   },
-  bankCard: {
+  metallicCard: {
+    borderRadius: radius.xl,
     padding: spacing.md,
-    borderRadius: radius.lg || 14,
-    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  primaryCardBorder: {
-    borderColor: colors.primary,
+  primaryMetallicBorder: {
+    borderColor: 'rgba(0, 210, 106, 0.45)',
     borderWidth: 1.5,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
   },
-  bankIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary + '15',
-    justifyContent: 'center',
+  bankLogoGroup: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  bankMeta: {
     flex: 1,
-    marginLeft: spacing.md,
   },
-  bankTitleRow: {
+  bankNameText: {
+    fontSize: typography.sizes.md,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  accountTypeSubtext: {
+    fontSize: 11,
+    color: colors.text.secondary,
+    marginTop: 1,
+  },
+  headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  bankName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text.primary,
-  },
   primaryBadge: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 210, 106, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 106, 0.3)',
   },
   primaryBadgeText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#00D26A',
   },
-  accountNoText: {
-    fontSize: 12,
-    color: colors.text.secondary,
+  setPrimaryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(138, 63, 252, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(138, 63, 252, 0.3)',
+  },
+  setPrimaryPillText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  iconEditBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accNumberWrapper: {
+    marginVertical: spacing.xs,
+  },
+  accNumberLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.text.muted,
+    letterSpacing: 1,
+  },
+  accNumberEmbossed: {
+    fontSize: typography.sizes.lg,
+    fontWeight: '800',
+    color: colors.text.primary,
+    letterSpacing: 2,
     marginTop: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
-  moreBtn: {
-    padding: spacing.xs || 8,
+  cardFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
   },
-  cardDetails: {
+  holderLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.text.muted,
+    letterSpacing: 0.8,
+  },
+  holderValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginTop: 1,
+  },
+  upiValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    marginTop: 1,
+  },
+  cardBottomBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: spacing.md,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
-    gap: 4,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
-  detailRow: {
+  statementBtn: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  detailLabel: {
-    fontSize: 12,
-    color: colors.text.secondary,
-  },
-  detailVal: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
-  detailValUpi: {
+  statementBtnText: {
     fontSize: 12,
     fontWeight: '700',
     color: colors.primary,
   },
-  cardActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    marginTop: spacing.md,
-    gap: spacing.sm,
-  },
-  actionBtnSecondary: {
+  deleteCardBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    gap: 4,
   },
-  actionBtnSecondaryText: {
+  deleteCardBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.primary,
-  },
-  actionBtnDelete: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.danger + '40',
-    gap: 4,
-  },
-  actionBtnDeleteText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.danger,
+    color: colors.danger || '#FF4D67',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.xl,
   },
   loadingText: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.text.secondary,
     marginTop: spacing.sm,
   },
-  emptyState: {
+  emptyStateContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.xl,
+    paddingHorizontal: spacing.xl,
   },
-  emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
+  emptyIconHalo: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(138, 63, 252, 0.15)',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.md,
   },
+  emptyIconInner: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(138, 63, 252, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: typography.sizes.md,
     fontWeight: '700',
     color: colors.text.primary,
+    marginBottom: 4,
   },
-  emptySub: {
-    fontSize: 13,
+  emptySubtext: {
+    fontSize: 12,
     color: colors.text.secondary,
     textAlign: 'center',
-    marginTop: spacing.xs,
-    marginBottom: spacing.lg,
+    lineHeight: 18,
+    marginBottom: spacing.xl,
   },
-  addBankBtnPrimary: {
+  addFirstBankBtn: {
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    width: '80%',
+  },
+  gradientBtnContent: {
+    height: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: radius.full,
-    gap: 8,
+    justifyContent: 'center',
   },
-  addBankBtnPrimaryText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+  addFirstBankBtnText: {
     fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.68)',
     justifyContent: 'flex-end',
   },
   keyboardAvoidingView: {
@@ -714,10 +915,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '88%',
+    maxHeight: '90%',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.xs,
     paddingBottom: Platform.OS === 'ios' ? spacing.xl : spacing.md,
+  },
+  modalSheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignSelf: 'center',
+    marginVertical: 10,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -726,7 +935,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: typography.sizes.md,
     fontWeight: '700',
     color: colors.text.primary,
   },
@@ -737,50 +946,54 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sectionSubLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.text.secondary,
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.text.muted,
+    letterSpacing: 0.8,
     marginBottom: 8,
   },
   popularScroll: {
     flexDirection: 'row',
   },
   popularChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: radius.full,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     marginRight: 8,
   },
   popularChipSelected: {
-    backgroundColor: colors.primary + '20',
+    backgroundColor: 'rgba(138, 63, 252, 0.2)',
     borderColor: colors.primary,
   },
   popularChipText: {
     fontSize: 12,
     color: colors.text.primary,
+    fontWeight: '500',
   },
   popularChipTextSelected: {
     color: colors.primary,
     fontWeight: '700',
   },
   inputLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: colors.text.primary,
+    color: colors.text.secondary,
     marginTop: spacing.sm,
     marginBottom: 4,
   },
   required: {
-    color: colors.danger,
+    color: colors.danger || '#FF4D67',
   },
   textInput: {
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md || 10,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
     color: colors.text.primary,
@@ -794,15 +1007,15 @@ const styles = StyleSheet.create({
   typeBtn: {
     flex: 1,
     paddingVertical: spacing.sm,
-    borderRadius: radius.md || 10,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   typeBtnSelected: {
     borderColor: colors.primary,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: 'rgba(138, 63, 252, 0.2)',
   },
   typeBtnText: {
     fontSize: 13,
@@ -811,12 +1024,11 @@ const styles = StyleSheet.create({
   },
   typeBtnTextSelected: {
     color: colors.primary,
+    fontWeight: '700',
   },
-  saveBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md || 12,
-    alignItems: 'center',
+  saveBtnGradient: {
+    borderRadius: radius.lg,
+    overflow: 'hidden',
     marginTop: spacing.lg,
     marginBottom: spacing.xl,
   },
