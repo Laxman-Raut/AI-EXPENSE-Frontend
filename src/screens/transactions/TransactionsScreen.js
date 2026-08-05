@@ -278,22 +278,7 @@ const TransactionsScreen = ({ navigation, route }) => {
       });
     }
 
-    // 2. Bank Account Filter
-    if (selectedBankId !== 'All') {
-      if (selectedBankId === 'Unlinked') {
-        result = result.filter((t) => !t.bankAccount);
-      } else {
-        result = result.filter((t) => {
-          if (!t.bankAccount) return false;
-          if (typeof t.bankAccount === 'object') {
-            return t.bankAccount._id === selectedBankId || t.bankAccount.id === selectedBankId;
-          }
-          return t.bankAccount === selectedBankId;
-        });
-      }
-    }
-
-    // 3. Main Category / Type Filter Chip
+    // 2. Main Category / Type Filter Chip
     if (activeFilter !== 'All') {
       if (activeFilter === 'Income') {
         result = result.filter((t) => t.type === 'income');
