@@ -170,7 +170,13 @@ const BankDetailsScreen = ({ navigation, route }) => {
         </View>
         <TouchableOpacity
           style={styles.navBtn}
-          onPress={() => navigation.navigate('BankAccounts')}
+          onPress={() => {
+            try {
+              navigation.navigate('BankAccounts');
+            } catch {
+              navigation.navigate('Profile', { screen: 'BankAccounts' });
+            }
+          }}
           activeOpacity={0.7}
         >
           <Icon name="settings-outline" size={20} color="#FFFFFF" />

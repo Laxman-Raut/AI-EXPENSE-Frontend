@@ -69,6 +69,7 @@ const DashboardStackScreen = () => (
   <DashboardStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
     <DashboardStack.Screen name="TodayHome" component={DashboardScreen} />
     <DashboardStack.Screen name="BankDetails" component={BankDetailsScreen} />
+    <DashboardStack.Screen name="BankAccounts" component={BankAccountsScreen} />
     <DashboardStack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
     <DashboardStack.Screen name="AddTransaction" component={AddTransactionScreen} />
     <DashboardStack.Screen name="ReceiptScanner" component={ReceiptScannerScreen} />
@@ -119,6 +120,7 @@ const TransactionsStackScreen = () => (
   <TransactionsStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
     <TransactionsStack.Screen name="TransactionsList" component={TransactionsScreen} />
     <TransactionsStack.Screen name="BankDetails" component={BankDetailsScreen} />
+    <TransactionsStack.Screen name="BankAccounts" component={BankAccountsScreen} />
     <TransactionsStack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
     <TransactionsStack.Screen name="AddTransaction" component={AddTransactionScreen} />
     <TransactionsStack.Screen name="ReceiptScanner" component={ReceiptScannerScreen} />

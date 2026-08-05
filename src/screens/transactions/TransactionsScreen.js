@@ -131,7 +131,6 @@ const TransactionsScreen = ({ navigation, route }) => {
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'oldest' | 'amount_high' | 'amount_low'
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
-  const [selectedBankId, setSelectedBankId] = useState('All'); // 'All' | 'Unlinked' | bank._id
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('All'); // 'All' | 'UPI' | 'Card' | 'Cash' | 'Bank Transfer'
   const [dateRangeFilter, setDateRangeFilter] = useState('All Time'); // 'All Time' | 'Today' | 'This Week' | 'This Month' | 'Last Month'
 
@@ -139,20 +138,18 @@ const TransactionsScreen = ({ navigation, route }) => {
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (activeFilter !== 'All') count++;
-    if (selectedBankId !== 'All') count++;
+    if (selectedBankId) count++;
     if (selectedPaymentMethod !== 'All') count++;
     if (minAmount.trim()) count++;
     if (maxAmount.trim()) count++;
     if (dateRangeFilter !== 'All Time') count++;
     if (sortBy !== 'newest') count++;
-    if (selectedBankId) count++;
     return count;
-  }, [activeFilter, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy]);
+  }, [activeFilter, selectedBankId, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy]);
 
   const resetAllFilters = () => {
     setSearchQuery('');
     setActiveFilter('All');
-    setSelectedBankId('All');
     setSelectedPaymentMethod('All');
     setMinAmount('');
     setMaxAmount('');
