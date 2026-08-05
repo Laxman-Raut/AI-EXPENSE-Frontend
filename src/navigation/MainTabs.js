@@ -187,6 +187,11 @@ const MainTabs = () => {
               <AnimatedTabIcon name={focused ? 'today' : 'today-outline'} color={color} focused={focused} />
             ),
           }}
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              navigation.navigate('Today', { screen: 'TodayHome' });
+            },
+          })}
         />
         <Tab.Screen
           name="Analytics"
@@ -219,6 +224,11 @@ const MainTabs = () => {
               <AnimatedTabIcon name={focused ? 'wallet' : 'wallet-outline'} color={color} focused={focused} />
             ),
           }}
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              navigation.navigate('Wallet', { screen: 'TransactionsList' });
+            },
+          })}
         />
         <Tab.Screen
           name="Friends"
@@ -228,6 +238,11 @@ const MainTabs = () => {
               <AnimatedTabIcon name={focused ? 'people' : 'people-outline'} color={color} focused={focused} />
             ),
           }}
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              navigation.navigate('Friends', { screen: 'FriendsHome' });
+            },
+          })}
         />
         <Tab.Screen
           name="Profile"
@@ -237,6 +252,11 @@ const MainTabs = () => {
               <AnimatedTabIcon name={focused ? 'person' : 'person-outline'} color={color} focused={focused} />
             ),
           }}
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              navigation.navigate('Profile', { screen: 'ProfileHome' });
+            },
+          })}
         />
       </Tab.Navigator>
     </View>

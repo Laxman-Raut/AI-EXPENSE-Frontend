@@ -415,7 +415,7 @@ const DashboardScreen = ({ navigation }) => {
 
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => navigation.navigate('Profile', { screen: 'BankAccounts' })}
+              onPress={() => navigation.navigate('BankAccounts')}
               style={styles.bankManageBtn}
             >
               <Text style={styles.bankManageBtnText}>Manage</Text>
@@ -464,7 +464,7 @@ const DashboardScreen = ({ navigation }) => {
                     key="see_all"
                     activeOpacity={0.75}
                     style={[styles.bankGridSlot, styles.seeAllSlot]}
-                    onPress={() => navigation.navigate('Profile', { screen: 'BankAccounts' })}
+                    onPress={() => navigation.navigate('BankAccounts')}
                   >
                     <View style={styles.seeAllIconWrapper}>
                       <Icon name="grid" size={18} color="#FF9500" />
@@ -481,7 +481,7 @@ const DashboardScreen = ({ navigation }) => {
                     key="add_bank"
                     activeOpacity={0.75}
                     style={[styles.bankGridSlot, styles.addBankSlot]}
-                    onPress={() => navigation.navigate('Profile', { screen: 'BankAccounts' })}
+                    onPress={() => navigation.navigate('BankAccounts')}
                   >
                     <View style={styles.addBankIconWrapper}>
                       <Icon name="add" size={22} color={colors.primary} />
