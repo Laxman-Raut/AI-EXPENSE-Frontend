@@ -333,6 +333,8 @@ const SavingsScreen = ({ navigation }) => {
                   </TouchableOpacity>
                 ) : null}
               </View>
+            </View>
+
             {/* Periodic Savings Target / Goal Card */}
             <View style={styles.goalCard}>
               <View style={styles.goalHeaderRow}>
@@ -483,6 +485,8 @@ const SavingsScreen = ({ navigation }) => {
             </View>
           )
         }
+      />
+
       {/* Set / Edit Savings Goal Modal */}
       <Modal
         visible={goalModalVisible}
@@ -581,7 +585,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    justify: 'center',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
