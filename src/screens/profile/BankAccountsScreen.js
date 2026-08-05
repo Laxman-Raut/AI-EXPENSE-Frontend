@@ -22,13 +22,13 @@ import useBanks from '../../hooks/useBanks';
 import Snackbar from '../../components/Snackbar';
 
 const POPULAR_BANKS = [
-  { name: 'State Bank of India', code: 'SBIN', icon: 'account-balance' },
-  { name: 'HDFC Bank', code: 'HDFC', icon: 'account-balance' },
-  { name: 'ICICI Bank', code: 'ICIC', icon: 'account-balance' },
-  { name: 'Axis Bank', code: 'UTIB', icon: 'account-balance' },
-  { name: 'Punjab National Bank', code: 'PUNB', icon: 'account-balance' },
-  { name: 'Kotak Mahindra Bank', code: 'KKBK', icon: 'account-balance' },
-  { name: 'Bank of Baroda', code: 'BARB', icon: 'account-balance' },
+  { name: 'State Bank of India', code: 'SBIN' },
+  { name: 'HDFC Bank', code: 'HDFC' },
+  { name: 'ICICI Bank', code: 'ICIC' },
+  { name: 'Axis Bank', code: 'UTIB' },
+  { name: 'Punjab National Bank', code: 'PUNB' },
+  { name: 'Kotak Mahindra Bank', code: 'KKBK' },
+  { name: 'Bank of Baroda', code: 'BARB' },
 ];
 
 const BankAccountsScreen = ({ navigation }) => {
@@ -119,6 +119,11 @@ const BankAccountsScreen = ({ navigation }) => {
       return;
     }
 
+    if (upiId.trim() && !/^[a-zA-Z0-9.\-_]{2,}@[a-zA-Z]{2,}$/.test(upiId.trim())) {
+      Alert.alert('Invalid Input', 'Please enter a valid UPI ID (e.g. name@upi).');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -127,8 +132,8 @@ const BankAccountsScreen = ({ navigation }) => {
         accountHolderName: accountHolderName.trim(),
         accountNumber: accountNumber.trim(),
         accountType,
-        nickname: nickname.trim(),
-        upiId: upiId.trim(),
+        nickname: nickname.trim() || undefined,
+        upiId: upiId.trim() || undefined,
         isPrimary,
       };
 
@@ -215,6 +220,8 @@ const BankAccountsScreen = ({ navigation }) => {
           <TouchableOpacity
             style={styles.moreBtn}
             onPress={() => openEditModal(item)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
           >
             <Icon name="pencil" size={18} color={colors.text.secondary} />
           </TouchableOpacity>
@@ -244,6 +251,7 @@ const BankAccountsScreen = ({ navigation }) => {
             <TouchableOpacity
               style={styles.actionBtnSecondary}
               onPress={() => handleSetPrimary(item._id)}
+              activeOpacity={0.75}
             >
               <Icon name="star-outline" size={14} color={colors.primary} />
               <Text style={styles.actionBtnSecondaryText}>Set Primary</Text>
@@ -253,6 +261,7 @@ const BankAccountsScreen = ({ navigation }) => {
           <TouchableOpacity
             style={styles.actionBtnDelete}
             onPress={() => handleDeleteBank(item)}
+            activeOpacity={0.75}
           >
             <Icon name="trash-outline" size={14} color={colors.danger} />
             <Text style={styles.actionBtnDeleteText}>Delete</Text>
@@ -264,12 +273,22 @@ const BankAccountsScreen = ({ navigation }) => {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+      <TouchableOpacity
+        style={styles.backBtn}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.7}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      >
         <Icon name="arrow-back" size={22} color={colors.text.primary} />
       </TouchableOpacity>
       <Text style={styles.headerTitle}>Bank Accounts</Text>
-      <TouchableOpacity style={styles.addBtnHeader} onPress={openAddModal}>
-        <Icon name="add" size={24} color={colors.primary} />
+      <TouchableOpacity
+        style={styles.addBtnHeader}
+        onPress={openAddModal}
+        activeOpacity={0.7}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      >
+        <Icon name="add" size={26} color={colors.primary} />
       </TouchableOpacity>
     </View>
   );
@@ -291,7 +310,7 @@ const BankAccountsScreen = ({ navigation }) => {
             <Text style={styles.emptySub}>
               Link your bank details and UPI ID to streamline reimbursements and expense splitting.
             </Text>
-            <TouchableOpacity style={styles.addBankBtnPrimary} onPress={openAddModal}>
+            <TouchableOpacity style={styles.addBankBtnPrimary} onPress={openAddModal} activeOpacity={0.85}>
               <Icon name="add-circle-outline" size={20} color="#fff" />
               <Text style={styles.addBankBtnPrimaryText}>Add Bank Account</Text>
             </TouchableOpacity>
@@ -313,146 +332,162 @@ const BankAccountsScreen = ({ navigation }) => {
           visible={modalVisible}
           animationType="slide"
           transparent
+          statusBarTranslucent
           onRequestClose={() => setModalVisible(false)}
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          <TouchableOpacity
             style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setModalVisible(false)}
           >
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {editingBank ? 'Edit Bank Account' : 'Add Bank Account'}
-                </Text>
-                <TouchableOpacity onPress={() => setModalVisible(false)}>
-                  <Icon name="close" size={24} color={colors.text.secondary} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView
-                style={styles.modalBody}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={styles.keyboardAvoidingView}
+            >
+              <TouchableOpacity
+                activeOpacity={1}
+                style={styles.modalContent}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                }}
               >
-                {/* Popular Bank Selector (Only when adding) */}
-                {!editingBank && (
-                  <View style={styles.popularSection}>
-                    <Text style={styles.sectionSubLabel}>Select Popular Bank</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.popularScroll}>
-                      {POPULAR_BANKS.map((b) => (
-                        <TouchableOpacity
-                          key={b.code}
-                          style={[
-                            styles.popularChip,
-                            bankName === b.name && styles.popularChipSelected,
-                          ]}
-                          onPress={() => {
-                            setBankName(b.name);
-                            setBankCode(b.code);
-                          }}
-                        >
-                          <Text
-                            style={[
-                              styles.popularChipText,
-                              bankName === b.name && styles.popularChipTextSelected,
-                            ]}
-                          >
-                            {b.name}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
-
-                <Text style={styles.inputLabel}>
-                  Bank Name <Text style={styles.required}>*</Text>
-                </Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={bankName}
-                  onChangeText={setBankName}
-                  placeholder="e.g. HDFC Bank, SBI, ICICI"
-                  placeholderTextColor={colors.text.muted}
-                />
-
-                <Text style={styles.inputLabel}>
-                  Account Holder Name <Text style={styles.required}>*</Text>
-                </Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={accountHolderName}
-                  onChangeText={setAccountHolderName}
-                  placeholder="Full name as in bank"
-                  placeholderTextColor={colors.text.muted}
-                />
-
-                <Text style={styles.inputLabel}>
-                  Account Number <Text style={styles.required}>*</Text>
-                </Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={accountNumber}
-                  onChangeText={setAccountNumber}
-                  placeholder="9 to 18 digit account number"
-                  placeholderTextColor={colors.text.muted}
-                  keyboardType="numeric"
-                />
-
-                <Text style={styles.inputLabel}>Account Type</Text>
-                <View style={styles.typeRow}>
-                  {['Savings', 'Current'].map((type) => (
-                    <TouchableOpacity
-                      key={type}
-                      style={[
-                        styles.typeBtn,
-                        accountType === type && styles.typeBtnSelected,
-                      ]}
-                      onPress={() => setAccountType(type)}
-                    >
-                      <Text
-                        style={[
-                          styles.typeBtnText,
-                          accountType === type && styles.typeBtnTextSelected,
-                        ]}
-                      >
-                        {type}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>
+                    {editingBank ? 'Edit Bank Account' : 'Add Bank Account'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setModalVisible(false)}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  >
+                    <Icon name="close" size={24} color={colors.text.secondary} />
+                  </TouchableOpacity>
                 </View>
 
-                <Text style={styles.inputLabel}>UPI ID (Optional)</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={upiId}
-                  onChangeText={setUpiId}
-                  placeholder="e.g. name@upi or mobile@paytm"
-                  placeholderTextColor={colors.text.muted}
-                  autoCapitalize="none"
-                />
+                <ScrollView
+                  style={styles.modalBody}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {/* Popular Bank Selector (Only when adding) */}
+                  {!editingBank && (
+                    <View style={styles.popularSection}>
+                      <Text style={styles.sectionSubLabel}>Select Popular Bank</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.popularScroll}>
+                        {POPULAR_BANKS.map((b) => (
+                          <TouchableOpacity
+                            key={b.code}
+                            style={[
+                              styles.popularChip,
+                              bankName === b.name && styles.popularChipSelected,
+                            ]}
+                            onPress={() => {
+                              setBankName(b.name);
+                              setBankCode(b.code);
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.popularChipText,
+                                bankName === b.name && styles.popularChipTextSelected,
+                              ]}
+                            >
+                              {b.name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
 
-                <Text style={styles.inputLabel}>Nickname / Label (Optional)</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={nickname}
-                  onChangeText={setNickname}
-                  placeholder="e.g. Salary Account, Personal Savings"
-                  placeholderTextColor={colors.text.muted}
-                />
+                  <Text style={styles.inputLabel}>
+                    Bank Name <Text style={styles.required}>*</Text>
+                  </Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={bankName}
+                    onChangeText={setBankName}
+                    placeholder="e.g. HDFC Bank, SBI, ICICI"
+                    placeholderTextColor={colors.text.muted}
+                  />
 
-                {submitting ? (
-                  <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: spacing.md }} />
-                ) : (
-                  <TouchableOpacity style={styles.saveBtn} onPress={handleSaveBank}>
-                    <Text style={styles.saveBtnText}>
-                      {editingBank ? 'Save Changes' : 'Add Bank Account'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </ScrollView>
-            </View>
-          </KeyboardAvoidingView>
+                  <Text style={styles.inputLabel}>
+                    Account Holder Name <Text style={styles.required}>*</Text>
+                  </Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={accountHolderName}
+                    onChangeText={setAccountHolderName}
+                    placeholder="Full name as in bank"
+                    placeholderTextColor={colors.text.muted}
+                  />
+
+                  <Text style={styles.inputLabel}>
+                    Account Number <Text style={styles.required}>*</Text>
+                  </Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={accountNumber}
+                    onChangeText={setAccountNumber}
+                    placeholder="9 to 18 digit account number"
+                    placeholderTextColor={colors.text.muted}
+                    keyboardType="numeric"
+                  />
+
+                  <Text style={styles.inputLabel}>Account Type</Text>
+                  <View style={styles.typeRow}>
+                    {['Savings', 'Current'].map((type) => (
+                      <TouchableOpacity
+                        key={type}
+                        style={[
+                          styles.typeBtn,
+                          accountType === type && styles.typeBtnSelected,
+                        ]}
+                        onPress={() => setAccountType(type)}
+                      >
+                        <Text
+                          style={[
+                            styles.typeBtnText,
+                            accountType === type && styles.typeBtnTextSelected,
+                          ]}
+                        >
+                          {type}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <Text style={styles.inputLabel}>UPI ID (Optional)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={upiId}
+                    onChangeText={setUpiId}
+                    placeholder="e.g. name@upi or mobile@paytm"
+                    placeholderTextColor={colors.text.muted}
+                    autoCapitalize="none"
+                  />
+
+                  <Text style={styles.inputLabel}>Nickname / Label (Optional)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={nickname}
+                    onChangeText={setNickname}
+                    placeholder="e.g. Salary Account, Personal Savings"
+                    placeholderTextColor={colors.text.muted}
+                  />
+
+                  {submitting ? (
+                    <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: spacing.md }} />
+                  ) : (
+                    <TouchableOpacity style={styles.saveBtn} onPress={handleSaveBank} activeOpacity={0.85}>
+                      <Text style={styles.saveBtnText}>
+                        {editingBank ? 'Save Changes' : 'Add Bank Account'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </ScrollView>
+              </TouchableOpacity>
+            </KeyboardAvoidingView>
+          </TouchableOpacity>
         </Modal>
 
         <Snackbar
@@ -552,7 +587,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   moreBtn: {
-    padding: spacing.xs,
+    padding: spacing.xs || 8,
   },
   cardDetails: {
     marginTop: spacing.md,
@@ -670,15 +705,20 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'flex-end',
+  },
+  keyboardAvoidingView: {
+    width: '100%',
   },
   modalContent: {
     backgroundColor: colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '90%',
-    padding: spacing.lg,
+    maxHeight: '88%',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: Platform.OS === 'ios' ? spacing.xl : spacing.md,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -692,7 +732,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   modalBody: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
   popularSection: {
     marginBottom: spacing.md,
