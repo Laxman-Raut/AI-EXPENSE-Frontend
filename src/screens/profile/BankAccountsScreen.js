@@ -21,6 +21,7 @@ import Card from '../../components/molecules/Card';
 import { colors, spacing, typography, radius } from '../../theme';
 import useBanks from '../../hooks/useBanks';
 import Snackbar from '../../components/Snackbar';
+import BankLogo from '../../components/atoms/BankLogo';
 
 const POPULAR_BANKS = [
   { name: 'State Bank of India', code: 'SBIN', icon: 'account-balance' },
