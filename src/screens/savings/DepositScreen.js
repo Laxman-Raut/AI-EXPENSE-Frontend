@@ -7,13 +7,13 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, typography, radius } from '../../theme';
 import { formatCurrency } from '../../utils/formatCurrency';
 import savingsApi from '../../api/savings';
+import CustomAlert from '../../components/molecules/CustomAlert';
 
 const QUICK_AMOUNTS = [100, 500, 1000, 5000];
 
@@ -24,6 +24,26 @@ const DepositScreen = ({ route, navigation }) => {
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    buttons: [],
+    onPress: null,
+  });
+
+  const showAlert = (title, message, type = 'info', buttons = [], onPress = null) => {
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      type,
+      buttons: buttons.length ? buttons : [{ text: 'OK' }],
+      onPress,
+    });
+  };
+
   const handleQuickAdd = (addVal) => {
     const currentVal = Number(amount) || 0;
     setAmount(String(currentVal + addVal));
@@ -32,7 +52,7 @@ const DepositScreen = ({ route, navigation }) => {
   const handleDeposit = async () => {
     const numAmount = Number(amount);
     if (!amount || isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid amount greater than 0.');
+      showAlert('Invalid Amount', 'Please enter a valid amount greater than 0.', 'warning');
       return;
     }
 
@@ -43,16 +63,17 @@ const DepositScreen = ({ route, navigation }) => {
         notes: notes.trim() || 'Deposit into jar',
       });
 
-      Alert.alert('Success', `₹${numAmount} deposited into ${jar.name}! 🎉`, [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      showAlert(
+        'Money Deposited! 💰',
+        `₹${numAmount} successfully added to your "${jar.name}" savings jar.`,
+        'success',
+        [{ text: 'Awesome' }],
+        () => navigation.goBack()
+      );
     } catch (err) {
       console.log('[DepositScreen] Error:', err);
       const errMsg = err?.response?.data?.message || err?.message || 'Failed to complete deposit';
-      Alert.alert('Deposit Failed', errMsg);
+      showAlert('Deposit Failed', errMsg, 'destructive');
     } finally {
       setLoading(false);
     }
@@ -79,7 +100,10 @@ const DepositScreen = ({ route, navigation }) => {
             <Text style={styles.jarBannerSub}>SAVING FOR</Text>
             <Text style={styles.jarBannerName}>{jar.name}</Text>
             <Text style={styles.jarBannerBalance}>
-              Current Balance: <Text style={{ color: colors.success, fontWeight: '700' }}>{formatCurrency(jar.currentAmount || 0)}</Text>
+              Current Balance:{' '}
+              <Text style={{ color: colors.success, fontWeight: '700' }}>
+                {formatCurrency(jar.currentAmount || 0)}
+              </Text>
             </Text>
           </View>
         </View>
@@ -142,6 +166,27 @@ const DepositScreen = ({ route, navigation }) => {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Custom Premium Themed Alert */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        buttons={alertConfig.buttons}
+        onButtonPress={(btn) => {
+          setAlertConfig((prev) => ({ ...prev, visible: false }));
+          if (alertConfig.onPress) {
+            alertConfig.onPress(btn);
+          }
+        }}
+        onCancel={() => {
+          setAlertConfig((prev) => ({ ...prev, visible: false }));
+          if (alertConfig.onPress) {
+            alertConfig.onPress({ style: 'cancel' });
+          }
+        }}
+      />
     </SafeAreaView>
   );
 };

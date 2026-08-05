@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,12 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, typography, radius } from '../../theme';
 import savingsApi from '../../api/savings';
+import CustomAlert from '../../components/molecules/CustomAlert';
 
 const PRESET_TEMPLATES = [
   { name: 'Emergency Fund', icon: '🛡️', color: '#FF6B6B', defaultTarget: '50000' },
@@ -50,6 +50,27 @@ const CreateSavingsJarScreen = ({ route, navigation }) => {
   const [notes, setNotes] = useState(existingJar?.notes || '');
   const [loading, setLoading] = useState(false);
 
+  // Custom Themed Alert State
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    buttons: [],
+    onPress: null,
+  });
+
+  const showAlert = (title, message, type = 'info', buttons = [], onPress = null) => {
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      type,
+      buttons: buttons.length ? buttons : [{ text: 'OK' }],
+      onPress,
+    });
+  };
+
   const handleSelectPreset = (preset) => {
     setName(preset.name === 'Custom Jar' ? '' : preset.name);
     setIcon(preset.icon);
@@ -61,7 +82,7 @@ const CreateSavingsJarScreen = ({ route, navigation }) => {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      Alert.alert('Required Field', 'Please enter a name for your Savings Jar.');
+      showAlert('Required Field', 'Please enter a name for your Savings Jar.', 'warning');
       return;
     }
 
@@ -77,28 +98,45 @@ const CreateSavingsJarScreen = ({ route, navigation }) => {
 
       if (isEditing) {
         await savingsApi.updateJar(existingJar._id, payload);
-        Alert.alert('Success', 'Savings Jar updated successfully!');
+        showAlert(
+          'Jar Updated! 🎉',
+          `Your savings goal "${name.trim()}" has been updated successfully.`,
+          'success',
+          [{ text: 'Done' }],
+          () => navigation.goBack()
+        );
       } else {
         await savingsApi.createJar(payload);
-        Alert.alert('Success', 'New Savings Jar created successfully!');
+        showAlert(
+          'Savings Goal Set! 🏺',
+          `Your new savings jar "${name.trim()}" is ready. Start saving now!`,
+          'success',
+          [{ text: "Great, Let's Save!" }],
+          () => navigation.goBack()
+        );
       }
-
-      navigation.goBack();
     } catch (err) {
       console.log('[CreateSavingsJar] Submit error:', err);
       const errMsg = err?.response?.data?.message || err?.message || 'Failed to save jar';
       const isUpgrade = err?.response?.data?.code === 'UPGRADE_REQUIRED';
 
       if (isUpgrade) {
-        Alert.alert('Upgrade Required', errMsg, [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Upgrade to Pro',
-            onPress: () => navigation.navigate('Subscription'),
-          },
-        ]);
+        showAlert(
+          'Upgrade Required 🚀',
+          errMsg,
+          'premium',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Upgrade to Pro' },
+          ],
+          (btn) => {
+            if (btn.text?.includes('Upgrade')) {
+              navigation.navigate('Subscription');
+            }
+          }
+        );
       } else {
-        Alert.alert('Error', errMsg);
+        showAlert('Error', errMsg, 'destructive');
       }
     } finally {
       setLoading(false);
@@ -230,6 +268,27 @@ const CreateSavingsJarScreen = ({ route, navigation }) => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Custom Premium Themed Alert Modal */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        buttons={alertConfig.buttons}
+        onButtonPress={(btn) => {
+          setAlertConfig((prev) => ({ ...prev, visible: false }));
+          if (alertConfig.onPress) {
+            alertConfig.onPress(btn);
+          }
+        }}
+        onCancel={() => {
+          setAlertConfig((prev) => ({ ...prev, visible: false }));
+          if (alertConfig.onPress) {
+            alertConfig.onPress({ style: 'cancel' });
+          }
+        }}
+      />
     </SafeAreaView>
   );
 };

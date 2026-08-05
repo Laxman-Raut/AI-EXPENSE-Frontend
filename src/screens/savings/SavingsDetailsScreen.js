@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,6 +14,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, typography, radius } from '../../theme';
 import { formatCurrency } from '../../utils/formatCurrency';
 import savingsApi from '../../api/savings';
+import CustomAlert from '../../components/molecules/CustomAlert';
 import dayjs from 'dayjs';
 
 const SavingsDetailsScreen = ({ route, navigation }) => {
@@ -22,6 +22,11 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
   const [jar, setJar] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Custom Alert States
+  const [deleteAlertVisible, setDeleteAlertVisible] = useState(false);
+  const [errorAlertVisible, setErrorAlertVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const fetchJarDetails = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
@@ -32,7 +37,8 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
       }
     } catch (err) {
       console.log('[SavingsDetails] Fetch error:', err);
-      Alert.alert('Error', 'Failed to load Savings Jar details');
+      setErrorMessage('Failed to load Savings Jar details');
+      setErrorAlertVisible(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -56,32 +62,22 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
     try {
       await savingsApi.updateJar(jar._id, { status: newStatus });
       fetchJarDetails(true);
-      Alert.alert('Updated', `Jar is now ${newStatus}`);
     } catch (err) {
-      Alert.alert('Error', 'Failed to update status');
+      setErrorMessage('Failed to update jar status');
+      setErrorAlertVisible(true);
     }
   };
 
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete Savings Jar',
-      `Are you sure you want to delete "${jar?.name}"? All transaction logs for this jar will be removed.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await savingsApi.deleteJar(jar._id);
-              navigation.goBack();
-            } catch (err) {
-              Alert.alert('Error', 'Failed to delete jar');
-            }
-          },
-        },
-      ]
-    );
+  const handleDeleteJar = async () => {
+    try {
+      await savingsApi.deleteJar(jar._id);
+      setDeleteAlertVisible(false);
+      navigation.goBack();
+    } catch (err) {
+      setDeleteAlertVisible(false);
+      setErrorMessage(err?.response?.data?.message || 'Failed to delete jar');
+      setErrorAlertVisible(true);
+    }
   };
 
   if (loading && !jar) {
@@ -167,7 +163,10 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
           >
             <Icon name="pencil" size={18} color={colors.primary} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerActionBtn} onPress={handleDelete}>
+          <TouchableOpacity
+            style={styles.headerActionBtn}
+            onPress={() => setDeleteAlertVisible(true)}
+          >
             <Icon name="trash-outline" size={18} color={colors.danger} />
           </TouchableOpacity>
         </View>
@@ -301,6 +300,37 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
             </Text>
           </View>
         }
+      />
+
+      {/* Premium Destructive Confirmation Alert for Deleting Jar */}
+      <CustomAlert
+        visible={deleteAlertVisible}
+        title="Delete Savings Jar?"
+        message={`Are you sure you want to delete "${jar?.name}"? All transaction logs for this jar will be permanently removed.`}
+        type="destructive"
+        buttons={[
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete Jar', style: 'destructive' },
+        ]}
+        onButtonPress={(btn) => {
+          if (btn.style === 'destructive') {
+            handleDeleteJar();
+          } else {
+            setDeleteAlertVisible(false);
+          }
+        }}
+        onCancel={() => setDeleteAlertVisible(false)}
+      />
+
+      {/* Error Alert */}
+      <CustomAlert
+        visible={errorAlertVisible}
+        title="Error"
+        message={errorMessage}
+        type="destructive"
+        buttons={[{ text: 'OK' }]}
+        onButtonPress={() => setErrorAlertVisible(false)}
+        onCancel={() => setErrorAlertVisible(false)}
       />
     </SafeAreaView>
   );
