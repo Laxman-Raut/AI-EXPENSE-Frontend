@@ -330,6 +330,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
     try {
       const res = await upiService.generateDeepLink(splitRequestId);
       if (res && res.success && res.data) {
+        console.log('[GroupDetailsScreen] Generated UPI deep link:', res.data.deepLink);
         setPaymentData(res.data);
         setUpiModalVisible(true);
       } else {

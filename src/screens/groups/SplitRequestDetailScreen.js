@@ -210,6 +210,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
     try {
       const res = await upiService.generateDeepLink(idToPay);
       if (res && res.success && res.data) {
+        console.log('[SplitRequestDetailScreen] Generated UPI deep link:', res.data.deepLink);
         setPaymentData({
           ...res.data,
           note: splitRequest?.title || 'Split Expense',
