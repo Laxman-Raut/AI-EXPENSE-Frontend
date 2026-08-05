@@ -324,11 +324,16 @@ const BankDetailsScreen = ({ navigation, route }) => {
                 {item.data.map((txn) => (
                   <TransactionCard
                     key={txn._id}
-                    transaction={txn}
+                    title={txn.description || txn.category}
+                    category={txn.category}
+                    paymentMethod={txn.paymentMethod || 'UPI'}
+                    amount={formatCurrency(txn.amount, txn.currency || 'INR')}
+                    type={txn.type}
+                    onEdit={() => navigation.navigate('AddTransaction', { id: txn._id })}
+                    onDelete={() => handleDelete(txn._id)}
                     onPress={() =>
                       navigation.navigate('TransactionDetail', { id: txn._id })
                     }
-                    onDelete={() => handleDelete(txn._id)}
                   />
                 ))}
               </View>
