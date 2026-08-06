@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, typography, radius } from '../../theme';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
 import savingsApi from '../../api/savings';
 import CustomAlert from '../../components/molecules/CustomAlert';
 
@@ -241,7 +241,7 @@ const TransferScreen = ({ route, navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>TRANSFER AMOUNT *</Text>
           <View style={styles.amountInputCard}>
-            <Text style={styles.currencySymbol}>₹</Text>
+            <Text style={styles.currencySymbol}>{getCurrencySymbol()}</Text>
             <TextInput
               style={styles.amountInput}
               placeholder="0"

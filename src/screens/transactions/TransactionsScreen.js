@@ -20,7 +20,7 @@ import PrimaryButton from '../../components/atoms/PrimaryButton';
 import TransactionCard from '../../components/molecules/TransactionCard';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
 import { useTransactions, useDeleteTransaction } from '../../hooks/useTransactions';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
 import { exportToExcel, exportToPDF } from '../../utils/exportUtils';
 import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
@@ -555,13 +555,13 @@ const TransactionsScreen = ({ navigation, route }) => {
           )}
           {minAmount.trim() !== '' && (
             <TouchableOpacity style={styles.activePill} onPress={() => setMinAmount('')}>
-              <Text style={styles.activePillText}>Min: ₹{minAmount}</Text>
+              <Text style={styles.activePillText}>Min: {getCurrencySymbol()}{minAmount}</Text>
               <Icon name="close" size={12} color="#FFFFFF" style={{ marginLeft: 4 }} />
             </TouchableOpacity>
           )}
           {maxAmount.trim() !== '' && (
             <TouchableOpacity style={styles.activePill} onPress={() => setMaxAmount('')}>
-              <Text style={styles.activePillText}>Max: ₹{maxAmount}</Text>
+              <Text style={styles.activePillText}>Max: {getCurrencySymbol()}{maxAmount}</Text>
               <Icon name="close" size={12} color="#FFFFFF" style={{ marginLeft: 4 }} />
             </TouchableOpacity>
           )}
@@ -952,7 +952,7 @@ const TransactionsScreen = ({ navigation, route }) => {
                 </View>
 
                 {/* 4. Amount Range Inputs */}
-                <Text style={styles.filterGroupLabel}>Amount Range (₹)</Text>
+                <Text style={styles.filterGroupLabel}>Amount Range ({getCurrencySymbol()})</Text>
                 <View style={styles.amountInputsRow}>
                   <View style={{ flex: 1 }}>
                     <Input

@@ -13,6 +13,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, typography, radius } from '../../theme';
 import savingsApi from '../../api/savings';
 import CustomAlert from '../../components/molecules/CustomAlert';
+import { getCurrencySymbol } from '../../utils/formatCurrency';
 
 const PRESET_TEMPLATES = [
   { name: 'Emergency Fund', icon: '🛡️', color: '#FF6B6B', defaultTarget: '50000' },
@@ -241,7 +242,7 @@ const CreateSavingsJarScreen = ({ route, navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>TARGET AMOUNT (OPTIONAL)</Text>
           <View style={styles.inputBox}>
-            <Text style={styles.currencyPrefix}>₹</Text>
+            <Text style={styles.currencyPrefix}>{getCurrencySymbol()}</Text>
             <TextInput
               style={styles.textInput}
               placeholder="0 (Leave empty for no target)"

@@ -24,7 +24,7 @@ import {
 } from '../../hooks/useTransactions';
 import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
-import { getGlobalCurrency } from '../../utils/formatCurrency';
+import { getGlobalCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
 import useBanks from '../../hooks/useBanks';
 
 const EXPENSE_CATEGORIES = [
@@ -370,7 +370,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
           <Text style={styles.amountLabel}>AMOUNT</Text>
 
           <View style={styles.amountInputRow}>
-            <Text style={[styles.amountSymbol, { color: themeColor }]}>₹</Text>
+            <Text style={[styles.amountSymbol, { color: themeColor }]}>{getCurrencySymbol()}</Text>
             <TextInput
               value={amount}
               onChangeText={setAmount}
@@ -395,7 +395,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
                 onPress={() => handleQuickAmount(val)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.quickChipText}>+₹{val}</Text>
+                <Text style={styles.quickChipText}>+{getCurrencySymbol()}{val}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>

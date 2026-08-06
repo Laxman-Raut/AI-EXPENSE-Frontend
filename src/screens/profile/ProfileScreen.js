@@ -28,8 +28,10 @@ import apiClient from '../../api/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 import { setGlobalCurrency } from '../../utils/formatCurrency';
+import { useQueryClient } from '@tanstack/react-query';
 
 const ProfileScreen = ({ navigation }) => {
+  const queryClient = useQueryClient();
   const { user, logout, updateUser } = useAuth();
   const { showAlert } = useAlert();
   const { data: transactions } = useTransactions();
@@ -188,6 +190,14 @@ const ProfileScreen = ({ navigation }) => {
       await updateUser({ currency: currCode });
       setSelectedCurrency(currCode);
       setGlobalCurrency(currCode);
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['monthlyAnalytics'] });
+      queryClient.invalidateQueries({ queryKey: ['categoryAnalytics'] });
+      queryClient.invalidateQueries({ queryKey: ['budgetUtilization'] });
+      queryClient.invalidateQueries({ queryKey: ['yearlyComparison'] });
+      queryClient.invalidateQueries({ queryKey: ['savingsJars'] });
+      queryClient.invalidateQueries({ queryKey: ['recentTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
       setCurrencyModalVisible(false);
       showAlert('Success', `Currency switched to ${currCode === 'USD' ? 'US Dollar ($)' : 'Rupees (₹)'}.`, [{ text: 'OK' }]);
     } catch (err) {

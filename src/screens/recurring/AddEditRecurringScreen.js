@@ -14,6 +14,7 @@ import Card from '../../components/molecules/Card';
 import PrimaryButton from '../../components/atoms/PrimaryButton';
 import { colors, spacing, radius, typography } from '../../theme';
 import { useAlert } from '../../context/AlertContext';
+import { getCurrencySymbol } from '../../utils/formatCurrency';
 import {
   useCreateRecurringTransaction,
   useUpdateRecurringTransaction,
@@ -182,7 +183,7 @@ const AddEditRecurringScreen = ({ navigation, route }) => {
         <View style={styles.amountSection}>
           <Text style={styles.amountLabel}>Amount</Text>
           <View style={styles.amountInputRow}>
-            <Text style={styles.amountCurrencySymbol}>₹</Text>
+            <Text style={styles.amountCurrencySymbol}>{getCurrencySymbol()}</Text>
             <TextInput
               value={amount}
               onChangeText={setAmount}

@@ -3,10 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../api/client';
 
 // Get the server root URL from the axios client base URL
-// apiClient.defaults.baseURL is "https://ai-expense-backend-veoz.onrender.com/api"
-// We strip "/api" to get the root
 const getServerBaseUrl = () => {
-  const base = apiClient.defaults.baseURL || 'https://ai-expense-backend-veoz.onrender.com/api';
+  const base = apiClient.defaults.baseURL || 'http://localhost:5000/api';
   return base.replace(/\/api\/?$/, '');
 };
 

@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, typography, radius } from '../../theme';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
 import savingsApi from '../../api/savings';
 import CustomAlert from '../../components/molecules/CustomAlert';
 
@@ -65,7 +65,7 @@ const DepositScreen = ({ route, navigation }) => {
 
       showAlert(
         'Money Deposited! 💰',
-        `₹${numAmount} successfully added to your "${jar.name}" savings jar.`,
+        `${getCurrencySymbol()}${numAmount} successfully added to your "${jar.name}" savings jar.`,
         'success',
         [{ text: 'Awesome' }],
         () => navigation.goBack()
@@ -112,7 +112,7 @@ const DepositScreen = ({ route, navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>DEPOSIT AMOUNT *</Text>
           <View style={styles.amountInputCard}>
-            <Text style={styles.currencySymbol}>₹</Text>
+            <Text style={styles.currencySymbol}>{getCurrencySymbol()}</Text>
             <TextInput
               style={styles.amountInput}
               placeholder="0"
@@ -132,7 +132,7 @@ const DepositScreen = ({ route, navigation }) => {
                 style={styles.quickChip}
                 onPress={() => handleQuickAdd(val)}
               >
-                <Text style={styles.quickChipText}>+₹{val}</Text>
+                <Text style={styles.quickChipText}>+{getCurrencySymbol()}{val}</Text>
               </TouchableOpacity>
             ))}
           </View>
