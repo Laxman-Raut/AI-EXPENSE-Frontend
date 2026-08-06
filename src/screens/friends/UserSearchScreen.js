@@ -14,11 +14,16 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, typography, radius } from '../../theme';
-import { useUserSearch } from '../../hooks/useFriends';
+import { useUserSearch, useFriends } from '../../hooks/useFriends';
+import { useAuth } from '../../hooks/useAuth';
 
 const UserSearchScreen = ({ navigation }) => {
   const [query, setQuery] = useState('');
   const [sentRequests, setSentRequests] = useState(new Set());
+  const { user: currentUser } = useAuth();
+  const currentUserId = String(currentUser?._id || currentUser?.id || '');
+
+  const { friends } = useFriends();
   const { results, loading, error, search, send } = useUserSearch();
 
   const debounceRef = useRef(null);
@@ -32,8 +37,32 @@ const UserSearchScreen = ({ navigation }) => {
   };
 
   const handleSendRequest = async (user) => {
-    const targetId = user?._id || user?.id || user;
-    if (!targetId || sentRequests.has(targetId)) return;
+    const targetId = String(user?._id || user?.id || '');
+    if (!targetId) return;
+
+    // Validation 1: Self request check
+    if (currentUserId && targetId === currentUserId) {
+      Alert.alert('Invalid Action', 'You cannot send a friend request to yourself.');
+      return;
+    }
+
+    // Validation 2: Already friends check
+    const isAlreadyFriend =
+      user.isFriend ||
+      user.friendshipStatus === 'accepted' ||
+      (friends && friends.some((f) => String(f._id || f.id || f.friend?._id || f.friend?.id) === targetId));
+
+    if (isAlreadyFriend) {
+      Alert.alert('Already Friends', `${user.fullName || 'This user'} is already in your friends list.`);
+      return;
+    }
+
+    // Validation 3: Request already sent check
+    if (sentRequests.has(targetId) || user.friendshipStatus === 'sent') {
+      Alert.alert('Request Sent', `Friend request has already been sent to ${user.fullName || 'this user'}.`);
+      return;
+    }
+
     try {
       await send(targetId);
       setSentRequests((prev) => new Set([...prev, targetId]));
@@ -52,7 +81,19 @@ const UserSearchScreen = ({ navigation }) => {
       .toUpperCase();
 
   const renderUser = ({ item, index }) => {
-    const isSent = sentRequests.has(item._id);
+    const itemId = String(item._id || item.id || '');
+    const isAlreadyFriend =
+      item.isFriend ||
+      item.friendshipStatus === 'accepted' ||
+      (friends &&
+        friends.some((f) => {
+          const fId = String(f._id || f.id || f.friend?._id || f.friend?.id || '');
+          return fId === itemId;
+        }));
+
+    const isSent = sentRequests.has(itemId) || item.friendshipStatus === 'sent';
+    const isReceived = item.friendshipStatus === 'received';
+
     return (
       <Animated.View style={styles.userCard}>
         <View style={styles.avatarContainer}>
@@ -71,21 +112,32 @@ const UserSearchScreen = ({ navigation }) => {
             {item.username ? `@${item.username}` : item.email}
           </Text>
         </View>
-        <TouchableOpacity
-          style={[styles.addButton, isSent && styles.addButtonSent]}
-          onPress={() => handleSendRequest(item)}
-          disabled={isSent}
-          activeOpacity={0.8}
-        >
-          <Icon
-            name={isSent ? 'checkmark-circle' : 'person-add-outline'}
-            size={18}
-            color={isSent ? colors.success : colors.primary}
-          />
-          <Text style={[styles.addButtonText, isSent && styles.addButtonTextSent]}>
-            {isSent ? 'Sent' : 'Add'}
-          </Text>
-        </TouchableOpacity>
+
+        {isAlreadyFriend ? (
+          <View style={styles.friendBadge}>
+            <Icon name="checkmark-circle" size={20} color={colors.success} />
+            <Text style={styles.friendBadgeText}>Friends</Text>
+          </View>
+        ) : isSent ? (
+          <View style={[styles.addButton, styles.addButtonSent]}>
+            <Icon name="checkmark-circle" size={18} color={colors.success} />
+            <Text style={[styles.addButtonText, styles.addButtonTextSent]}>Sent</Text>
+          </View>
+        ) : isReceived ? (
+          <View style={[styles.addButton, styles.addButtonReceived]}>
+            <Icon name="time-outline" size={18} color={colors.warning || '#FF9F0A'} />
+            <Text style={[styles.addButtonText, styles.addButtonTextReceived]}>Pending</Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => handleSendRequest(item)}
+            activeOpacity={0.8}
+          >
+            <Icon name="person-add-outline" size={18} color={colors.primary} />
+            <Text style={styles.addButtonText}>Add</Text>
+          </TouchableOpacity>
+        )}
       </Animated.View>
     );
   };
@@ -177,7 +229,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justify.content: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
@@ -277,6 +329,22 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes?.sm || 13,
     color: colors.text.secondary,
   },
+  friendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.full,
+    borderWidth: 1.5,
+    borderColor: colors.success + '40',
+    backgroundColor: colors.success + '15',
+  },
+  friendBadgeText: {
+    fontSize: typography.sizes?.sm || 12,
+    fontWeight: '700',
+    color: colors.success,
+  },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -292,6 +360,10 @@ const styles = StyleSheet.create({
     borderColor: colors.success,
     backgroundColor: colors.success + '15',
   },
+  addButtonReceived: {
+    borderColor: colors.warning || '#FF9F0A',
+    backgroundColor: (colors.warning || '#FF9F0A') + '15',
+  },
   addButtonText: {
     fontSize: typography.sizes?.sm || 12,
     fontWeight: '600',
@@ -299,6 +371,9 @@ const styles = StyleSheet.create({
   },
   addButtonTextSent: {
     color: colors.success,
+  },
+  addButtonTextReceived: {
+    color: colors.warning || '#FF9F0A',
   },
   separator: {
     height: spacing.xs,
