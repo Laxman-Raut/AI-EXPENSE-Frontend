@@ -7,13 +7,13 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, typography, radius } from '../../theme';
 import { formatCurrency } from '../../utils/formatCurrency';
 import savingsApi from '../../api/savings';
+import CustomAlert from '../../components/molecules/CustomAlert';
 
 const TransferScreen = ({ route, navigation }) => {
   const initialFromJarId = route.params?.fromJarId;
@@ -25,6 +25,26 @@ const TransferScreen = ({ route, navigation }) => {
   const [notes, setNotes] = useState('');
   const [fetchingJars, setFetchingJars] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    buttons: [],
+    onPress: null,
+  });
+
+  const showAlert = (title, message, type = 'info', buttons = [], onPress = null) => {
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      type,
+      buttons: buttons.length ? buttons : [{ text: 'OK' }],
+      onPress,
+    });
+  };
 
   useEffect(() => {
     loadJars();
@@ -60,25 +80,26 @@ const TransferScreen = ({ route, navigation }) => {
 
   const handleTransfer = async () => {
     if (!fromJarId || !toJarId) {
-      Alert.alert('Selection Error', 'Please select both source and destination jars.');
+      showAlert('Selection Error', 'Please select both source and destination jars.', 'warning');
       return;
     }
 
     if (fromJarId === toJarId) {
-      Alert.alert('Invalid Selection', 'Source and destination jars must be different.');
+      showAlert('Invalid Selection', 'Source and destination jars must be different.', 'warning');
       return;
     }
 
     const numAmount = Number(amount);
     if (!amount || isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid amount greater than 0.');
+      showAlert('Invalid Amount', 'Please enter a valid amount greater than 0.', 'warning');
       return;
     }
 
     if (numAmount > availableBalance) {
-      Alert.alert(
+      showAlert(
         'Insufficient Balance',
-        `Source jar "${selectedFromJar?.name}" only has ${formatCurrency(availableBalance)} available.`
+        `Source jar "${selectedFromJar?.name}" only has ${formatCurrency(availableBalance)} available.`,
+        'warning'
       );
       return;
     }
@@ -92,20 +113,17 @@ const TransferScreen = ({ route, navigation }) => {
         notes: notes.trim(),
       });
 
-      Alert.alert(
+      showAlert(
         'Transfer Complete 🎉',
-        `Successfully transferred ${formatCurrency(numAmount)} from ${selectedFromJar?.name} to ${selectedToJar?.name}!`,
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
+        `Successfully transferred ${formatCurrency(numAmount)} from "${selectedFromJar?.name}" to "${selectedToJar?.name}"!`,
+        'success',
+        [{ text: 'Awesome' }],
+        () => navigation.goBack()
       );
     } catch (err) {
       console.log('[TransferScreen] Error:', err);
       const errMsg = err?.response?.data?.message || err?.message || 'Failed to complete transfer';
-      Alert.alert('Transfer Failed', errMsg);
+      showAlert('Transfer Failed', errMsg, 'destructive');
     } finally {
       setLoading(false);
     }
@@ -263,6 +281,27 @@ const TransferScreen = ({ route, navigation }) => {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Custom Premium Themed Alert */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        buttons={alertConfig.buttons}
+        onButtonPress={(btn) => {
+          setAlertConfig((prev) => ({ ...prev, visible: false }));
+          if (alertConfig.onPress) {
+            alertConfig.onPress(btn);
+          }
+        }}
+        onCancel={() => {
+          setAlertConfig((prev) => ({ ...prev, visible: false }));
+          if (alertConfig.onPress) {
+            alertConfig.onPress({ style: 'cancel' });
+          }
+        }}
+      />
     </SafeAreaView>
   );
 };
