@@ -12,8 +12,14 @@ import {
   initializePushNotifications,
   clearFcmTokenFromBackend,
 } from '../services/pushNotificationService';
+import { useAutoSync } from '../hooks/useSync';
 
 export const navigationRef = createNavigationContainerRef<any>();
+
+const AuthenticatedMain = () => {
+  useAutoSync();
+  return <MainTabs />;
+};
 
 const AppNavigator: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -193,7 +199,7 @@ const AppNavigator: React.FC = () => {
 
   return (
     <NavigationContainer ref={navigationRef}>
-      {isAuthenticated ? <MainTabs /> : <AuthStack />}
+      {isAuthenticated ? <AuthenticatedMain /> : <AuthStack />}
     </NavigationContainer>
   );
 };

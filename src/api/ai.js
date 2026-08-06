@@ -86,3 +86,76 @@ export const scanReceipt = async (fileOrUrl) => {
 
   return response.data;
 };
+
+/**
+ * Fetches AI-powered financial insights by aggregating data from analytics endpoints.
+ * Computes health score, category breakdown, trends, and actionable tips.
+ */
+export const fetchAIInsights = async () => {
+  try {
+    const [monthlyRes, categoryRes] = await Promise.all([
+      apiClient.get('analytics/monthly?range=monthly'),
+      apiClient.get('analytics/category?range=monthly'),
+    ]);
+
+    const monthly = monthlyRes.data?.data || {};
+    const categories = categoryRes.data?.data || [];
+
+    // Compute health score based on spending patterns
+    const totalIncome = monthly.totalIncome || 0;
+    const totalExpense = monthly.totalExpense || 0;
+    const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 50;
+    const healthScore = Math.min(100, Math.max(0, Math.round(savingsRate + 30)));
+
+    // Build category breakdown with percentages
+    const totalSpent = categories.reduce((sum, c) => sum + (c.amount || 0), 0);
+    const categoryBreakdown = categories.map((c) => ({
+      name: c.category || c.name,
+      amount: c.amount || 0,
+      percentage: totalSpent > 0 ? Math.round(((c.amount || 0) / totalSpent) * 100) : 0,
+      color: c.color || '#8A3FFC',
+      icon: c.icon || 'ellipse',
+    }));
+
+    // Generate spending trend
+    const dailyData = monthly.dailyTrend || [];
+    const spendingTrend = dailyData.map((d) => ({
+      date: d.date || d.label,
+      amount: d.expense || d.value || 0,
+    }));
+
+    // Generate actionable tips
+    const tips = [];
+    if (savingsRate < 20) {
+      tips.push({ icon: 'alert-circle', text: 'Your savings rate is below 20%. Try to cut discretionary spending.' });
+    }
+    if (categoryBreakdown.length > 0) {
+      const topCategory = categoryBreakdown[0];
+      tips.push({ icon: 'trending-up', text: `${topCategory.name} is your highest expense at ${topCategory.percentage}% of total spending.` });
+    }
+    if (savingsRate >= 30) {
+      tips.push({ icon: 'checkmark-circle', text: 'Great job! You\'re saving over 30% of your income this month.' });
+    }
+    if (tips.length === 0) {
+      tips.push({ icon: 'bulb', text: 'Add more transactions to get personalized financial insights.' });
+    }
+
+    return {
+      success: true,
+      data: {
+        healthScore,
+        totalIncome,
+        totalExpense,
+        savingsRate: Math.round(savingsRate),
+        categoryBreakdown,
+        spendingTrend,
+        tips,
+        monthlyBudget: monthly.monthlyBudget || 0,
+        budgetUtilization: monthly.budgetUtilization || 0,
+      },
+    };
+  } catch (error) {
+    console.error('fetchAIInsights error:', error);
+    throw error;
+  }
+};

@@ -13,15 +13,18 @@ const AIInsightsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [insights, setInsights] = useState(null);
+  const [error, setError] = useState(null);
 
   const loadData = async () => {
     try {
+      setError(null);
       const response = await fetchAIInsights();
       if (response.success) {
         setInsights(response.data);
       }
-    } catch (error) {
-      console.error('Error loading AI insights:', error);
+    } catch (err) {
+      console.error('Error loading AI insights:', err);
+      setError('Unable to load AI insights. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -62,10 +65,29 @@ const AIInsightsScreen = () => {
     />
   );
 
-  if (loading || !insights) {
+  if (loading || (!insights && !error)) {
     return (
       <View style={styles.loadingRoot}>
         <ActivityIndicator color={colors.primary} size="large" />
+      </View>
+    );
+  }
+
+  if (error && !insights) {
+    return (
+      <View style={styles.loadingRoot}>
+        <Icon name="cloud-offline-outline" size={48} color={colors.danger} />
+        <Text style={styles.errorText}>{error}</Text>
+        <Text
+          style={styles.retryButton}
+          onPress={() => {
+            setError(null);
+            setLoading(true);
+            loadData();
+          }}
+        >
+          Tap to Retry
+        </Text>
       </View>
     );
   }
@@ -403,6 +425,22 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     color: colors.text.secondary,
     lineHeight: typography.lineHeights.base,
+  },
+  errorText: {
+    color: colors.textSecondary,
+    fontSize: typography.size.md,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    marginHorizontal: spacing.xl,
+    lineHeight: 22,
+  },
+  retryButton: {
+    color: colors.primary,
+    fontSize: typography.size.md,
+    fontWeight: '600',
+    marginTop: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
 });
 

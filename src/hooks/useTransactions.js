@@ -5,14 +5,13 @@ import {
   createTransaction,
   updateTransaction,
   deleteTransaction,
-} from '../api/transactions';
+} from '../services/transactionService';
 
 export const useTransactions = () => {
   return useQuery({
     queryKey: ['transactions'],
     queryFn: async () => {
-      const response = await fetchTransactions();
-      return response.data;
+      return await fetchTransactions();
     },
   });
 };
@@ -21,8 +20,7 @@ export const useTransaction = (id) => {
   return useQuery({
     queryKey: ['transaction', id],
     queryFn: async () => {
-      const response = await fetchTransaction(id);
-      return response.data;
+      return await fetchTransaction(id);
     },
     enabled: !!id,
   });
