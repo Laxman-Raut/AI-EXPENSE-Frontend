@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -173,7 +173,7 @@ const TransactionsScreen = ({ navigation, route }) => {
     setRefreshing(false);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = useCallback((id) => {
     showAlert(
       'Delete Transaction',
       'Are you sure you want to delete this transaction?',
@@ -187,7 +187,7 @@ const TransactionsScreen = ({ navigation, route }) => {
       ],
       'destructive'
     );
-  };
+  }, [deleteTransaction, showAlert]);
 
   const handleExport = async (type) => {
     if (!filteredTxns || filteredTxns.length === 0) {
@@ -340,22 +340,48 @@ const TransactionsScreen = ({ navigation, route }) => {
     return result;
   }, [transactions, searchQuery, selectedBankId, activeFilter, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy]);
 
-  // Group filtered transactions by formatted date
-  const groupedTxns = useMemo(() => {
-    const groups = {};
+  const listRows = useMemo(() => {
+    const rows = [];
+    let currentDate = null;
+
     filteredTxns.forEach((t) => {
       const dateStr = formatDateGroup(t.transactionDate);
-      if (!groups[dateStr]) {
-        groups[dateStr] = [];
+      if (dateStr !== currentDate) {
+        currentDate = dateStr;
+        rows.push({ type: 'header', id: `header-${dateStr}`, date: dateStr });
       }
-      groups[dateStr].push(t);
+      rows.push({ type: 'transaction', id: t._id || t.id, transaction: t });
     });
 
-    return Object.keys(groups).map((dateGroupName) => ({
-      date: dateGroupName,
-      data: groups[dateGroupName],
-    }));
+    return rows;
   }, [filteredTxns]);
+
+  const renderTransactionRow = useCallback(({ item }) => {
+    if (item.type === 'header') {
+      return (
+        <View style={styles.dateHeaderRow}>
+          <Text style={styles.dateHeader}>{item.date}</Text>
+        </View>
+      );
+    }
+
+    const txn = item.transaction;
+    return (
+      <View style={styles.transactionRow}>
+        <TransactionCard
+          title={txn.description}
+          category={txn.category}
+          paymentMethod={txn.paymentMethod}
+          bankAccount={txn.bankAccount}
+          amount={formatCurrency(txn.amount, txn.currency || 'INR')}
+          type={txn.type}
+          onEdit={() => navigation.navigate('AddTransaction', { id: txn._id })}
+          onDelete={() => handleDelete(txn._id)}
+          onPress={() => navigation.navigate('TransactionDetail', { id: txn._id })}
+        />
+      </View>
+    );
+  }, [handleDelete, navigation]);
 
   // Header Component featuring the Hero Digital Wallet Card
   const renderHeader = () => (
@@ -698,9 +724,15 @@ const TransactionsScreen = ({ navigation, route }) => {
         safeAreaStyle={styles.safeArea}
       >
         <FlatList
-          data={groupedTxns}
-          keyExtractor={(item) => item.date}
+          data={listRows}
+          keyExtractor={(item) => item.id}
           ListHeaderComponent={renderHeader}
+          renderItem={renderTransactionRow}
+          initialNumToRender={12}
+          maxToRenderPerBatch={8}
+          updateCellsBatchingPeriod={50}
+          windowSize={7}
+          removeClippedSubviews
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -724,28 +756,6 @@ const TransactionsScreen = ({ navigation, route }) => {
               </View>
             )
           }
-          renderItem={({ item: dateGroup }) => (
-            <View style={styles.dateGroup}>
-              {/* Group Date Header */}
-              <Text style={styles.dateHeader}>{dateGroup.date}</Text>
-
-              {/* Transactions in this date group */}
-              {dateGroup.data.map((txn) => (
-                <TransactionCard
-                  key={txn._id}
-                  title={txn.description}
-                  category={txn.category}
-                  paymentMethod={txn.paymentMethod}
-                  bankAccount={txn.bankAccount}
-                  amount={formatCurrency(txn.amount, txn.currency || 'INR')}
-                  type={txn.type}
-                  onEdit={() => navigation.navigate('AddTransaction', { id: txn._id })}
-                  onDelete={() => handleDelete(txn._id)}
-                  onPress={() => navigation.navigate('TransactionDetail', { id: txn._id })}
-                />
-              ))}
-            </View>
-          )}
         />
 
         {/* Floating Filter Button */}
@@ -1224,6 +1234,14 @@ const styles = StyleSheet.create({
   dateGroup: {
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,
+  },
+  dateHeaderRow: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+  },
+  transactionRow: {
+    paddingHorizontal: spacing.lg,
   },
   dateHeader: {
     fontSize: typography.sizes.xs,

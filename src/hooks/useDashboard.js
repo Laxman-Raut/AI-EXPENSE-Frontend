@@ -8,6 +8,7 @@ export const useDashboardSummary = () => {
       const response = await fetchDashboardSummary();
       return response.data;
     },
+    staleTime: 60 * 1000,
   });
 };
 
@@ -18,6 +19,7 @@ export const useRecentTransactions = () => {
       const response = await fetchRecentTransactions();
       return response.data;
     },
+    staleTime: 60 * 1000,
   });
 };
 
@@ -28,5 +30,6 @@ export const useMonthlyAnalytics = () => {
       const response = await fetchMonthlyAnalytics();
       return response.data;
     },
+    staleTime: 5 * 60 * 1000,
   });
 };
