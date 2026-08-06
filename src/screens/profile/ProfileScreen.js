@@ -39,7 +39,6 @@ const ProfileScreen = ({ navigation }) => {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [notifyModalVisible, setNotifyModalVisible] = useState(false);
-  const [backupModalVisible, setBackupModalVisible] = useState(false);
   const [supportModalVisible, setSupportModalVisible] = useState(false);
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
 
@@ -240,31 +239,7 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
-  // Export Data JSON
-  const handleExportBackup = () => {
-    try {
-      const backupData = {
-        exportedAt: new Date().toISOString(),
-        userId: user?._id,
-        userProfile: {
-          fullName: user?.fullName,
-          currency: user?.currency,
-          monthlyBudget: user?.monthlyBudget,
-          mobile: user?.mobile,
-          age: user?.age,
-        },
-        transactions: transactions || [],
-      };
-      Clipboard.setString(JSON.stringify(backupData, null, 2));
-      showAlert(
-        'Export Successful',
-        'Your transaction ledger data backup has been generated and copied to your clipboard!',
-        [{ text: 'OK' }]
-      );
-    } catch (err) {
-      showAlert('Export Failed', 'Unable to stringify database.', [{ text: 'OK' }]);
-    }
-  };
+
 
   const handleLogoutPress = () => {
     showAlert(
@@ -348,18 +323,6 @@ const ProfileScreen = ({ navigation }) => {
             icon="card-outline"
             label="Pro Subscription"
             onPress={() => navigation.navigate('Subscription')}
-          />
-          <SettingRow
-            icon="cloud-upload-outline"
-            label="Backup & Restore"
-            rightElement={!hasPremiumAccess ? <Icon name="lock-closed" size={16} color={colors.primary} /> : undefined}
-            onPress={() => {
-              if (hasPremiumAccess) {
-                setBackupModalVisible(true);
-              } else {
-                showPremiumAlert();
-              }
-            }}
           />
           <SettingRow
             icon="help-circle-outline"
@@ -551,55 +514,7 @@ const ProfileScreen = ({ navigation }) => {
         </View>
       </Modal>
 
-      {/* 5. Backup & Restore Modal */}
-      <Modal visible={backupModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Backup & Sync</Text>
-              <TouchableOpacity onPress={() => setBackupModalVisible(false)}>
-                <Icon name="close" size={24} color={colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
 
-            <View style={styles.modalBody}>
-              <Text style={styles.infoDesc}>
-                Securely pack and backup all your logged transactions and profile preferences into a clipboard bundle.
-              </Text>
-
-              <TouchableOpacity style={styles.saveBtn} onPress={handleExportBackup}>
-                <Icon name="copy-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.saveBtnText}>Copy JSON Data Backup</Text>
-              </TouchableOpacity>
-
-              <View style={styles.dividerLine} />
-
-              <TouchableOpacity 
-                style={[styles.saveBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.primary }]} 
-                onPress={() => Alert.prompt(
-                  'Restore Backup',
-                  'Paste your JSON backup payload string below:',
-                  text => {
-                    try {
-                      const parsed = JSON.parse(text);
-                      if (parsed && parsed.transactions) {
-                        showAlert('Success', `Recognized backup with ${parsed.transactions.length} transactions. Loaded!`, [{ text: 'OK' }]);
-                      } else {
-                        showAlert('Invalid Format', 'This JSON is not a valid backup bundle.', [{ text: 'OK' }]);
-                      }
-                    } catch {
-                      showAlert('Error', 'Unable to parse pasted string.', [{ text: 'OK' }]);
-                    }
-                  }
-                )}
-              >
-                <Icon name="cloud-download-outline" size={18} color={colors.primary} style={{ marginRight: 6 }} />
-                <Text style={[styles.saveBtnText, { color: colors.primary }]}>Import JSON Backup</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* 6. Help & Support Modal */}
       <Modal visible={supportModalVisible} animationType="slide" transparent onRequestClose={() => setSupportModalVisible(false)}>
