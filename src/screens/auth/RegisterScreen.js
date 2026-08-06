@@ -397,14 +397,10 @@ const RegisterScreen = ({ navigation }) => {
               <View style={styles.dividerLine} />
             </View>
 
-            <View style={styles.socialButtonsContainer}>
-              <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8} onPress={handleGoogleSignIn}>
-                <Icon name="logo-google" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8}>
-                <Icon name="logo-apple" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={styles.googleBtn} activeOpacity={0.8} onPress={handleGoogleSignIn}>
+              <Icon name="logo-google" size={20} color="#EA4335" style={styles.googleIcon} />
+              <Text style={styles.googleBtnText}>Sign up with Google / Gmail</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -639,19 +635,24 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
     fontSize: typography.sizes.sm,
   },
-  socialButtonsContainer: {
+  googleBtn: {
     flexDirection: 'row',
-    gap: spacing.lg,
-  },
-  socialBtn: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: colors.card,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: 50,
+    borderRadius: radius.full,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  googleIcon: {
+    marginRight: spacing.sm,
+  },
+  googleBtnText: {
+    color: colors.text.primary,
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.semibold,
   },
   footer: {
     flexDirection: 'row',
