@@ -8,57 +8,53 @@ AsyncStorage.getItem('user').then((storedUser) => {
     try {
       const user = JSON.parse(storedUser);
       if (user && user.currency) {
-        cachedCurrency = user.currency;
+        setGlobalCurrency(user.currency);
       }
     } catch {}
   }
 });
 
 export const setGlobalCurrency = (currencyCode: string): void => {
-  cachedCurrency = currencyCode;
+  if (currencyCode === '₹' || currencyCode === 'INR' || currencyCode === 'Rupees') {
+    cachedCurrency = 'INR';
+  } else if (currencyCode === '$' || currencyCode === 'USD') {
+    cachedCurrency = 'USD';
+  } else if (currencyCode) {
+    cachedCurrency = currencyCode;
+  }
 };
 
 export const formatCurrency = (amount: number, currency: string | null = null): string => {
   const activeCurrency = currency || cachedCurrency || 'INR';
   const absAmount = Math.abs(amount);
+  const isUSD = activeCurrency === 'USD' || activeCurrency === '$';
   
-  if (activeCurrency === 'INR') {
-    // Indian number formatting (e.g., 1,23,456.00)
-    const formatted = absAmount.toLocaleString('en-IN', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    });
+  if (!isUSD) {
+    // Indian number formatting (e.g., ₹1,23,456)
+    const formatted = Math.round(absAmount).toLocaleString('en-IN');
     return `₹${formatted}`;
   }
   
-  try {
-    return absAmount.toLocaleString('en-US', {
-      style: 'currency',
-      currency: activeCurrency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    });
-  } catch {
-    const symbolMap: Record<string, string> = { USD: '$', EUR: '€', GBP: '£', INR: '₹' };
-    const symbol = symbolMap[activeCurrency] || activeCurrency;
-    return `${symbol}${absAmount.toFixed(2)}`;
-  }
+  const formattedVal = absAmount < 10 && absAmount % 1 !== 0
+    ? absAmount.toFixed(2)
+    : Math.round(absAmount).toLocaleString('en-US');
+
+  return `$${formattedVal}`;
 };
 
 export const formatCompactCurrency = (amount: number, currency: string | null = null): string => {
   const activeCurrency = currency || cachedCurrency || 'INR';
-  const symbolMap: Record<string, string> = { USD: '$', EUR: '€', GBP: '£', INR: '₹' };
-  const symbol = symbolMap[activeCurrency] || '₹';
+  const isUSD = activeCurrency === 'USD' || activeCurrency === '$';
+  const symbol = isUSD ? '$' : '₹';
   
   const absAmount = Math.abs(amount);
-  if (absAmount >= 10000000) {
-    return `${symbol}${(absAmount / 10000000).toFixed(1)}Cr`;
+  if (!isUSD) {
+    if (absAmount >= 10000000) return `${symbol}${(absAmount / 10000000).toFixed(1)}Cr`;
+    if (absAmount >= 100000) return `${symbol}${(absAmount / 100000).toFixed(1)}L`;
   }
-  if (absAmount >= 100000) {
-    return `${symbol}${(absAmount / 100000).toFixed(1)}L`;
-  }
+
   if (absAmount >= 1000) {
     return `${symbol}${(absAmount / 1000).toFixed(1)}K`;
   }
-  return `${symbol}${absAmount}`;
+  return `${symbol}${Math.round(absAmount)}`;
 };

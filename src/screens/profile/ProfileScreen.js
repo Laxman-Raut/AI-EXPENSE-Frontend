@@ -190,7 +190,7 @@ const ProfileScreen = ({ navigation }) => {
       setSelectedCurrency(currCode);
       setGlobalCurrency(currCode);
       setCurrencyModalVisible(false);
-      showAlert('Success', `Currency switched to ${currCode}.`, [{ text: 'OK' }]);
+      showAlert('Success', `Currency switched to ${currCode === 'USD' ? 'US Dollar ($)' : 'Rupees (₹)'}.`, [{ text: 'OK' }]);
     } catch (err) {
       showAlert('Update Failed', err.message || 'Could not update currency settings.', [{ text: 'OK' }]);
     } finally {
@@ -340,7 +340,7 @@ const ProfileScreen = ({ navigation }) => {
           <SettingRow
             icon="cash-outline"
             label="Currency"
-            value={selectedCurrency}
+            value={selectedCurrency === 'USD' || selectedCurrency === '$' ? 'USD ($)' : 'Rupees (₹)'}
             onPress={() => setCurrencyModalVisible(true)}
           />
 
@@ -469,15 +469,18 @@ const ProfileScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.modalBody}>
-              {['INR', 'USD', 'EUR', 'GBP'].map((code) => {
-                const isSelected = selectedCurrency === code;
+              {[
+                { code: 'INR', label: 'Rupees (₹)', symbol: '₹' },
+                { code: 'USD', label: 'US Dollar ($)', symbol: '$' },
+              ].map((item) => {
+                const isSelected = selectedCurrency === item.code || (selectedCurrency === '₹' && item.code === 'INR') || (selectedCurrency === '$' && item.code === 'USD');
                 return (
                   <TouchableOpacity 
-                    key={code} 
+                    key={item.code} 
                     style={[styles.selectionRow, isSelected && styles.selectedRow]}
-                    onPress={() => handleSaveCurrency(code)}
+                    onPress={() => handleSaveCurrency(item.code)}
                   >
-                    <Text style={[styles.selectionLabel, isSelected && styles.selectedLabel]}>{code}</Text>
+                    <Text style={[styles.selectionLabel, isSelected && styles.selectedLabel]}>{item.label}</Text>
                     {isSelected && <Icon name="checkmark-circle" size={20} color={colors.success} />}
                   </TouchableOpacity>
                 );

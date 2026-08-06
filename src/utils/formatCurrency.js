@@ -16,17 +16,21 @@ AsyncStorage.getItem('user').then((storedUser) => {
 });
 
 export const setGlobalCurrency = (currencyCode) => {
-  if (currencyCode === '₹') cachedCurrency = 'INR';
-  else if (currencyCode === '$') cachedCurrency = 'USD';
-  else if (currencyCode) cachedCurrency = currencyCode;
+  if (currencyCode === '₹' || currencyCode === 'INR' || currencyCode === 'Rupees' || currencyCode === 'INR (₹)') {
+    cachedCurrency = 'INR';
+  } else if (currencyCode === '$' || currencyCode === 'USD' || currencyCode === 'USD ($)') {
+    cachedCurrency = 'USD';
+  } else if (currencyCode) {
+    cachedCurrency = currencyCode;
+  }
 };
 
 export const getGlobalCurrency = () => cachedCurrency;
 
 export const getCurrencySymbol = (currency = null) => {
   const activeCurrency = currency || cachedCurrency || 'INR';
-  const symbolMap = { USD: '$', EUR: '€', GBP: '£', INR: '₹' };
-  return symbolMap[activeCurrency] || (activeCurrency === 'USD' ? '$' : '₹');
+  if (activeCurrency === 'USD' || activeCurrency === '$') return '$';
+  return '₹';
 };
 
 /**
@@ -40,16 +44,19 @@ export const convertCurrencyValue = (amount, fromCurrency = null, toCurrency = n
   if (amount === undefined || amount === null || isNaN(Number(amount))) return 0;
   const num = Number(amount);
 
-  if (sourceCurrency === targetCurrency) return num;
+  const normalize = (curr) => {
+    if (curr === '$' || curr === 'USD') return 'USD';
+    return 'INR';
+  };
+
+  const src = normalize(sourceCurrency);
+  const tgt = normalize(targetCurrency);
+
+  if (src === tgt) return num;
 
   // Convert source -> INR -> target
-  const sourceInINR = (sourceCurrency === 'USD' || sourceCurrency === '$')
-    ? num * USD_TO_INR_RATE
-    : (sourceCurrency === 'EUR' ? num * 92.0 : num);
-
-  if (targetCurrency === 'USD' || targetCurrency === '$') return sourceInINR / USD_TO_INR_RATE;
-  if (targetCurrency === 'EUR') return sourceInINR / 92.0;
-  if (targetCurrency === 'GBP') return sourceInINR / 106.0;
+  const sourceInINR = (src === 'USD') ? num * USD_TO_INR_RATE : num;
+  if (tgt === 'USD') return sourceInINR / USD_TO_INR_RATE;
   return sourceInINR;
 };
 
@@ -59,8 +66,8 @@ export const convertCurrencyValue = (amount, fromCurrency = null, toCurrency = n
 export const formatCurrency = (amount, fromCurrency = null, targetCurrency = null) => {
   const activeCurrency = targetCurrency || cachedCurrency || 'INR';
   const sourceCurrency = fromCurrency || activeCurrency;
-  const symbolMap = { USD: '$', EUR: '€', GBP: '£', INR: '₹' };
-  const symbol = symbolMap[activeCurrency] || (activeCurrency === 'USD' ? '$' : '₹');
+  const isUSD = activeCurrency === 'USD' || activeCurrency === '$';
+  const symbol = isUSD ? '$' : '₹';
 
   if (amount === undefined || amount === null || isNaN(Number(amount))) {
     return `${symbol}0`;
@@ -69,7 +76,7 @@ export const formatCurrency = (amount, fromCurrency = null, targetCurrency = nul
   const converted = convertCurrencyValue(amount, sourceCurrency, activeCurrency);
   const absAmount = Math.abs(converted);
 
-  if (activeCurrency === 'INR') {
+  if (!isUSD) {
     const formatted = Math.round(absAmount).toLocaleString('en-IN');
     return `₹${formatted}`;
   }
@@ -78,14 +85,14 @@ export const formatCurrency = (amount, fromCurrency = null, targetCurrency = nul
     ? absAmount.toFixed(2)
     : Math.round(absAmount).toLocaleString('en-US');
 
-  return `${symbol}${formattedVal}`;
+  return `$${formattedVal}`;
 };
 
 export const formatCompactCurrency = (amount, fromCurrency = null, targetCurrency = null) => {
   const activeCurrency = targetCurrency || cachedCurrency || 'INR';
   const sourceCurrency = fromCurrency || activeCurrency;
-  const symbolMap = { USD: '$', EUR: '€', GBP: '£', INR: '₹' };
-  const symbol = symbolMap[activeCurrency] || (activeCurrency === 'USD' ? '$' : '₹');
+  const isUSD = activeCurrency === 'USD' || activeCurrency === '$';
+  const symbol = isUSD ? '$' : '₹';
 
   if (amount === undefined || amount === null || isNaN(Number(amount))) {
     return `${symbol}0`;
@@ -94,7 +101,7 @@ export const formatCompactCurrency = (amount, fromCurrency = null, targetCurrenc
   const converted = convertCurrencyValue(amount, sourceCurrency, activeCurrency);
   const absAmount = Math.abs(converted);
 
-  if (activeCurrency === 'INR') {
+  if (!isUSD) {
     if (absAmount >= 10000000) return `${symbol}${(absAmount / 10000000).toFixed(1)}Cr`;
     if (absAmount >= 100000) return `${symbol}${(absAmount / 100000).toFixed(1)}L`;
   }
