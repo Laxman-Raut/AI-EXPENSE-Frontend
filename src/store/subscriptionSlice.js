@@ -47,9 +47,9 @@ export const cancelUserSubscription = createAsyncThunk(
 
 export const createPaymentOrder = createAsyncThunk(
   'subscription/createPaymentOrder',
-  async (plan, { rejectWithValue }) => {
+  async ({ plan, couponCode = null }, { rejectWithValue }) => {
     try {
-      const data = await subscriptionService.createPaymentOrder(plan);
+      const data = await subscriptionService.createPaymentOrder(plan, couponCode);
       return data;
     } catch (error) {
       return rejectWithValue(error.message || 'Failed to create payment order');

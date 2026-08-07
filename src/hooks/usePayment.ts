@@ -16,12 +16,12 @@ export const usePayment = () => {
   const user = useSelector((state: any) => state.auth.user);
   const subscription = useSelector((state: any) => state.subscription);
 
-  const startSubscriptionPayment = async (planSlug: string, planName?: string, planPrice?: number) => {
+  const startSubscriptionPayment = async (planSlug: string, planName?: string, planPrice?: number, couponCode?: string) => {
     try {
       // ─── Step 1: Create a Razorpay order on our backend ───────────────────────
-      // POST /api/payment/create-order  { plan }
+      // POST /api/payment/create-order  { plan, couponCode }
       // Returns: { order: { id, amount, currency, ... }, payment: { _id, ... } }
-      const orderResult = await dispatch((createPaymentOrder as any)(planSlug)).unwrap();
+      const orderResult = await dispatch((createPaymentOrder as any)({ plan: planSlug, couponCode: couponCode || null })).unwrap();
 
       if (!orderResult?.order?.id) {
         throw new Error('Failed to retrieve order details from backend. Please try again.');

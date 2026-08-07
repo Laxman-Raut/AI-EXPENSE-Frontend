@@ -36,15 +36,31 @@ class SubscriptionService {
   /**
    * Creates a payment order in the backend for the selected plan
    */
-  async createPaymentOrder(plan) {
+  async createPaymentOrder(plan, couponCode = null) {
     try {
-      const response = await paymentApi.createPaymentOrder(plan);
+      const response = await paymentApi.createPaymentOrder(plan, couponCode);
       if (response && response.success) {
         return response.data;
       }
       throw new Error(response?.message || 'Failed to create payment order');
     } catch (error) {
       const msg = error.response?.data?.message || error.message || 'Failed to create payment order';
+      throw new Error(msg);
+    }
+  }
+
+  /**
+   * Validates a coupon code for a specific plan
+   */
+  async validateCoupon(code, planSlug) {
+    try {
+      const response = await paymentApi.validateCoupon(code, planSlug);
+      if (response && response.success) {
+        return response.data;
+      }
+      throw new Error(response?.message || 'Invalid coupon code');
+    } catch (error) {
+      const msg = error.response?.data?.message || error.message || 'Invalid coupon code';
       throw new Error(msg);
     }
   }

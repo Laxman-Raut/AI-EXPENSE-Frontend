@@ -6,9 +6,22 @@ import { ApiResponse, CreateOrderResponse, VerifyPaymentPayload } from '../types
  * POST /api/payment/create-order
  */
 export const createPaymentOrder = async (
-  plan: string
+  plan: string,
+  couponCode?: string
 ): Promise<ApiResponse<CreateOrderResponse>> => {
-  const response = await apiClient.post('payment/create-order', { plan });
+  const response = await apiClient.post('payment/create-order', { plan, couponCode });
+  return response.data;
+};
+
+/**
+ * Validate a coupon code before payment.
+ * POST /api/payment/validate-coupon
+ */
+export const validateCoupon = async (
+  code: string,
+  planSlug: string
+): Promise<ApiResponse<any>> => {
+  const response = await apiClient.post('payment/validate-coupon', { code, planSlug });
   return response.data;
 };
 

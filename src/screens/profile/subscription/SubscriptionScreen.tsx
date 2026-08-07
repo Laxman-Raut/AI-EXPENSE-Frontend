@@ -114,6 +114,13 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [selectedPlanSlug, setSelectedPlanSlug] = useState<string | null>(null);
   const fadeAnim = useState(new Animated.Value(0))[0];
 
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState<any>(null); // { discountAmount, finalAmount, coupon }
+  const [couponError, setCouponError] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponPlanSlug, setCouponPlanSlug] = useState<string | null>(null); // which plan the coupon was validated for
+
   const isPremium = subscriptionService.isSubscriptionPro(subscription);
   const currentPlanSlug = subscription?.plan || 'free';
 
@@ -129,16 +136,56 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }).start();
   }, [dispatch, fadeAnim]);
 
+  const handleApplyCoupon = async (planSlug: string) => {
+    if (!couponCode.trim()) {
+      setCouponError('Please enter a coupon code');
+      return;
+    }
+    setCouponLoading(true);
+    setCouponError('');
+    setCouponApplied(null);
+    try {
+      const result = await subscriptionService.validateCoupon(couponCode.trim().toUpperCase(), planSlug);
+      setCouponApplied(result);
+      setCouponPlanSlug(planSlug);
+    } catch (err: any) {
+      setCouponError(err.message || 'Invalid coupon code');
+      setCouponApplied(null);
+      setCouponPlanSlug(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setCouponApplied(null);
+    setCouponError('');
+    setCouponPlanSlug(null);
+  };
+
   const handleSubscribe = (plan: any) => {
     if (plan.price <= 0) return;
+
+    const appliedCoupon = (couponApplied && couponPlanSlug === plan.slug) ? couponApplied : null;
+    const displayPrice = appliedCoupon
+      ? formatPrice(appliedCoupon.finalAmount, plan.currency, userCurrency)
+      : formatPrice(plan.price, plan.currency, userCurrency);
+    const couponLabel = appliedCoupon ? ` (Coupon: ${couponCode.toUpperCase()})` : '';
+
     Alert.alert(
       'Confirm Subscription',
-      `Subscribe to ${plan.name} for ${formatPrice(plan.price, plan.currency, userCurrency)}${getBillingLabel(plan.billingCycle)}?`,
+      `Subscribe to ${plan.name} for ${displayPrice}${getBillingLabel(plan.billingCycle)}?${couponLabel}`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Subscribe',
-          onPress: () => startSubscriptionPayment(plan.slug, plan.name, plan.price),
+          onPress: () => startSubscriptionPayment(
+            plan.slug,
+            plan.name,
+            appliedCoupon ? appliedCoupon.finalAmount : plan.price,
+            appliedCoupon ? couponCode.trim().toUpperCase() : undefined
+          ),
         },
       ]
     );
@@ -268,6 +315,134 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
         )}
 
+        {/* Coupon Code Section — only for paid, non-current plans */}
+        {!isCurrentPlan && !isFree && (
+          <View style={styles.couponContainer}>
+            <Text style={styles.couponLabel}>Have a Promo Code?</Text>
+            <View style={styles.couponInputRow}>
+              <View style={styles.couponInputWrapper}>
+                <Icon name="pricetag-outline" size={16} color={colors.text.secondary} />
+                <View style={{ flex: 1 }}>
+                  {/* @ts-ignore - TextInput imported from react-native */}
+                  <View style={styles.couponInputInner}>
+                    <Text
+                      style={[
+                        styles.couponInput,
+                        couponApplied && couponPlanSlug === plan.slug && styles.couponInputApplied,
+                      ]}
+                      onPress={() => {
+                        // This is just a styled placeholder; actual input is via Alert.prompt or inline
+                      }}
+                    >
+                      {couponCode || 'Enter code...'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              {couponApplied && couponPlanSlug === plan.slug ? (
+                <TouchableOpacity
+                  style={[styles.couponRemoveBtn]}
+                  onPress={handleRemoveCoupon}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="close-circle" size={16} color={colors.danger} />
+                  <Text style={styles.couponRemoveBtnText}>Remove</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.couponApplyBtn, { backgroundColor: `${planColor}20`, borderColor: planColor }]}
+                  onPress={() => {
+                    Alert.prompt(
+                      'Enter Promo Code',
+                      'Enter your coupon/promo code to get a discount:',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Apply',
+                          onPress: (code?: string) => {
+                            if (code) {
+                              setCouponCode(code.toUpperCase());
+                              setCouponError('');
+                              setCouponApplied(null);
+                              // Validate immediately
+                              setCouponLoading(true);
+                              subscriptionService.validateCoupon(code.trim().toUpperCase(), plan.slug)
+                                .then((result: any) => {
+                                  setCouponApplied(result);
+                                  setCouponPlanSlug(plan.slug);
+                                  setCouponCode(code.trim().toUpperCase());
+                                })
+                                .catch((err: any) => {
+                                  setCouponError(err.message || 'Invalid coupon code');
+                                  setCouponApplied(null);
+                                  setCouponPlanSlug(null);
+                                })
+                                .finally(() => setCouponLoading(false));
+                            }
+                          },
+                        },
+                      ],
+                      'plain-text',
+                      couponCode
+                    );
+                  }}
+                  activeOpacity={0.7}
+                  disabled={couponLoading}
+                >
+                  {couponLoading ? (
+                    <ActivityIndicator size="small" color={planColor} />
+                  ) : (
+                    <>
+                      <Icon name="pricetag" size={14} color={planColor} />
+                      <Text style={[styles.couponApplyBtnText, { color: planColor }]}>Apply</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Coupon Error */}
+            {couponError && couponPlanSlug === plan.slug && (
+              <View style={styles.couponErrorRow}>
+                <Icon name="alert-circle" size={14} color={colors.danger} />
+                <Text style={styles.couponErrorText}>{couponError}</Text>
+              </View>
+            )}
+
+            {/* Coupon Success + Price Breakdown */}
+            {couponApplied && couponPlanSlug === plan.slug && (
+              <View style={styles.couponSuccessContainer}>
+                <View style={styles.couponSuccessRow}>
+                  <Icon name="checkmark-circle" size={16} color={colors.success} />
+                  <Text style={styles.couponSuccessText}>
+                    {couponApplied.coupon?.discountValue}% OFF Applied!
+                  </Text>
+                </View>
+                <View style={styles.priceBreakdown}>
+                  <View style={styles.priceBreakdownRow}>
+                    <Text style={styles.priceBreakdownLabel}>Original Price</Text>
+                    <Text style={styles.priceBreakdownValue}>
+                      {formatPrice(plan.price, plan.currency, userCurrency)}
+                    </Text>
+                  </View>
+                  <View style={styles.priceBreakdownRow}>
+                    <Text style={[styles.priceBreakdownLabel, { color: colors.success }]}>Discount</Text>
+                    <Text style={[styles.priceBreakdownValue, { color: colors.success }]}>
+                      -{formatPrice(couponApplied.discountAmount, plan.currency, userCurrency)}
+                    </Text>
+                  </View>
+                  <View style={[styles.priceBreakdownRow, styles.priceBreakdownTotal]}>
+                    <Text style={[styles.priceBreakdownLabel, { fontWeight: '700' as any }]}>You Pay</Text>
+                    <Text style={[styles.priceBreakdownValue, { fontWeight: '700' as any, color: planColor }]}>
+                      {formatPrice(couponApplied.finalAmount, plan.currency, userCurrency)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Action Button */}
         {!isCurrentPlan && !isFree && (
           <TouchableOpacity
@@ -277,7 +452,10 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           >
             <Icon name="flash" size={16} color="#FFFFFF" />
             <Text style={styles.subscribeBtnText}>
-              Subscribe — {formatPrice(plan.price, plan.currency, userCurrency)}{getBillingLabel(plan.billingCycle)}
+              {couponApplied && couponPlanSlug === plan.slug
+                ? `Subscribe — ${formatPrice(couponApplied.finalAmount, plan.currency, userCurrency)}${getBillingLabel(plan.billingCycle)}`
+                : `Subscribe — ${formatPrice(plan.price, plan.currency, userCurrency)}${getBillingLabel(plan.billingCycle)}`
+              }
             </Text>
           </TouchableOpacity>
         )}
@@ -716,6 +894,127 @@ const styles = StyleSheet.create({
   footerDivider: {
     fontSize: typography.sizes.xs,
     color: colors.text.muted,
+  },
+  // ─── Coupon Styles ──────────────────────────────────
+  couponContainer: {
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
+  },
+  couponLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.text.secondary,
+    textTransform: 'uppercase' as any,
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
+  },
+  couponInputRow: {
+    flexDirection: 'row' as any,
+    alignItems: 'center' as any,
+    gap: spacing.sm,
+  },
+  couponInputWrapper: {
+    flex: 1,
+    flexDirection: 'row' as any,
+    alignItems: 'center' as any,
+    gap: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.divider,
+  },
+  couponInputInner: {
+    flex: 1,
+  },
+  couponInput: {
+    fontSize: typography.sizes.sm,
+    color: colors.text.muted,
+    fontFamily: 'monospace',
+  },
+  couponInputApplied: {
+    color: colors.text.primary,
+    fontWeight: typography.weights.bold,
+  },
+  couponApplyBtn: {
+    flexDirection: 'row' as any,
+    alignItems: 'center' as any,
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  couponApplyBtnText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+  },
+  couponRemoveBtn: {
+    flexDirection: 'row' as any,
+    alignItems: 'center' as any,
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  couponRemoveBtnText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.danger,
+  },
+  couponErrorRow: {
+    flexDirection: 'row' as any,
+    alignItems: 'center' as any,
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  couponErrorText: {
+    fontSize: typography.sizes.xs,
+    color: colors.danger,
+  },
+  couponSuccessContainer: {
+    marginTop: spacing.sm,
+  },
+  couponSuccessRow: {
+    flexDirection: 'row' as any,
+    alignItems: 'center' as any,
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  couponSuccessText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.success,
+  },
+  priceBreakdown: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+  },
+  priceBreakdownRow: {
+    flexDirection: 'row' as any,
+    justifyContent: 'space-between' as any,
+    alignItems: 'center' as any,
+    paddingVertical: 3,
+  },
+  priceBreakdownLabel: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.secondary,
+  },
+  priceBreakdownValue: {
+    fontSize: typography.sizes.sm,
+    color: colors.text.primary,
+    fontFamily: 'monospace',
+  },
+  priceBreakdownTotal: {
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    marginTop: 4,
+    paddingTop: spacing.sm,
   },
   spacer: {
     height: 120,
