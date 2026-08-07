@@ -26,6 +26,7 @@ import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 import { getGlobalCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
 import useBanks from '../../hooks/useBanks';
+import { useAuth } from '../../hooks/useAuth';
 
 const EXPENSE_CATEGORIES = [
   { id: 'Food', name: 'Food', icon: 'fast-food', color: '#FF6B6B' },
@@ -63,6 +64,7 @@ const PAYMENT_METHODS = [
 const QUICK_AMOUNTS = [100, 500, 1000, 2000, 5000];
 
 const AddTransactionScreen = ({ navigation, route }) => {
+  const { user } = useAuth();
   const transactionId = route.params?.id;
   const isEditing = !!transactionId;
 
@@ -171,7 +173,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
       return;
     }
 
-    const activeCurrency = getGlobalCurrency() || 'INR';
+    const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
 
     const payload = {
       type: activeType,
