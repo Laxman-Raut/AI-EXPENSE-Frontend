@@ -12,7 +12,7 @@ import Card from '../../components/molecules/Card';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useDashboardSummary, useRecentTransactions } from '../../hooks/useDashboard';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getGlobalCurrency } from '../../utils/formatCurrency';
 import { formatDate } from '../../utils/formatDate';
 import { useUnreadCount } from '../../hooks/useNotifications';
 import FloatingVoiceButton from '../../components/FloatingVoiceButton';
@@ -799,7 +799,7 @@ const DashboardScreen = ({ navigation }) => {
                   </View>
                   <View style={styles.txnRight}>
                     <Text style={[styles.txnAmount, isExpense ? styles.expenseText : styles.incomeText]}>
-                      {isExpense ? '-' : '+'}{formatCurrency(txn.amount, txn.currency || 'INR')}
+                      {isExpense ? '-' : '+'}{formatCurrency(txn.amount, txn.currency || 'INR', user?.currency || getGlobalCurrency())}
                     </Text>
                     <Text style={styles.txnTime}>
                       {txn.time || (txn.transactionDate ? formatDate(txn.transactionDate) : 'Today')}

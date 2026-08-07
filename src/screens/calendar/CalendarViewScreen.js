@@ -8,9 +8,11 @@ import Header from '../../components/molecules/Header';
 import TransactionItem from '../../components/molecules/TransactionItem';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useTransactions } from '../../hooks/useTransactions';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getGlobalCurrency } from '../../utils/formatCurrency';
+import { useAuth } from '../../hooks/useAuth';
 
 const CalendarViewScreen = ({ navigation }) => {
+  const { user } = useAuth();
   const { data: transactions, isLoading } = useTransactions();
 
   const [currentMonth, setCurrentMonth] = useState(dayjs());
@@ -382,7 +384,7 @@ const CalendarViewScreen = ({ navigation }) => {
                               </Text>
                             </View>
                             <Text style={[styles.subTxnAmount, { color: txn.type === 'expense' ? colors.danger : colors.success }]}>
-                              {txn.type === 'expense' ? '-' : '+'}{formatCurrency(txn.amount)}
+                              {txn.type === 'expense' ? '-' : '+'}{formatCurrency(txn.amount, txn.currency || 'INR', user?.currency || getGlobalCurrency())}
                             </Text>
                           </TouchableOpacity>
                         ))}
