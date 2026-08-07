@@ -38,7 +38,7 @@ export const usePayment = () => {
         key: RAZORPAY_KEY_ID,
         amount: String(order.amount),        // amount in paise (e.g. "19900" for ₹199)
         currency: order.currency || 'INR',
-        name: 'AI Expense Tracker',
+        name: 'Expenso',
         description: planNameFormatted,
         order_id: order.id,                  // ✅ Razorpay order ID from our backend
         prefill: {

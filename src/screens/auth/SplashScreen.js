@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Screen from '../../components/templates/Screen';
+import AppLogo from '../../components/atoms/AppLogo';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
 import useAppStore from '../../store/useAppStore';
 
@@ -51,14 +52,13 @@ const SplashScreen = ({ onFinish }) => {
         <View style={styles.content}>
           <Animated.View
             style={[
-              styles.logoContainer,
-              shadow.lg,
               {
+                marginBottom: spacing.xl,
                 opacity: fadeAnim,
                 transform: [{ scale: scaleAnim }],
               },
             ]}>
-            <Icon name="sparkles" size={54} color="#FFFFFF" />
+            <AppLogo size={110} />
           </Animated.View>
           <Animated.View style={{ opacity: fadeAnim, alignItems: 'center' }}>
             <Text style={styles.title}>ExpenseAI</Text>

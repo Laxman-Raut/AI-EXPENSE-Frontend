@@ -587,7 +587,7 @@ const ProfileScreen = ({ navigation }) => {
               <View style={styles.logoCircle}>
                 <Icon name="cash" size={32} color="#FFFFFF" />
               </View>
-              <Text style={styles.appName}>AI Smart Expense Tracker</Text>
+              <Text style={styles.appName}>Expenso</Text>
               <Text style={styles.appVer}>v1.0.0 (Build 12)</Text>
               
               <Text style={styles.aboutText}>

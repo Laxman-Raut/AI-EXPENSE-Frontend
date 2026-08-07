@@ -6,6 +6,7 @@ import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
 import Input from '../../components/atoms/Input';
 import PrimaryButton from '../../components/atoms/PrimaryButton';
+import AppLogo from '../../components/atoms/AppLogo';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../hooks/useAuth';
 import { configureGoogleSignIn, signInWithGoogle } from '../../services/googleAuthService';
@@ -94,16 +95,7 @@ const LoginScreen = ({ navigation }) => {
       >
         {/* Header App Branding */}
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <LinearGradient
-              colors={['#FF6037', '#8A3FFC']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.logoGradient}
-            >
-              <Icon name="wallet" size={28} color="#FFFFFF" />
-            </LinearGradient>
-          </View>
+          <AppLogo size={72} style={{ marginBottom: spacing.md }} />
           <Text style={styles.appTitle}>Welcome Back!</Text>
           <Text style={styles.subtitle}>Login to continue</Text>
         </View>
