@@ -76,32 +76,41 @@ const USD_RATES: Record<string, number> = {
   GBP: 0.79,
 };
 
-const formatPrice = (price: number, planCurrency: string, userCurrencySymbol: string): string => {
+const formatPrice = (price: number, planCurrency: string, userCurrencySymbol: string, planObj?: any) => {
   if (price === 0) return 'Free';
 
-  // Determine user's active currency code ('INR', 'USD', etc.)
+  const displayVal = planObj?.displayPrice !== undefined ? planObj.displayPrice : price;
+  const displayCurr = planObj?.displayCurrency || planCurrency || 'INR';
+
   let userCode = SYMBOL_TO_CODE[userCurrencySymbol] || userCurrencySymbol;
   if (!userCode || userCode === '₹') userCode = 'INR';
   if (userCode === '$') userCode = 'USD';
 
+  const symbol = CODE_TO_SYMBOL[displayCurr] || CODE_TO_SYMBOL[userCode] || (displayCurr === 'USD' ? '$' : '₹');
+
+  const formattedNum = Number(displayVal).toLocaleString('en-IN', {
+    minimumFractionDigits: displayCurr === 'USD' ? 2 : 0,
+    maximumFractionDigits: 2,
+  });
+
+  return `${symbol}${formattedNum}`;
+};
+
+const formatCouponPrice = (amount: number, planCurr: string, userCurr: string, basePlanPrice: number) => {
+  if (!amount && amount !== 0) return '₹0';
+  const num = Number(amount);
+  
+  let userCode = SYMBOL_TO_CODE[userCurr] || userCurr;
+  if (!userCode || userCode === '₹') userCode = 'INR';
+
   const symbol = CODE_TO_SYMBOL[userCode] || (userCode === 'USD' ? '$' : '₹');
 
-  // Base plan prices from backend database are in USD (e.g. 9, 19, 39)
-  const baseCurrency = (planCurrency || 'USD').toUpperCase();
+  const formattedNum = num.toLocaleString('en-IN', {
+    minimumFractionDigits: userCode === 'USD' ? 2 : 0,
+    maximumFractionDigits: 2,
+  });
 
-  let finalPrice = price;
-
-  if (baseCurrency === 'USD' && userCode === 'INR') {
-    // Convert $ USD base price to ₹ INR (1 USD = 85 INR)
-    finalPrice = Math.round(price * 85.0);
-  } else if (baseCurrency === 'USD' && userCode !== 'USD') {
-    const rate = USD_RATES[userCode] || 85.0;
-    finalPrice = Math.round(price * rate);
-  } else if (baseCurrency === 'INR' && userCode === 'USD') {
-    finalPrice = Math.round(price / 85.0);
-  }
-
-  return `${symbol}${finalPrice.toLocaleString('en-IN')}`;
+  return `${symbol}${formattedNum}`;
 };
 
 const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -169,7 +178,7 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
     const appliedCoupon = (couponApplied && couponPlanSlug === plan.slug) ? couponApplied : null;
     const displayPrice = appliedCoupon
-      ? formatPrice(appliedCoupon.finalAmount, plan.currency, userCurrency)
+      ? formatCouponPrice(appliedCoupon.finalAmount, plan.currency, userCurrency, plan.price)
       : formatPrice(plan.price, plan.currency, userCurrency);
     const couponLabel = appliedCoupon ? ` (Coupon: ${couponCode.toUpperCase()})` : '';
 
@@ -252,7 +261,7 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <Text style={styles.planName}>{plan.name}</Text>
             <View style={styles.priceRow}>
               <Text style={[styles.planPrice, { color: planColor }]}>
-                {formatPrice(plan.price, plan.currency, userCurrency)}
+                {formatPrice(plan.price, plan.currency, userCurrency, plan)}
               </Text>
               <Text style={styles.billingCycle}>{getBillingLabel(plan.billingCycle)}</Text>
             </View>
@@ -389,19 +398,19 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   <View style={styles.priceBreakdownRow}>
                     <Text style={styles.priceBreakdownLabel}>Original Price</Text>
                     <Text style={styles.priceBreakdownValue}>
-                      {formatPrice(plan.price, plan.currency, userCurrency)}
+                      {formatPrice(plan.price, plan.currency, userCurrency, plan)}
                     </Text>
                   </View>
                   <View style={styles.priceBreakdownRow}>
                     <Text style={[styles.priceBreakdownLabel, { color: colors.success }]}>Discount</Text>
                     <Text style={[styles.priceBreakdownValue, { color: colors.success }]}>
-                      -{formatPrice(couponApplied.discountAmount, plan.currency, userCurrency)}
+                      -{formatCouponPrice(couponApplied.discountAmount, plan.currency, userCurrency, plan.price)}
                     </Text>
                   </View>
                   <View style={[styles.priceBreakdownRow, styles.priceBreakdownTotal]}>
                     <Text style={[styles.priceBreakdownLabel, { fontWeight: '700' as any }]}>You Pay</Text>
                     <Text style={[styles.priceBreakdownValue, { fontWeight: '700' as any, color: planColor }]}>
-                      {formatPrice(couponApplied.finalAmount, plan.currency, userCurrency)}
+                      {formatCouponPrice(couponApplied.finalAmount, plan.currency, userCurrency, plan.price)}
                     </Text>
                   </View>
                 </View>
@@ -420,8 +429,8 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <Icon name="flash" size={16} color="#FFFFFF" />
             <Text style={styles.subscribeBtnText}>
               {couponApplied && couponPlanSlug === plan.slug
-                ? `Subscribe — ${formatPrice(couponApplied.finalAmount, plan.currency, userCurrency)}${getBillingLabel(plan.billingCycle)}`
-                : `Subscribe — ${formatPrice(plan.price, plan.currency, userCurrency)}${getBillingLabel(plan.billingCycle)}`
+                ? `Subscribe — ${formatCouponPrice(couponApplied.finalAmount, plan.currency, userCurrency, plan.price)}${getBillingLabel(plan.billingCycle)}`
+                : `Subscribe — ${formatPrice(plan.price, plan.currency, userCurrency, plan)}${getBillingLabel(plan.billingCycle)}`
               }
             </Text>
           </TouchableOpacity>
