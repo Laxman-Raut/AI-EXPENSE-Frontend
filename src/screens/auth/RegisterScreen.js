@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Screen from '../../components/templates/Screen';
+import AppLogo from '../../components/atoms/AppLogo';
 import Card from '../../components/molecules/Card';
 import Input from '../../components/atoms/Input';
 import PrimaryButton from '../../components/atoms/PrimaryButton';
@@ -222,16 +223,7 @@ const RegisterScreen = ({ navigation }) => {
       <Screen scrollable loading={loading} style={styles.contentContainer}>
         {/* Header App Branding */}
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <LinearGradient
-              colors={['#FF6037', '#8A3FFC']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.logoGradient}
-            >
-              <Icon name="wallet" size={28} color="#FFFFFF" />
-            </LinearGradient>
-          </View>
+          <AppLogo size={72} style={{ marginBottom: spacing.md }} />
           <Text style={styles.appTitle}>Create Account</Text>
           <Text style={styles.subtitle}>
             {step === 1

@@ -19,7 +19,7 @@ class NotificationService {
     // Create notification channel
     await notifee.createChannel({
       id: 'expense-tracker',
-      name: 'Expense Tracker',
+      name: 'Expenso',
       importance: AndroidImportance.HIGH,
     });
   }

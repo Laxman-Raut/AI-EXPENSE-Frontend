@@ -88,7 +88,7 @@ export const ensureNotificationChannel = async () => {
   if (Platform.OS === 'android') {
     await notifee.createChannel({
       id: CHANNEL_ID,
-      name: 'Expense Tracker',
+      name: 'Expenso',
       importance: AndroidImportance.HIGH,
       sound: 'default',
       vibration: true,

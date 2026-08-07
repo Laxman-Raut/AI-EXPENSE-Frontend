@@ -1,6 +1,6 @@
-# AI Expense Tracker - React Native Mobile Application
+# Expenso - React Native Mobile Application
 
-This is the mobile application for **AI Expense Tracker**, built with [**React Native CLI**](https://reactnative.dev), **React Navigation v7**, **Redux Toolkit**, **Axios**, and **React Native Vector Icons**.
+This is the mobile application for **Expenso**, built with [**React Native CLI**](https://reactnative.dev), **React Navigation v7**, **Redux Toolkit**, **Axios**, and **React Native Vector Icons**.
 
 ---
 

@@ -26,7 +26,7 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
   // Ensure channel exists
   await notifee.createChannel({
     id: 'expense-tracker',
-    name: 'Expense Tracker',
+    name: 'Expenso',
     importance: AndroidImportance.HIGH,
     sound: 'default',
     vibration: true,

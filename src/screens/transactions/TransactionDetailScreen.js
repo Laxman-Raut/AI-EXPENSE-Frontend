@@ -14,7 +14,8 @@ import Screen from '../../components/templates/Screen';
 import CustomAlert from '../../components/molecules/CustomAlert';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
 import { useTransaction, useDeleteTransaction } from '../../hooks/useTransactions';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getGlobalCurrency } from '../../utils/formatCurrency';
+import { useAuth } from '../../hooks/useAuth';
 import { formatDateTime } from '../../utils/formatDate';
 import BankLogo from '../../components/atoms/BankLogo';
 
@@ -37,9 +38,11 @@ const getCategoryIconInfo = (cat = '', type = 'expense') => {
 };
 
 const TransactionDetailScreen = ({ navigation, route }) => {
+  const { user } = useAuth();
   const { id } = route.params;
   const { data: transaction, isLoading } = useTransaction(id);
   const deleteMutation = useDeleteTransaction();
+  const targetCurrency = user?.currency || getGlobalCurrency();
 
   const [deleteAlertVisible, setDeleteAlertVisible] = useState(false);
   const [errorAlertVisible, setErrorAlertVisible] = useState(false);
@@ -48,7 +51,7 @@ const TransactionDetailScreen = ({ navigation, route }) => {
   const handleShare = async () => {
     if (!transaction) return;
     const isInc = transaction.type === 'income';
-    const amountStr = `${isInc ? '+' : '-'}${formatCurrency(transaction.amount)}`;
+    const amountStr = `${isInc ? '+' : '-'}${formatCurrency(transaction.amount, transaction.currency || 'INR', targetCurrency)}`;
     const text = `💸 ExpenseAI Transaction Details:\n• Type: ${transaction.type.toUpperCase()}\n• Amount: ${amountStr}\n• Category: ${transaction.category}\n• Date: ${formatDateTime(transaction.transactionDate)}\n• Notes: ${transaction.note || transaction.description}`;
     try {
       await Share.share({ message: text });
@@ -192,7 +195,7 @@ const TransactionDetailScreen = ({ navigation, route }) => {
 
             {/* Amount */}
             <Text style={[styles.amountDisplay, { color: themeColor }]}>
-              {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
+              {isIncome ? '+' : '-'}{formatCurrency(transaction.amount, transaction.currency || 'INR', targetCurrency)}
             </Text>
 
             {/* Description */}

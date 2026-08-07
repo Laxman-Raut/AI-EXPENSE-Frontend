@@ -557,7 +557,7 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
         {/* Legal Links Footer */}
         <View style={styles.footer}>
-          <TouchableOpacity onPress={() => Alert.alert('Terms of Service', 'Standard Terms & Conditions apply for using AI Expense Tracker subscriptions.')}>
+          <TouchableOpacity onPress={() => Alert.alert('Terms of Service', 'Standard Terms & Conditions apply for using Expenso subscriptions.')}>
             <Text style={styles.footerLink}>Terms of Service</Text>
           </TouchableOpacity>
           <Text style={styles.footerDivider}>|</Text>
