@@ -1,8 +1,9 @@
-let cachedCurrency: string = 'INR';
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Attempt to load from storage on boot
+let cachedCurrency: string = 'INR';
+const USD_TO_INR_RATE: number = 85.0;
+
+// Attempt to load user preferred currency from storage on boot
 AsyncStorage.getItem('user').then((storedUser) => {
   if (storedUser) {
     try {
@@ -14,40 +15,112 @@ AsyncStorage.getItem('user').then((storedUser) => {
   }
 });
 
-export const setGlobalCurrency = (currencyCode: string): void => {
-  if (currencyCode === '₹' || currencyCode === 'INR' || currencyCode === 'Rupees') {
+export const setGlobalCurrency = (currencyCode: string | null | undefined): void => {
+  if (!currencyCode) return;
+  const upper = String(currencyCode).toUpperCase().trim();
+  if (upper === '₹' || upper === 'INR' || upper === 'RUPEES' || upper.includes('INR')) {
     cachedCurrency = 'INR';
-  } else if (currencyCode === '$' || currencyCode === 'USD') {
+  } else if (upper === '$' || upper === 'USD' || upper.includes('USD')) {
     cachedCurrency = 'USD';
-  } else if (currencyCode) {
-    cachedCurrency = currencyCode;
+  } else {
+    cachedCurrency = upper;
   }
 };
 
-export const formatCurrency = (amount: number, currency: string | null = null): string => {
+export const getGlobalCurrency = (): string => cachedCurrency || 'INR';
+
+export const getCurrencySymbol = (currency: string | null = null): string => {
   const activeCurrency = currency || cachedCurrency || 'INR';
-  const absAmount = Math.abs(amount);
-  const isUSD = activeCurrency === 'USD' || activeCurrency === '$';
+  const upper = String(activeCurrency).toUpperCase();
+  if (upper === 'USD' || upper === '$') return '$';
+  if (upper === 'EUR' || upper === '€') return '€';
+  if (upper === 'GBP' || upper === '£') return '£';
+  return '₹';
+};
+
+/**
+ * Converts numeric value between currencies (USD <-> INR)
+ */
+export const convertCurrencyValue = (
+  amount: number | string,
+  fromCurrency: string | null = null,
+  toCurrency: string | null = null
+): number => {
+  const targetCurrency = toCurrency || cachedCurrency || 'INR';
+  const sourceCurrency = fromCurrency || targetCurrency;
+
+  if (amount === undefined || amount === null || isNaN(Number(amount))) return 0;
+  const num = Number(amount);
+
+  const normalize = (curr: string) => {
+    const upper = String(curr || '').toUpperCase();
+    if (upper === '$' || upper === 'USD') return 'USD';
+    return 'INR';
+  };
+
+  const src = normalize(sourceCurrency);
+  const tgt = normalize(targetCurrency);
+
+  if (src === tgt) return num;
+
+  // Convert source -> INR -> target
+  const sourceInINR = src === 'USD' ? num * USD_TO_INR_RATE : num;
+  if (tgt === 'USD') return sourceInINR / USD_TO_INR_RATE;
+  return sourceInINR;
+};
+
+/**
+ * Formats amount with dynamic numerical conversion & active symbol
+ * Accepts: formatCurrency(amount, fromCurrency, targetCurrency)
+ */
+export const formatCurrency = (
+  amount: number | string,
+  fromCurrency: string | null = null,
+  targetCurrency: string | null = null
+): string => {
+  const activeCurrency = targetCurrency || cachedCurrency || 'INR';
+  const sourceCurrency = fromCurrency || activeCurrency;
   
+  const symbol = getCurrencySymbol(activeCurrency);
+  const isUSD = symbol === '$';
+
+  if (amount === undefined || amount === null || isNaN(Number(amount))) {
+    return `${symbol}0`;
+  }
+
+  const converted = convertCurrencyValue(amount, sourceCurrency, activeCurrency);
+  const absAmount = Math.abs(converted);
+
   if (!isUSD) {
-    // Indian number formatting (e.g., ₹1,23,456)
     const formatted = Math.round(absAmount).toLocaleString('en-IN');
-    return `₹${formatted}`;
+    return `${symbol}${formatted}`;
   }
-  
-  const formattedVal = absAmount < 10 && absAmount % 1 !== 0
-    ? absAmount.toFixed(2)
-    : Math.round(absAmount).toLocaleString('en-US');
 
-  return `$${formattedVal}`;
+  const formattedVal =
+    absAmount < 10 && absAmount % 1 !== 0
+      ? absAmount.toFixed(2)
+      : Math.round(absAmount).toLocaleString('en-US');
+
+  return `${symbol}${formattedVal}`;
 };
 
-export const formatCompactCurrency = (amount: number, currency: string | null = null): string => {
-  const activeCurrency = currency || cachedCurrency || 'INR';
-  const isUSD = activeCurrency === 'USD' || activeCurrency === '$';
-  const symbol = isUSD ? '$' : '₹';
-  
-  const absAmount = Math.abs(amount);
+export const formatCompactCurrency = (
+  amount: number | string,
+  fromCurrency: string | null = null,
+  targetCurrency: string | null = null
+): string => {
+  const activeCurrency = targetCurrency || cachedCurrency || 'INR';
+  const sourceCurrency = fromCurrency || activeCurrency;
+  const symbol = getCurrencySymbol(activeCurrency);
+  const isUSD = symbol === '$';
+
+  if (amount === undefined || amount === null || isNaN(Number(amount))) {
+    return `${symbol}0`;
+  }
+
+  const converted = convertCurrencyValue(amount, sourceCurrency, activeCurrency);
+  const absAmount = Math.abs(converted);
+
   if (!isUSD) {
     if (absAmount >= 10000000) return `${symbol}${(absAmount / 10000000).toFixed(1)}Cr`;
     if (absAmount >= 100000) return `${symbol}${(absAmount / 100000).toFixed(1)}L`;

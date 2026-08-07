@@ -10,17 +10,19 @@ const LOCAL_IP = '10.35.245.181';
 // Android Emulator loopback IP to host machine (10.0.2.2) or localhost for iOS/web
 const LOCALHOST_IP = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 
+const RENDER_BASE_URL = 'https://ai-expense-backend-veoz.onrender.com/api';
+
 const getInitialBaseUrl = () => {
   if (process.env.API_URL) {
     const cleanEnvUrl = process.env.API_URL.trim().replace(/\/+$/, '');
     return cleanEnvUrl.endsWith('/api') ? cleanEnvUrl : `${cleanEnvUrl}/api`;
   }
-  // Default to Localhost / Local Server
-  return `http://${LOCALHOST_IP}:5000/api`;
+  // Default to Render Production Server
+  return RENDER_BASE_URL;
 };
 
 const BASE_URL = getInitialBaseUrl();
-console.log('[API Client] Active Localhost Base URL:', BASE_URL);
+console.log('[API Client] Active Render Production Base URL:', BASE_URL);
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -46,9 +48,7 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// Response interceptor — handle local retries + Render fallback
-const RENDER_BASE_URL = 'https://ai-expense-backend-veoz.onrender.com/api';
-
+// Response interceptor — handle token expiry & network retry
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {

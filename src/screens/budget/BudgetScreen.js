@@ -6,7 +6,7 @@ import Card from '../../components/molecules/Card';
 import Input from '../../components/atoms/Input';
 import PrimaryButton from '../../components/atoms/PrimaryButton';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
 import { useAuth } from '../../hooks/useAuth';
 import { useTransactions } from '../../hooks/useTransactions';
 import { useAlert } from '../../context/AlertContext';
@@ -267,12 +267,12 @@ const BudgetScreen = () => {
             <Text style={styles.modalTitle}>Update Budget Limit</Text>
             
             <Input
-              label="New Monthly Budget ($)"
+              label={`New Monthly Budget (${getCurrencySymbol()})`}
               value={newBudgetVal}
               onChangeText={setNewBudgetVal}
               placeholder="e.g. 2500"
               keyboardType="numeric"
-              icon={<Icon name="logo-usd" size={18} color={colors.text.secondary} />}
+              icon={<Icon name="cash-outline" size={18} color={colors.text.secondary} />}
             />
 
             <View style={styles.modalActions}>
@@ -308,7 +308,8 @@ const BudgetScreen = () => {
               {categories.map(cat => (
                 <Input
                   key={cat.name}
-                  label={`${cat.name} Limit ($)`}
+                  label={`${cat.name} Limit (${getCurrencySymbol()})`}
+                  value={catBudgets[cat.name] || ''}
                   value={catBudgets[cat.name] || ''}
                   onChangeText={(val) => setCatBudgets(prev => ({ ...prev, [cat.name]: val }))}
                   placeholder="e.g. 500"

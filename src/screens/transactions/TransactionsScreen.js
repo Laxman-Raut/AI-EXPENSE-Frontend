@@ -20,7 +20,7 @@ import PrimaryButton from '../../components/atoms/PrimaryButton';
 import TransactionCard from '../../components/molecules/TransactionCard';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
 import { useTransactions, useDeleteTransaction } from '../../hooks/useTransactions';
-import { formatCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
+import { formatCurrency, getCurrencySymbol, convertCurrencyValue, getGlobalCurrency } from '../../utils/formatCurrency';
 import { exportToExcel, exportToPDF } from '../../utils/exportUtils';
 import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
@@ -216,16 +216,18 @@ const TransactionsScreen = ({ navigation, route }) => {
     }
   };
 
-  // Compute Total Income, Total Expense, Net Balance
+  // Compute Total Income, Total Expense, Net Balance in Active User Currency
   const walletStats = useMemo(() => {
     let totalIncome = 0;
     let totalExpense = 0;
+    const targetCurrency = user?.currency || getGlobalCurrency();
     if (transactions && Array.isArray(transactions)) {
       transactions.forEach((t) => {
+        const amt = convertCurrencyValue(t.amount, t.currency || 'INR', targetCurrency);
         if (t.type === 'income') {
-          totalIncome += Number(t.amount) || 0;
+          totalIncome += amt;
         } else {
-          totalExpense += Number(t.amount) || 0;
+          totalExpense += amt;
         }
       });
     }
@@ -234,7 +236,7 @@ const TransactionsScreen = ({ navigation, route }) => {
       totalExpense,
       netBalance: totalIncome - totalExpense,
     };
-  }, [transactions]);
+  }, [transactions, user]);
 
   // Client-side advanced multi-criteria search & filtering
   const filteredTxns = useMemo(() => {
@@ -434,7 +436,7 @@ const TransactionsScreen = ({ navigation, route }) => {
 
         <Text style={styles.balanceLabel}>NET BALANCE</Text>
         <Text style={styles.balanceAmount}>
-          {formatCurrency(walletStats.netBalance)}
+          {formatCurrency(walletStats.netBalance, user?.currency || getGlobalCurrency())}
         </Text>
 
         {/* User Mobile Number or Email */}
@@ -454,7 +456,7 @@ const TransactionsScreen = ({ navigation, route }) => {
             <View>
               <Text style={styles.statBadgeLabel}>Income</Text>
               <Text style={styles.incomeStatText}>
-                +{formatCurrency(walletStats.totalIncome)}
+                +{formatCurrency(walletStats.totalIncome, user?.currency || getGlobalCurrency())}
               </Text>
             </View>
           </View>
@@ -468,7 +470,7 @@ const TransactionsScreen = ({ navigation, route }) => {
             <View>
               <Text style={styles.statBadgeLabel}>Expense</Text>
               <Text style={styles.expenseStatText}>
-                -{formatCurrency(walletStats.totalExpense)}
+                -{formatCurrency(walletStats.totalExpense, user?.currency || getGlobalCurrency())}
               </Text>
             </View>
           </View>

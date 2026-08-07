@@ -471,7 +471,7 @@ const ReceiptScannerScreen = ({ route, navigation }) => {
                   onChangeText={setAmount}
                   placeholder="0.00"
                   keyboardType="numeric"
-                  icon={<Icon name="logo-usd" size={18} color={colors.text.secondary} />}
+                  icon={<Icon name="cash-outline" size={18} color={colors.text.secondary} />}
                 />
 
                 <Input
