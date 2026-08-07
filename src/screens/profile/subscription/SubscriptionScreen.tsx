@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Alert, ActivityIndicator, ScrollView, TextInput } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/Ionicons';
 import ScreenImport from '../../../components/templates/Screen';
@@ -322,22 +322,23 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <View style={styles.couponInputRow}>
               <View style={styles.couponInputWrapper}>
                 <Icon name="pricetag-outline" size={16} color={colors.text.secondary} />
-                <View style={{ flex: 1 }}>
-                  {/* @ts-ignore - TextInput imported from react-native */}
-                  <View style={styles.couponInputInner}>
-                    <Text
-                      style={[
-                        styles.couponInput,
-                        couponApplied && couponPlanSlug === plan.slug && styles.couponInputApplied,
-                      ]}
-                      onPress={() => {
-                        // This is just a styled placeholder; actual input is via Alert.prompt or inline
-                      }}
-                    >
-                      {couponCode || 'Enter code...'}
-                    </Text>
-                  </View>
-                </View>
+                <TextInput
+                  style={styles.couponInput}
+                  placeholder="ENTER CODE"
+                  placeholderTextColor={colors.text.muted}
+                  value={couponCode}
+                  onChangeText={(text) => {
+                    setCouponCode(text.toUpperCase());
+                    setCouponError('');
+                    if (couponApplied) {
+                      setCouponApplied(null);
+                      setCouponPlanSlug(null);
+                    }
+                  }}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  editable={!couponApplied || couponPlanSlug !== plan.slug}
+                />
               </View>
               {couponApplied && couponPlanSlug === plan.slug ? (
                 <TouchableOpacity
@@ -351,43 +352,9 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               ) : (
                 <TouchableOpacity
                   style={[styles.couponApplyBtn, { backgroundColor: `${planColor}20`, borderColor: planColor }]}
-                  onPress={() => {
-                    Alert.prompt(
-                      'Enter Promo Code',
-                      'Enter your coupon/promo code to get a discount:',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: 'Apply',
-                          onPress: (code?: string) => {
-                            if (code) {
-                              setCouponCode(code.toUpperCase());
-                              setCouponError('');
-                              setCouponApplied(null);
-                              // Validate immediately
-                              setCouponLoading(true);
-                              subscriptionService.validateCoupon(code.trim().toUpperCase(), plan.slug)
-                                .then((result: any) => {
-                                  setCouponApplied(result);
-                                  setCouponPlanSlug(plan.slug);
-                                  setCouponCode(code.trim().toUpperCase());
-                                })
-                                .catch((err: any) => {
-                                  setCouponError(err.message || 'Invalid coupon code');
-                                  setCouponApplied(null);
-                                  setCouponPlanSlug(null);
-                                })
-                                .finally(() => setCouponLoading(false));
-                            }
-                          },
-                        },
-                      ],
-                      'plain-text',
-                      couponCode
-                    );
-                  }}
+                  onPress={() => handleApplyCoupon(plan.slug)}
                   activeOpacity={0.7}
-                  disabled={couponLoading}
+                  disabled={couponLoading || !couponCode.trim()}
                 >
                   {couponLoading ? (
                     <ActivityIndicator size="small" color={planColor} />
@@ -921,21 +888,22 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row' as any,
     alignItems: 'center' as any,
-    gap: spacing.sm,
+    gap: spacing.xs,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
     borderWidth: 1,
     borderColor: colors.divider,
-  },
-  couponInputInner: {
-    flex: 1,
+    height: 42,
   },
   couponInput: {
+    flex: 1,
     fontSize: typography.sizes.sm,
-    color: colors.text.muted,
+    color: colors.text.primary,
+    fontWeight: typography.weights.bold,
     fontFamily: 'monospace',
+    paddingVertical: 0,
+    height: 42,
   },
   couponInputApplied: {
     color: colors.text.primary,

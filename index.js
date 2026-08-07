@@ -60,3 +60,6 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
 });
 
 AppRegistry.registerComponent(appName, () => App);
+AppRegistry.registerComponent('AI Expense Tracker', () => App);
+AppRegistry.registerComponent('AI-Expense-Tracker', () => App);
+AppRegistry.registerComponent('Expenso', () => App);
