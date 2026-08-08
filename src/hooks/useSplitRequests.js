@@ -32,19 +32,19 @@ export const useGroupSplitRequests = (groupId, currentUserId) => {
 
   const handleCreateSplit = async (data) => {
     const res = await createSplitRequest(data);
-    await fetchSplits(true);
+    fetchSplits(true);
     return res.data;
   };
 
   const handleUpdateSplit = async (splitId, updateData) => {
     const res = await updateSplitRequest(splitId, updateData);
-    await fetchSplits(true);
+    fetchSplits(true);
     return res.data;
   };
 
   const handleDeleteSplit = async (splitId) => {
     await deleteSplitRequest(splitId);
-    await fetchSplits(true);
+    fetchSplits(true);
   };
 
   // Calculate user balance summary ("You owe", "You are owed")
