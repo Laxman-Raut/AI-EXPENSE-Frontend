@@ -102,44 +102,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
   const [paymentLoading, setPaymentLoading] = useState(false);
 
   // Track whether a UPI payment was launched so we can prompt on return
-  const paymentLaunchedRef = useRef(false);
   const quickPaySplitRef = useRef(null); // stores the split item for the in-flight payment
-  const appStateRef = useRef(AppState.currentState);
-
-  // AppState listener: fires when user returns from GPay/PhonePe after quick-pay
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      const wasBackground =
-        appStateRef.current === 'background' || appStateRef.current === 'inactive';
-      const isNowActive = nextState === 'active';
-
-      if (wasBackground && isNowActive && paymentLaunchedRef.current) {
-        paymentLaunchedRef.current = false;
-        const splitItem = quickPaySplitRef.current;
-        setTimeout(() => {
-          Alert.alert(
-            'Payment Confirmation',
-            'Did your payment complete successfully?',
-            [
-              {
-                text: 'Yes, I Paid',
-                style: 'default',
-                onPress: () => splitItem && markQuickPayPaid(splitItem),
-              },
-              {
-                text: 'No / Cancel',
-                style: 'cancel',
-              },
-            ]
-          );
-        }, 600);
-      }
-
-      appStateRef.current = nextState;
-    });
-
-    return () => subscription.remove();
-  }, []);
 
   // Mark current user as paid for a given split item (used after quick-pay)
   const markQuickPayPaid = async (item) => {
@@ -157,21 +120,20 @@ const GroupDetailsScreen = ({ route, navigation }) => {
 
     const updatedParticipants = (item.participants || []).map((p) => {
       const id = String(typeof p.user === 'object' ? p.user._id || p.user.id : p.user);
-      if (id === pUserId) return { ...p, user: id, status: 'paid' };
+      if (id === pUserId) return { ...p, user: id, status: 'accepted' };
       return { ...p, user: id };
     });
-    const allPaid = updatedParticipants.every((p) => p.status === 'paid');
 
     try {
       await updateSplit(item._id, {
         participants: updatedParticipants,
-        status: allPaid ? 'completed' : 'pending',
+        status: 'pending',
       });
       refetchSplits(true);
-      showSnackbar('Your payment has been recorded! ✅', 'success');
+      showSnackbar('Payment notification sent to creator! ✅', 'success');
     } catch (err) {
       showSnackbar(
-        err?.response?.data?.message || 'Could not update payment status. Please try again.',
+        err?.response?.data?.message || 'Could not send payment notification. Please try again.',
         'error'
       );
     }
@@ -798,8 +760,11 @@ const GroupDetailsScreen = ({ route, navigation }) => {
         onClose={() => setUpiModalVisible(false)}
         paymentData={paymentData}
         loading={paymentLoading}
-        onPaymentLaunched={() => {
-          paymentLaunchedRef.current = true;
+        onMarkPaid={() => {
+          const splitItem = quickPaySplitRef.current;
+          if (splitItem) {
+            markQuickPayPaid(splitItem);
+          }
         }}
       />
 

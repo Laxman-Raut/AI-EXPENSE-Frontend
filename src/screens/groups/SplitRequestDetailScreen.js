@@ -89,52 +89,45 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
   const [paymentData, setPaymentData] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
 
-  // Track whether the user launched a UPI payment, so we can prompt on return
-  const paymentLaunchedRef = useRef(false);
-  const appStateRef = useRef(AppState.currentState);
-
-  // AppState listener: fires when user comes back from GPay/PhonePe
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      const wasBackground =
-        appStateRef.current === 'background' || appStateRef.current === 'inactive';
-      const isNowActive = nextState === 'active';
-
-      if (wasBackground && isNowActive && paymentLaunchedRef.current) {
-        paymentLaunchedRef.current = false;
-        // Give the UPI app a moment to fully dismiss before showing alert
-        setTimeout(() => {
-          Alert.alert(
-            'Payment Confirmation',
-            'Did your payment complete successfully?',
-            [
-              {
-                text: 'Yes, I Paid',
-                style: 'default',
-                onPress: () => markMyselfPaid(),
-              },
-              {
-                text: 'No / Cancel',
-                style: 'cancel',
-              },
-            ]
-          );
-        }, 600);
-      }
-
-      appStateRef.current = nextState;
-    });
-
-    return () => subscription.remove();
-  }, [markMyselfPaid]);
-
-  // Mark the current user's share as paid
+  // Mark the current user's share as 'accepted' (meaning paid manually, awaiting verification)
   const markMyselfPaid = useCallback(async () => {
     if (!myParticipant) return;
     const pUserId = String(
       typeof myParticipant.user === 'object'
         ? myParticipant.user._id || myParticipant.user.id
         : myParticipant.user
+    );
+    const updatedParticipants = participants.map((p) => {
+      const id = String(typeof p.user === 'object' ? p.user._id || p.user.id : p.user);
+      if (id === pUserId) {
+        return { ...p, user: id, status: 'accepted' };
+      }
+      return { ...p, user: id };
+    });
+    setUpdating(true);
+    try {
+      await updateSplit(splitId, {
+        participants: updatedParticipants,
+        status: 'pending', // Overall split status remains pending until creator approves
+      });
+      refetch();
+      showSnackbar('Payment notification sent to creator! ✅', 'success');
+    } catch (err) {
+      showSnackbar(
+        err?.response?.data?.message || 'Could not send payment notification. Please try again.',
+        'error'
+      );
+    } finally {
+      setUpdating(false);
+    }
+  }, [myParticipant, participants, splitId, updateSplit, refetch]);
+
+  // Confirm payment (marks status as 'paid')
+  const acceptPayment = useCallback(async (participant) => {
+    const pUserId = String(
+      typeof participant.user === 'object'
+        ? participant.user._id || participant.user.id
+        : participant.user
     );
     const updatedParticipants = participants.map((p) => {
       const id = String(typeof p.user === 'object' ? p.user._id || p.user.id : p.user);
@@ -151,16 +144,48 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
         status: allPaid ? 'completed' : 'pending',
       });
       refetch();
-      showSnackbar('Your payment has been recorded! ✅', 'success');
+      showSnackbar('Payment confirmed! ✅', 'success');
     } catch (err) {
       showSnackbar(
-        err?.response?.data?.message || 'Could not update payment status. Please try again.',
+        err?.response?.data?.message || 'Could not confirm payment. Please try again.',
         'error'
       );
     } finally {
       setUpdating(false);
     }
-  }, [myParticipant, participants, splitId, updateSplit, refetch]);
+  }, [participants, splitId, updateSplit, refetch]);
+
+  // Reject payment claim (marks status back to 'pending')
+  const rejectPayment = useCallback(async (participant) => {
+    const pUserId = String(
+      typeof participant.user === 'object'
+        ? participant.user._id || participant.user.id
+        : participant.user
+    );
+    const updatedParticipants = participants.map((p) => {
+      const id = String(typeof p.user === 'object' ? p.user._id || p.user.id : p.user);
+      if (id === pUserId) {
+        return { ...p, user: id, status: 'pending' };
+      }
+      return { ...p, user: id };
+    });
+    setUpdating(true);
+    try {
+      await updateSplit(splitId, {
+        participants: updatedParticipants,
+        status: 'pending',
+      });
+      refetch();
+      showSnackbar('Payment claim rejected.', 'info');
+    } catch (err) {
+      showSnackbar(
+        err?.response?.data?.message || 'Could not reject payment. Please try again.',
+        'error'
+      );
+    } finally {
+      setUpdating(false);
+    }
+  }, [participants, splitId, updateSplit, refetch]);
 
   // Snackbar state
   const [snackbar, setSnackbar] = useState({
@@ -316,6 +341,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
     const userObj = typeof item.user === 'object' ? item.user : { fullName: 'Participant' };
     const pUserId = String(userObj._id || userObj.id || item.user);
     const isPaid = item.status === 'paid';
+    const isAccepted = item.status === 'accepted';
     const isMe = pUserId === currentUserId;
     const canTap = canToggleStatus || isMe;
     const isItemAdmin = pUserId === groupAdminId;
@@ -338,36 +364,83 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
           <Text style={styles.participantAmount}>{formatCurrency(item.amount || 0, splitRequest?.currency)}</Text>
         </View>
 
-        <TouchableOpacity
-          style={[
-            styles.statusBadge,
-            isPaid ? styles.statusBadgePaid : styles.statusBadgePending,
-            !canTap && styles.statusBadgeDisabled,
-          ]}
-          onPress={() => {
-            if (!isPaid && isMe) {
-              handleUpiPayNow(splitId);
-            } else {
-              toggleParticipantStatus(item);
-            }
-          }}
-          disabled={updating || paymentLoading}
-          activeOpacity={0.8}
-        >
-          <Icon
-            name={isPaid ? 'checkmark-done' : canTap ? 'card-outline' : 'lock-closed-outline'}
-            size={14}
-            color={isPaid ? colors.success : canTap ? colors.warning : colors.text.muted}
-          />
-          <Text
+        {isAccepted && canToggleStatus ? (
+          <View style={styles.actionButtonRow}>
+            <TouchableOpacity
+              style={[styles.miniBtn, styles.miniBtnSuccess]}
+              onPress={() => acceptPayment(item)}
+              disabled={updating}
+            >
+              <Text style={styles.miniBtnText}>Confirm</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.miniBtn, styles.miniBtnDanger]}
+              onPress={() => rejectPayment(item)}
+              disabled={updating}
+            >
+              <Text style={styles.miniBtnText}>Reject</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
             style={[
-              styles.statusText,
-              isPaid ? styles.statusTextPaid : canTap ? styles.statusTextPending : styles.statusTextDisabled,
+              styles.statusBadge,
+              isPaid ? styles.statusBadgePaid : isAccepted ? styles.statusBadgeInfo : styles.statusBadgePending,
+              (!canTap || isAccepted) && styles.statusBadgeDisabled,
             ]}
+            onPress={() => {
+              if (item.status === 'pending' && isMe) {
+                handleUpiPayNow(splitId);
+              } else if (canToggleStatus) {
+                toggleParticipantStatus(item);
+              }
+            }}
+            disabled={updating || paymentLoading || isAccepted}
+            activeOpacity={0.8}
           >
-            {isPaid ? 'Paid' : isMe ? 'Pay Now' : 'Pending'}
-          </Text>
-        </TouchableOpacity>
+            <Icon
+              name={
+                isPaid 
+                  ? 'checkmark-done' 
+                  : isAccepted 
+                  ? 'time-outline' 
+                  : item.status === 'pending' && isMe 
+                  ? 'card-outline' 
+                  : 'lock-closed-outline'
+              }
+              size={14}
+              color={
+                isPaid 
+                  ? colors.success 
+                  : isAccepted 
+                  ? colors.info 
+                  : item.status === 'pending' && isMe 
+                  ? colors.warning 
+                  : colors.text.muted
+              }
+            />
+            <Text
+              style={[
+                styles.statusText,
+                isPaid 
+                  ? styles.statusTextPaid 
+                  : isAccepted 
+                  ? styles.statusTextInfo 
+                  : item.status === 'pending' && isMe 
+                  ? styles.statusTextPending 
+                  : styles.statusTextDisabled,
+              ]}
+            >
+              {isPaid 
+                ? 'Paid' 
+                : isAccepted 
+                ? (isMe ? 'Pending Approval' : 'Awaiting Confirm')
+                : isMe 
+                ? 'Pay Now' 
+                : 'Pending'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -525,9 +598,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
         onClose={() => setUpiModalVisible(false)}
         paymentData={paymentData}
         loading={paymentLoading}
-        onPaymentLaunched={() => {
-          paymentLaunchedRef.current = true;
-        }}
+        onMarkPaid={markMyselfPaid}
       />
 
       {/* Reusable Snackbar */}
@@ -786,6 +857,9 @@ const styles = StyleSheet.create({
   statusBadgePending: {
     backgroundColor: colors.warning + '1F',
   },
+  statusBadgeInfo: {
+    backgroundColor: colors.info + '1F',
+  },
   statusBadgeDisabled: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -801,8 +875,34 @@ const styles = StyleSheet.create({
   statusTextPending: {
     color: colors.warning,
   },
+  statusTextInfo: {
+    color: colors.info,
+  },
   statusTextDisabled: {
     color: colors.text.muted,
+  },
+  actionButtonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  miniBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniBtnSuccess: {
+    backgroundColor: colors.success,
+  },
+  miniBtnDanger: {
+    backgroundColor: colors.danger,
+  },
+  miniBtnText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '800',
   },
   separator: {
     height: spacing.sm,

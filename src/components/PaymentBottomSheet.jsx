@@ -6,142 +6,35 @@ import {
   Modal,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  Linking,
   ActivityIndicator,
   Animated,
+  Clipboard,
+  ToastAndroid,
   Platform,
   Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import PaymentOptionCard from './PaymentOptionCard';
 import { colors, spacing, typography, radius } from '../theme';
 import { formatCurrency } from '../utils/formatCurrency';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Verified Play Store package IDs (as of 2025-26):
-// ─────────────────────────────────────────────────────────────────────────────
-const PKG = {
-  // Google Pay India (Tez) — verified from play.google.com/store/apps/details?id=...
-  GPAY: 'com.google.android.apps.nfc.phone',
-  // PhonePe
-  PHONEPE: 'com.phonepe.app',
-  // Paytm
-  PAYTM: 'net.one97.paytm',
-};
-
-const STORE_URLS = {
-  GPAY: `https://play.google.com/store/apps/details?id=${PKG.GPAY}`,
-  PHONEPE: `https://play.google.com/store/apps/details?id=${PKG.PHONEPE}`,
-  PAYTM: `https://play.google.com/store/apps/details?id=${PKG.PAYTM}`,
-};
-
-/**
- * Build a standard upi:// deep link.
- * DO NOT append &package=... here — package is an Android Intent extra and
- * must never appear inside a upi:// URL parameter string. It corrupts the
- * UPI parameter parsing in GPay, PhonePe, and Paytm.
- */
-const buildUpiUrl = (deepLink) => deepLink;
-
-/**
- * Build an Android Intent URI to open a specific UPI app directly.
- *
- * Why Intent URI instead of upi://&package=... ?
- * The UPI spec does not define a "package" query parameter. Appending it
- * to a upi:// URL passes it as part of the query string, which UPI apps
- * then try to parse as a UPI field — causing validation failures.
- *
- * Intent URIs let Android route the Intent directly to the target package
- * without corrupting the upi:// parameter space.
- *
- * Format:
- *   intent://<host>?<params>#Intent;scheme=upi;package=<pkg>;end
- */
-const buildIntentUri = (deepLink, packageId) => {
-  // deepLink is: upi://pay?pa=...&pn=...&am=...
-  // We need:     intent://pay?pa=...&pn=...#Intent;scheme=upi;package=X;end
-  const withoutScheme = deepLink.replace(/^upi:\/\//, '');
-  return `intent://${withoutScheme}#Intent;scheme=upi;package=${packageId};end`;
-};
-
-/**
- * Open a specific UPI app using Intent URI (Android) or plain upi:// (iOS).
- * Falls back to plain upi:// → then Play Store if intent URI fails.
- */
-const openUpiApp = async ({ deepLink, packageId, storeUrl, onClose, onPaymentLaunched }) => {
-  if (!deepLink) return;
-
-  console.log('[PaymentBottomSheet] Final generated UPI URI:', deepLink);
-
-  // On Android, try the Intent URI first (direct app targeting, no URL corruption)
-  if (Platform.OS === 'android') {
-    const intentUri = buildIntentUri(deepLink, packageId);
-    console.log('[PaymentBottomSheet] Launching Intent URI:', intentUri);
-    try {
-      const canOpen = await Linking.canOpenURL(intentUri).catch(() => false);
-      if (canOpen) {
-        if (onPaymentLaunched) onPaymentLaunched();
-        await Linking.openURL(intentUri);
-        onClose();
-        return;
-      }
-    } catch (err) {
-      console.log('[PaymentBottomSheet] Error opening Intent URI:', err);
-    }
-
-    // Fallback 1: plain upi:// (lets system picker choose, but deepLink is clean)
-    try {
-      console.log('[PaymentBottomSheet] Falling back to plain upi:// URI:', deepLink);
-      if (onPaymentLaunched) onPaymentLaunched();
-      await Linking.openURL(deepLink);
-      onClose();
-      return;
-    } catch (err) {
-      console.log('[PaymentBottomSheet] Error opening plain upi:// URL:', err);
-    }
-
-    // Fallback 2: open Play Store
-    Linking.openURL(storeUrl).catch(() => {});
-    onClose();
-    return;
-  }
-
-  // iOS — UPI apps register upi:// so plain openURL works
-  try {
-    console.log('[PaymentBottomSheet] Launching iOS upi:// URI:', deepLink);
-    if (onPaymentLaunched) onPaymentLaunched();
-    await Linking.openURL(deepLink);
-    onClose();
-  } catch (err) {
-    console.log('[PaymentBottomSheet] Error opening iOS UPI URL:', err);
-    Alert.alert('App not found', 'Please install the UPI app from the App Store.');
-  }
-};
 
 const PaymentBottomSheet = ({
   visible,
   onClose,
-  paymentData, // { deepLink, amount, receiver, upiId, note }
+  paymentData, // { amount, receiver, upiId, note }
   loading = false,
-  onPaymentLaunched,
+  onMarkPaid,
 }) => {
-  const [appInstalledState, setAppInstalledState] = useState({
-    gpay: false,
-    phonepe: false,
-    paytm: false,
-  });
-  const [checkingApps, setCheckingApps] = useState(false);
-
+  const [copied, setCopied] = useState(false);
   const translateY = React.useRef(new Animated.Value(300)).current;
 
   useEffect(() => {
     if (visible) {
+      setCopied(false);
       Animated.spring(translateY, {
         toValue: 0,
         useNativeDriver: true,
         bounciness: 4,
       }).start();
-      checkInstalledApps();
     } else {
       Animated.timing(translateY, {
         toValue: 300,
@@ -151,77 +44,32 @@ const PaymentBottomSheet = ({
     }
   }, [visible]);
 
-  const checkInstalledApps = async () => {
-    setCheckingApps(true);
-    try {
-      // On Android 11+ (targetSdk 30+) canOpenURL only works for schemes
-      // declared in <queries> in AndroidManifest.xml. We have gpay://, phonepe://,
-      // paytmmp://, upi:// all declared — so these checks are valid.
-      const [gpay, phonepe, paytm, upi] = await Promise.all([
-        Linking.canOpenURL('gpay://').catch(() => false),
-        Linking.canOpenURL('phonepe://').catch(() => false),
-        Linking.canOpenURL('paytmmp://').catch(() => Linking.canOpenURL('paytm://').catch(() => false)),
-        Linking.canOpenURL('upi://').catch(() => false),
-      ]);
-
-      setAppInstalledState({
-        // Show as "installed" if the specific scheme responds OR if generic upi:// does
-        gpay: Boolean(gpay || upi),
-        phonepe: Boolean(phonepe || upi),
-        paytm: Boolean(paytm || upi),
-      });
-    } catch (err) {
-      console.log('[PaymentBottomSheet] Error checking installed apps:', err);
-    } finally {
-      setCheckingApps(false);
-    }
-  };
-
   if (!visible) return null;
 
-  const { deepLink, amount, receiver, upiId } = paymentData || {};
+  const { amount, receiver, upiId } = paymentData || {};
 
-  const handleOpenGooglePay = () =>
-    openUpiApp({
-      deepLink: buildUpiUrl(deepLink),
-      packageId: PKG.GPAY,
-      storeUrl: STORE_URLS.GPAY,
-      onClose,
-      onPaymentLaunched,
-    });
+  const handleCopyUpi = () => {
+    if (!upiId) return;
+    Clipboard.setString(upiId);
+    setCopied(true);
+    
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('UPI ID Copied to Clipboard!', ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Copied', 'UPI ID copied to clipboard!');
+    }
 
-  const handleOpenPhonePe = () =>
-    openUpiApp({
-      deepLink: buildUpiUrl(deepLink),
-      packageId: PKG.PHONEPE,
-      storeUrl: STORE_URLS.PHONEPE,
-      onClose,
-      onPaymentLaunched,
-    });
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
+  };
 
-  const handleOpenPaytm = () =>
-    openUpiApp({
-      deepLink: buildUpiUrl(deepLink),
-      packageId: PKG.PAYTM,
-      storeUrl: STORE_URLS.PAYTM,
-      onClose,
-      onPaymentLaunched,
-    });
-
-  const handleOpenOtherUpi = async () => {
-    if (!deepLink) return;
-    console.log('[PaymentBottomSheet] Final generic UPI URI:', deepLink);
-    try {
-      if (onPaymentLaunched) onPaymentLaunched();
-      await Linking.openURL(deepLink);
-    } catch (err) {
-      console.log('[PaymentBottomSheet] Error opening generic UPI link:', err);
-      Alert.alert('Error', 'No UPI app found. Please install any UPI app (BHIM, GPay, PhonePe).');
+  const handleConfirmPaid = () => {
+    if (onMarkPaid) {
+      onMarkPaid();
     }
     onClose();
   };
-
-  const isButtonsDisabled = loading || !deepLink;
 
   return (
     <Modal
@@ -240,21 +88,20 @@ const PaymentBottomSheet = ({
               {/* Title & Close */}
               <View style={styles.header}>
                 <View>
-                  <Text style={styles.title}>Choose Payment App</Text>
-                  <Text style={styles.subtitle}>Select your preferred UPI app to pay</Text>
+                  <Text style={styles.title}>Settle Split Expense</Text>
+                  <Text style={styles.subtitle}>Copy UPI ID and complete the payment manually</Text>
                 </View>
                 <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
                   <Icon name="close-circle" size={24} color={colors.text.muted} />
                 </TouchableOpacity>
               </View>
 
-              {/* Payment Summary Header Card */}
+              {/* Payment Summary Box */}
               <View style={styles.summaryCard}>
                 <View style={styles.summaryRow}>
                   <View style={styles.summaryMeta}>
-                    <Text style={styles.summaryLabel}>PAYING TO</Text>
+                    <Text style={styles.summaryLabel}>PAY TO</Text>
                     <Text style={styles.receiverName}>{receiver || 'Receiver'}</Text>
-                    <Text style={styles.upiIdText}>{upiId || 'UPI ID'}</Text>
                   </View>
                   <View style={styles.amountBox}>
                     <Text style={styles.amountLabel}>AMOUNT</Text>
@@ -263,58 +110,75 @@ const PaymentBottomSheet = ({
                 </View>
               </View>
 
+              {/* UPI Copy Card */}
+              <View style={styles.upiCard}>
+                <View style={styles.upiDetails}>
+                  <Text style={styles.upiLabel}>RECEIVER'S UPI ID</Text>
+                  <Text style={styles.upiIdText}>{upiId || 'No UPI ID available'}</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.copyButton, copied && styles.copyButtonActive]}
+                  onPress={handleCopyUpi}
+                  activeOpacity={0.7}
+                  disabled={!upiId}
+                >
+                  <Icon 
+                    name={copied ? 'checkmark-circle' : 'copy-outline'} 
+                    size={16} 
+                    color={copied ? '#fff' : colors.primary} 
+                  />
+                  <Text style={[styles.copyButtonText, copied && styles.copyButtonTextActive]}>
+                    {copied ? 'Copied' : 'Copy'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Instructions */}
+              <View style={styles.instructionsContainer}>
+                <Text style={styles.instructionsTitle}>How to Pay:</Text>
+                <View style={styles.instructionStep}>
+                  <Text style={styles.stepNumber}>1</Text>
+                  <Text style={styles.stepText}>Tap the <Text style={{fontWeight: '700', color: colors.primary}}>Copy</Text> button to copy the UPI ID.</Text>
+                </View>
+                <View style={styles.instructionStep}>
+                  <Text style={styles.stepNumber}>2</Text>
+                  <Text style={styles.stepText}>Open any UPI payment app (GPay, PhonePe, Paytm, BHIM, etc.).</Text>
+                </View>
+                <View style={styles.instructionStep}>
+                  <Text style={styles.stepNumber}>3</Text>
+                  <Text style={styles.stepText}>Send exactly <Text style={{fontWeight: '700', color: colors.success}}>{formatCurrency(amount || 0)}</Text> to the copied UPI ID.</Text>
+                </View>
+                <View style={styles.instructionStep}>
+                  <Text style={styles.stepNumber}>4</Text>
+                  <Text style={styles.stepText}>Return to Expenso and tap the <Text style={{fontWeight: '700', color: '#fff'}}>I Have Paid</Text> button below to notify the creator.</Text>
+                </View>
+              </View>
+
               {/* Loading Indicator */}
-              {(loading || checkingApps) && (
+              {loading && (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={styles.loadingText}>Generating secure UPI payment link...</Text>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.loadingText}>Updating payment status...</Text>
                 </View>
               )}
 
-              {/* Options List */}
-              <View style={styles.optionsList}>
-                <PaymentOptionCard
-                  title="Google Pay"
-                  subtitle="Pay using GPay"
-                  iconName="logo-google"
-                  iconColor="#4285F4"
-                  bgColor="#4285F415"
-                  badgeText={appInstalledState.gpay ? 'Installed' : 'Play Store'}
-                  onPress={handleOpenGooglePay}
-                  disabled={isButtonsDisabled}
-                />
+              {/* Action Buttons */}
+              <View style={styles.btnRow}>
+                <TouchableOpacity 
+                  style={[styles.btn, styles.btnCancel]} 
+                  onPress={onClose}
+                  disabled={loading}
+                >
+                  <Text style={styles.btnCancelText}>Cancel</Text>
+                </TouchableOpacity>
 
-                <PaymentOptionCard
-                  title="PhonePe"
-                  subtitle="Pay using PhonePe"
-                  iconName="wallet-outline"
-                  iconColor="#5f259f"
-                  bgColor="#5f259f15"
-                  badgeText={appInstalledState.phonepe ? 'Installed' : 'Play Store'}
-                  onPress={handleOpenPhonePe}
-                  disabled={isButtonsDisabled}
-                />
-
-                <PaymentOptionCard
-                  title="Paytm"
-                  subtitle="Pay using Paytm UPI"
-                  iconName="card-outline"
-                  iconColor="#00baf2"
-                  bgColor="#00baf215"
-                  badgeText={appInstalledState.paytm ? 'Installed' : 'Play Store'}
-                  onPress={handleOpenPaytm}
-                  disabled={isButtonsDisabled}
-                />
-
-                <PaymentOptionCard
-                  title="Other UPI Apps"
-                  subtitle="BHIM, Cred, Bank Apps & more"
-                  iconName="apps-outline"
-                  iconColor={colors.success}
-                  bgColor={colors.success + '15'}
-                  onPress={handleOpenOtherUpi}
-                  disabled={isButtonsDisabled}
-                />
+                <TouchableOpacity 
+                  style={[styles.btn, styles.btnPay]} 
+                  onPress={handleConfirmPaid}
+                  disabled={loading || !upiId}
+                >
+                  <Text style={styles.btnPayText}>I Have Paid</Text>
+                </TouchableOpacity>
               </View>
             </Animated.View>
           </TouchableWithoutFeedback>
@@ -371,7 +235,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.lg || 14,
     padding: spacing.md,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -395,12 +259,6 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     marginTop: 2,
   },
-  upiIdText: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '600',
-    marginTop: 2,
-  },
   amountBox: {
     alignItems: 'flex-end',
   },
@@ -411,23 +269,136 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   amountValue: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: colors.success,
     marginTop: 2,
   },
-  loadingContainer: {
+  upiCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md || 10,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  upiDetails: {
+    flex: 1,
+  },
+  upiLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: colors.text.secondary,
+    letterSpacing: 0.8,
+  },
+  upiIdText: {
+    fontSize: 14,
+    color: colors.text.primary,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  copyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  copyButtonActive: {
+    backgroundColor: colors.success,
+    borderColor: colors.success,
+  },
+  copyButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  copyButtonTextActive: {
+    color: '#fff',
+  },
+  instructionsContainer: {
+    backgroundColor: colors.surface + '80',
+    borderRadius: radius.md || 10,
+    padding: spacing.md,
+    marginBottom: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  instructionsTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
+  },
+  instructionStep: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: spacing.xs,
+    gap: spacing.sm,
+  },
+  stepNumber: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.divider,
+    color: colors.text.secondary,
+    fontSize: 10,
+    fontWeight: '800',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  stepText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.text.secondary,
+    lineHeight: 18,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
     gap: spacing.xs,
   },
   loadingText: {
     fontSize: 12,
     color: colors.text.secondary,
-    marginTop: 4,
   },
-  optionsList: {
-    marginTop: spacing.xs,
+  btnRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  btn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  btnCancel: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  btnCancelText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text.secondary,
+  },
+  btnPay: {
+    backgroundColor: colors.primary,
+  },
+  btnPayText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#fff',
   },
 });
 
