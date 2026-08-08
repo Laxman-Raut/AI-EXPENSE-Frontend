@@ -216,7 +216,21 @@ const CreateSplitRequestScreen = ({ route, navigation }) => {
         'success'
       );
     } catch (err) {
-      Alert.alert('Error', err?.response?.data?.message || 'Failed to create split expense');
+      console.log('Error splitting:', err);
+      let errMsg = 'Failed to create split expense';
+      if (err?.response?.data) {
+        if (typeof err.response.data === 'string' && err.response.data.includes('<pre>')) {
+          const match = err.response.data.match(/<pre>([\s\S]*?)<\/pre>/);
+          if (match && match[1]) {
+            errMsg = match[1].split('\n')[0].replace(/&nbsp;/g, ' ').replace(/<br>/g, '').trim();
+          }
+        } else if (err.response.data.message) {
+          errMsg = err.response.data.message;
+        }
+      } else if (err?.message) {
+        errMsg = err.message;
+      }
+      Alert.alert('Error', errMsg);
     } finally {
       setSubmitting(false);
     }
