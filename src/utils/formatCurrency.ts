@@ -38,7 +38,12 @@ export const setExchangeRate = (usdToInr: number, ratesMap?: Record<string, numb
  */
 export const fetchAndCacheExchangeRate = async (apiClient: any): Promise<void> => {
   try {
-    const response = await apiClient.get('v1/currency/rates');
+    let response;
+    try {
+      response = await apiClient.get('currency/rates');
+    } catch {
+      response = await apiClient.get('v1/currency/rates');
+    }
     if (response?.data?.success && response?.data?.data) {
       const rateData = response.data.data;
       if (rateData.usdToInr && rateData.usdToInr > 0) {
