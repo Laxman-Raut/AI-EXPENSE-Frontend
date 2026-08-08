@@ -1,7 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 let cachedCurrency: string = 'INR';
-const USD_TO_INR_RATE: number = 85.0;
+
+// Dynamic exchange rate — updated from backend API on app startup
+// Falls back to 85.0 if API is unreachable
+let cachedUsdToInr: number = 85.0;
+let cachedRatesMap: Record<string, number> | null = null;
 
 // Attempt to load user preferred currency from storage on boot
 AsyncStorage.getItem('user').then((storedUser) => {
@@ -14,6 +18,43 @@ AsyncStorage.getItem('user').then((storedUser) => {
     } catch {}
   }
 });
+
+/**
+ * Update the cached exchange rate from backend API response.
+ * Called on app startup after fetching GET /api/currency/rates
+ */
+export const setExchangeRate = (usdToInr: number, ratesMap?: Record<string, number>): void => {
+  if (usdToInr && usdToInr > 0) {
+    cachedUsdToInr = usdToInr;
+  }
+  if (ratesMap && typeof ratesMap === 'object') {
+    cachedRatesMap = ratesMap;
+  }
+};
+
+/**
+ * Fetch live exchange rates from backend and cache them.
+ * Call this on app startup (e.g., in AppNavigator or after login).
+ */
+export const fetchAndCacheExchangeRate = async (apiClient: any): Promise<void> => {
+  try {
+    const response = await apiClient.get('v1/currency/rates');
+    if (response?.data?.success && response?.data?.data) {
+      const rateData = response.data.data;
+      if (rateData.usdToInr && rateData.usdToInr > 0) {
+        cachedUsdToInr = rateData.usdToInr;
+      }
+      if (rateData.rates) {
+        cachedRatesMap = rateData.rates;
+      }
+      console.log('[Currency] Live exchange rate loaded:', cachedUsdToInr);
+    }
+  } catch (err: any) {
+    console.warn('[Currency] Failed to fetch live rates, using fallback:', err?.message);
+  }
+};
+
+export const getExchangeRate = (): number => cachedUsdToInr;
 
 export const setGlobalCurrency = (currencyCode: string | null | undefined): void => {
   if (!currencyCode) return;
@@ -39,7 +80,8 @@ export const getCurrencySymbol = (currency: string | null = null): string => {
 };
 
 /**
- * Converts numeric value between currencies (USD <-> INR)
+ * Converts numeric value between currencies using live rates from backend.
+ * Uses the full ratesMap when available for multi-currency support.
  */
 export const convertCurrencyValue = (
   amount: number | string,
@@ -55,7 +97,10 @@ export const convertCurrencyValue = (
   const normalize = (curr: string) => {
     const upper = String(curr || '').toUpperCase();
     if (upper === '$' || upper === 'USD') return 'USD';
-    return 'INR';
+    if (upper === '₹' || upper === 'INR') return 'INR';
+    if (upper === '€' || upper === 'EUR') return 'EUR';
+    if (upper === '£' || upper === 'GBP') return 'GBP';
+    return upper;
   };
 
   const src = normalize(sourceCurrency);
@@ -63,15 +108,24 @@ export const convertCurrencyValue = (
 
   if (src === tgt) return num;
 
-  // Convert source -> INR -> target
-  const sourceInINR = src === 'USD' ? num * USD_TO_INR_RATE : num;
-  if (tgt === 'USD') return sourceInINR / USD_TO_INR_RATE;
-  return sourceInINR;
+  // Use full rates map if available for multi-currency precision
+  if (cachedRatesMap && cachedRatesMap[src] && cachedRatesMap[tgt]) {
+    const fromRate = Number(cachedRatesMap[src]);
+    const toRate = Number(cachedRatesMap[tgt]);
+    if (fromRate > 0 && toRate > 0) {
+      return Number(((num / fromRate) * toRate).toFixed(2));
+    }
+  }
+
+  // Fallback to simple USD<->INR conversion using cached rate
+  const sourceInINR = src === 'USD' ? num * cachedUsdToInr : num;
+  if (tgt === 'USD') return Number((sourceInINR / cachedUsdToInr).toFixed(2));
+  return Number(sourceInINR.toFixed(2));
 };
 
 /**
- * Formats amount with dynamic numerical conversion & active symbol
- * Accepts: formatCurrency(amount, fromCurrency, targetCurrency)
+ * Formats amount with dynamic numerical conversion & active symbol.
+ * Uses live exchange rates from backend API.
  */
 export const formatCurrency = (
   amount: number | string,

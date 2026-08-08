@@ -52,13 +52,7 @@ const CODE_TO_SYMBOL: Record<string, string> = {
   GBP: '£',
 };
 
-// Rough conversion rates relative to INR (fallback if plan doesn't have user's currency)
-const INR_RATES: Record<string, number> = {
-  INR: 1,
-  USD: 0.012,
-  EUR: 0.011,
-  GBP: 0.0095,
-};
+// Exchange rates are now fetched from backend API — no hardcoded rates needed
 
 const getBillingLabel = (cycle: string): string => {
   switch (cycle) {
@@ -69,12 +63,7 @@ const getBillingLabel = (cycle: string): string => {
   }
 };
 
-const USD_RATES: Record<string, number> = {
-  USD: 1,
-  INR: 85.0,
-  EUR: 0.92,
-  GBP: 0.79,
-};
+// USD_RATES removed — using backend displayPrice for all conversions
 
 const formatPrice = (price: number, planCurrency: string, userCurrencySymbol: string, planObj?: any) => {
   if (price === 0) return 'Free';
