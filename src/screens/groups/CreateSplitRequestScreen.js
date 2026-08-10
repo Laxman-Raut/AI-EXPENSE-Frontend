@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -104,6 +104,7 @@ const CreateSplitRequestScreen = ({ route, navigation }) => {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const { createSplit } = useGroupSplitRequests(group?._id);
 
   const selectedMemberIds = useMemo(
@@ -140,6 +141,7 @@ const CreateSplitRequestScreen = ({ route, navigation }) => {
   };
 
   const handleSubmit = async () => {
+    if (submittingRef.current) return;
     if (!title.trim()) {
       showAlert('Required Field', 'Please enter an expense title.', [{ text: 'OK' }], 'warning');
       return;
@@ -190,6 +192,7 @@ const CreateSplitRequestScreen = ({ route, navigation }) => {
 
     const calculatedDueDate = new Date(Date.now() + dueDays * 24 * 60 * 60 * 1000);
 
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       await createSplit({
@@ -232,6 +235,7 @@ const CreateSplitRequestScreen = ({ route, navigation }) => {
       }
       Alert.alert('Error', errMsg);
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };

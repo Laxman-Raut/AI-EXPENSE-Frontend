@@ -64,9 +64,13 @@ apiClient.interceptors.response.use(
     // Adaptive Network Fallback Chain:
     // Retry 1: Try LOCAL_IP (Wi-Fi network IP) if 10.0.2.2/localhost fails
     // Retry 2: Try Render Deployed Backend if local server is offline
+    const isGetRequest = originalRequest?.method?.toLowerCase() === 'get';
+    const isTimeout = error.code === 'ECONNABORTED';
+
     if (
       originalRequest &&
-      (error.code === 'ECONNABORTED' || error.message === 'Network Error' || !error.response) &&
+      (!isTimeout || isGetRequest) &&
+      (isTimeout || error.message === 'Network Error' || !error.response) &&
       (!originalRequest._retryCount || originalRequest._retryCount < 2)
     ) {
       originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;

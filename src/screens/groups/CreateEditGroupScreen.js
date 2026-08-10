@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -33,10 +33,12 @@ const CreateEditGroupScreen = ({ route, navigation }) => {
   const [description, setDescription] = useState(existingGroup?.description || '');
   const [avatar, setAvatar] = useState(existingGroup?.avatar || '');
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   const { createGroup, updateGroup } = useGroups();
 
   const handleSave = async () => {
+    if (savingRef.current) return;
     if (!name.trim()) {
       Alert.alert('Required Field', 'Please enter a group name.');
       return;
@@ -47,6 +49,7 @@ const CreateEditGroupScreen = ({ route, navigation }) => {
       return;
     }
 
+    savingRef.current = true;
     setSaving(true);
     try {
       if (isEditing && existingGroup?._id) {
@@ -68,6 +71,7 @@ const CreateEditGroupScreen = ({ route, navigation }) => {
     } catch (err) {
       Alert.alert('Error', err?.response?.data?.message || 'Failed to save group');
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
