@@ -181,24 +181,24 @@ const AnalyticsScreen = () => {
   }, [periodFilteredTxns, selectedPeriod, chartType]);
 
   // ─────────────────────────────────────────────────────────────
-  // 4. CATEGORY EXPENSE BREAKDOWN (Where did money go?)
+  // 4. CATEGORY BREAKDOWN (Where did money go / come from?)
   // ─────────────────────────────────────────────────────────────
   const categoryBreakdown = useMemo(() => {
-    const expenses = periodFilteredTxns.filter((t) => t.type === 'expense');
+    const txns = periodFilteredTxns.filter((t) => t.type === chartType);
     const catMap = {};
-    let totalCatExpense = 0;
+    let totalCatAmount = 0;
 
-    expenses.forEach((t) => {
+    txns.forEach((t) => {
       const cat = t.category || 'Others';
       const amt = Number(t.amount) || 0;
       catMap[cat] = (catMap[cat] || 0) + amt;
-      totalCatExpense += amt;
+      totalCatAmount += amt;
     });
 
     const list = Object.keys(catMap)
       .map((cat, idx) => {
         const amt = catMap[cat];
-        const pct = totalCatExpense > 0 ? Math.round((amt / totalCatExpense) * 100) : 0;
+        const pct = totalCatAmount > 0 ? Math.round((amt / totalCatAmount) * 100) : 0;
         return {
           name: cat,
           amount: amt,
@@ -218,8 +218,8 @@ const AnalyticsScreen = () => {
           }))
         : [{ value: 100, color: 'rgba(255, 255, 255, 0.1)', text: '0%' }];
 
-    return { list, pieData, totalCatExpense };
-  }, [periodFilteredTxns]);
+    return { list, pieData, totalCatAmount };
+  }, [periodFilteredTxns, chartType]);
 
   // ─────────────────────────────────────────────────────────────
   // 5. OUTFLOW BANK BREAKDOWN (Money spent from which bank?)
@@ -459,9 +459,13 @@ const AnalyticsScreen = () => {
           </Card>
         </View>
 
-        {/* Section 2: Where Did Money Go? (Category Expense Breakdown) */}
+        {/* Section 2: Category Breakdown */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Where Did Money Go? (Category Expenses)</Text>
+          <Text style={styles.sectionTitle}>
+            {chartType === 'expense'
+              ? 'Where Did Money Go? (Category Expenses)'
+              : 'Where Did Money Come From? (Category Income)'}
+          </Text>
           <Card style={styles.cardContainer}>
             <View style={styles.donutRow}>
               <View style={styles.donutWrapper}>
@@ -475,9 +479,11 @@ const AnalyticsScreen = () => {
                 />
                 <View style={styles.donutCenterText}>
                   <Text style={styles.donutCenterVal}>
-                    {formatCurrency(categoryBreakdown.totalCatExpense, 'INR', userCurrency)}
+                    {formatCurrency(categoryBreakdown.totalCatAmount, 'INR', userCurrency)}
                   </Text>
-                  <Text style={styles.donutCenterSub}>SPENT</Text>
+                  <Text style={styles.donutCenterSub}>
+                    {chartType === 'expense' ? 'SPENT' : 'INCOME'}
+                  </Text>
                 </View>
               </View>
 
@@ -493,7 +499,9 @@ const AnalyticsScreen = () => {
                     </View>
                   ))
                 ) : (
-                  <Text style={styles.emptyLegendText}>No expenses recorded</Text>
+                  <Text style={styles.emptyLegendText}>
+                    {chartType === 'expense' ? 'No expenses recorded' : 'No income recorded'}
+                  </Text>
                 )}
               </View>
             </View>
