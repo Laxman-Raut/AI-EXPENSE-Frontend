@@ -356,7 +356,7 @@ const AnalyticsScreen = () => {
             style={[styles.statBox, { borderColor: 'rgba(0, 210, 106, 0.3)' }]}
           >
             <View style={styles.statIconBgSuccess}>
-              <Icon name="arrow-down-left" size={16} color="#00D26A" />
+              <Icon name="arrow-down" size={16} color="#00D26A" />
             </View>
             <Text style={styles.statLabel}>Total Income</Text>
             <Text style={[styles.statValue, { color: '#00D26A' }]}>
@@ -370,7 +370,7 @@ const AnalyticsScreen = () => {
             style={[styles.statBox, { borderColor: 'rgba(255, 77, 103, 0.3)' }]}
           >
             <View style={styles.statIconBgDanger}>
-              <Icon name="arrow-up-right" size={16} color="#FF4D67" />
+              <Icon name="arrow-up" size={16} color="#FF4D67" />
             </View>
             <Text style={styles.statLabel}>Total Spent</Text>
             <Text style={[styles.statValue, { color: '#FF4D67' }]}>

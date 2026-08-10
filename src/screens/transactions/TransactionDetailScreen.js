@@ -184,7 +184,7 @@ const TransactionDetailScreen = ({ navigation, route }) => {
             {/* Type Chip */}
             <View style={[styles.typeBadge, { backgroundColor: isIncome ? 'rgba(0, 210, 106, 0.18)' : 'rgba(255, 77, 103, 0.18)' }]}>
               <Icon
-                name={isIncome ? 'arrow-down-left-sharp' : 'arrow-up-right-sharp'}
+                name={isIncome ? 'arrow-down-sharp' : 'arrow-up-sharp'}
                 size={14}
                 color={themeColor}
               />
