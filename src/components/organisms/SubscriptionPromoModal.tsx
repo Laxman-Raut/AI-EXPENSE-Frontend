@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import PrimaryButtonImport from '../atoms/PrimaryButton';
 import { colors, spacing, radius, typography as themeTypography } from '../../theme';
-import { usePayment } from '../../hooks/usePayment';
 
 const PrimaryButton = PrimaryButtonImport as any;
 const typography = themeTypography as any;
@@ -22,13 +21,6 @@ const SubscriptionPromoModal: React.FC<SubscriptionPromoModalProps> = ({
   onNavigateToPlans,
 }) => {
   const navigation = useNavigation<any>();
-  const { startSubscriptionPayment, isLoading } = usePayment();
-  const [selectedPlan, setSelectedPlan] = useState<'pro_monthly' | 'pro_yearly'>('pro_yearly');
-
-  const handleSubscribe = async () => {
-    onClose();
-    await startSubscriptionPayment(selectedPlan);
-  };
 
   const handleExploreAll = () => {
     onClose();
@@ -143,73 +135,24 @@ const SubscriptionPromoModal: React.FC<SubscriptionPromoModalProps> = ({
               ))}
             </View>
 
-            {/* Plan Selector */}
-            <Text style={styles.sectionLabel}>Choose Your Subscription Plan</Text>
-            <View style={styles.planSelectorRow}>
-              {/* Yearly Card (Recommended) */}
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={[
-                  styles.planCard,
-                  selectedPlan === 'pro_yearly' ? styles.selectedPlanCard : null,
-                ]}
-                onPress={() => setSelectedPlan('pro_yearly')}
-              >
-                <LinearGradient
-                  colors={selectedPlan === 'pro_yearly' ? ['#FFB648', '#FF6037'] : ['#8E949A', '#8E949A']}
-                  style={styles.discountBadge}
-                >
-                  <Text style={styles.discountBadgeText}>BEST VALUE • SAVE 16%</Text>
-                </LinearGradient>
-                <Text style={styles.planPeriod}>Yearly Pass</Text>
-                <Text style={styles.planPrice}>₹1,999</Text>
-                <Text style={styles.planSubprice}>₹166/month</Text>
-              </TouchableOpacity>
-
-              {/* Monthly Card */}
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={[
-                  styles.planCard,
-                  selectedPlan === 'pro_monthly' ? styles.selectedPlanCard : null,
-                ]}
-                onPress={() => setSelectedPlan('pro_monthly')}
-              >
-                <View style={styles.invisibleBadge}>
-                  <Text style={styles.invisibleBadgeText}>FLEXIBLE</Text>
-                </View>
-                <Text style={styles.planPeriod}>Monthly Pass</Text>
-                <Text style={styles.planPrice}>₹199</Text>
-                <Text style={styles.planSubprice}>Cancel anytime</Text>
-              </TouchableOpacity>
-            </View>
+            {/* Promo message */}
+            <Text style={styles.promoMsgText}>
+              To access these premium features, explore our flexible subscription plans.
+            </Text>
 
             {/* Main CTA Button */}
             <PrimaryButton
-              title={`Subscribe Now • ${selectedPlan === 'pro_yearly' ? '₹1,999/yr' : '₹199/mo'}`}
+              title="Explore Plans & Features"
               type="primary"
-              onPress={handleSubscribe}
-              loading={isLoading}
-              style={styles.subscribeBtn}
-              icon={<Icon name="flash" size={18} color="#FFFFFF" />}
+              onPress={handleExploreAll}
+              style={styles.exploreBtn}
+              icon={<Icon name="arrow-forward" size={18} color="#FFFFFF" />}
             />
-
-            {/* View All Plans Option */}
-            <TouchableOpacity onPress={handleExploreAll} style={styles.exploreAllBtn}>
-              <Text style={styles.exploreAllText}>Explore All Plans & Features</Text>
-              <Icon name="chevron-forward" size={16} color={colors.primary} />
-            </TouchableOpacity>
 
             {/* Maybe Later Button */}
             <TouchableOpacity onPress={onClose} style={styles.maybeLaterBtn}>
               <Text style={styles.maybeLaterText}>Maybe Later</Text>
             </TouchableOpacity>
-
-            {/* Security Guarantee Note */}
-            <View style={styles.trustFooter}>
-              <Icon name="shield-checkmark" size={14} color={colors.text.muted} />
-              <Text style={styles.trustText}>100% Secure Checkout via Razorpay • Cancel Anytime</Text>
-            </View>
 
           </ScrollView>
         </View>
@@ -450,6 +393,19 @@ const styles = StyleSheet.create({
   trustText: {
     fontSize: 10,
     color: colors.text.muted,
+  },
+  promoMsgText: {
+    fontSize: typography.sizes.sm,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+    lineHeight: 20,
+    paddingHorizontal: spacing.md,
+  },
+  exploreBtn: {
+    width: '100%',
+    marginBottom: spacing.xs,
   },
 });
 
