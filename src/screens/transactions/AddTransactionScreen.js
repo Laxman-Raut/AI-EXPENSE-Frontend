@@ -113,7 +113,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
         setSelectedBankId(primary._id);
       }
     }
-  }, [banks, isEditing, transactionDetails]);
+  }, [banks, isEditing, transactionDetails, selectedBankId]);
 
   // Populate data when editing
   useEffect(() => {

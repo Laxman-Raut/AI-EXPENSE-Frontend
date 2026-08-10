@@ -48,16 +48,18 @@ const Screen = ({
   );
 
   return (
-    <SafeAreaView style={[styles.safeArea, safeAreaStyle]} edges={edges}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-      
-      {/* Optional Header Molecule */}
-      {header && <View>{header}</View>}
-      
-      {/* Main Screen Layout Container */}
-      <View style={styles.mainContainer}>
-        {container}
-      </View>
+    <View style={styles.rootContainer}>
+      <SafeAreaView style={[styles.safeArea, safeAreaStyle]} edges={edges}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+        
+        {/* Optional Header Molecule */}
+        {header && <View>{header}</View>}
+        
+        {/* Main Screen Layout Container */}
+        <View style={styles.mainContainer}>
+          {container}
+        </View>
+      </SafeAreaView>
 
       {/* Full-Screen Loading Overlay */}
       {loading && (
@@ -65,11 +67,15 @@ const Screen = ({
           <ActivityIndicator color={colors.primary} size="large" />
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
