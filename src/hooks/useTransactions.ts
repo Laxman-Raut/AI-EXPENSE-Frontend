@@ -8,12 +8,17 @@ import {
 } from '../services/transactionService';
 import { CreateTransactionData } from '../types';
 
-export const useTransactions = () => {
+import { getGlobalCurrency } from '../utils/formatCurrency';
+
+export const useTransactions = (currency: string | null = null) => {
+  const activeCurrency = currency || getGlobalCurrency() || 'INR';
+
   return useQuery({
-    queryKey: ['transactions'],
+    queryKey: ['transactions', activeCurrency],
     queryFn: async () => {
       return await fetchTransactions();
     },
+    staleTime: 0,
   });
 };
 

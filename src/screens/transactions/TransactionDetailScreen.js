@@ -15,7 +15,7 @@ import Screen from '../../components/templates/Screen';
 import CustomAlert from '../../components/molecules/CustomAlert';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
 import { useTransaction, useDeleteTransaction } from '../../hooks/useTransactions';
-import { formatCurrency, getGlobalCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getGlobalCurrency, getStoredAmountForCurrency } from '../../utils/formatCurrency';
 import { useAuth } from '../../hooks/useAuth';
 import { formatDateTime } from '../../utils/formatDate';
 import BankLogo from '../../components/atoms/BankLogo';
@@ -40,8 +40,11 @@ const getCategoryIconInfo = (cat = '', type = 'expense') => {
 
 const TransactionDetailScreen = ({ navigation, route }) => {
   const { user } = useAuth();
-  const { id } = route.params;
-  const { data: transaction, isLoading } = useTransaction(id);
+  const txParam = route.params?.transaction || route.params?.item || route.params?.txn;
+  const transactionId = route.params?.id || route.params?.transactionId || txParam?._id || txParam?.id;
+
+  const { data: fetchedTx, isLoading } = useTransaction(transactionId);
+  const transaction = fetchedTx || txParam;
   const deleteMutation = useDeleteTransaction();
   const targetCurrency = user?.currency || getGlobalCurrency();
 
@@ -52,7 +55,7 @@ const TransactionDetailScreen = ({ navigation, route }) => {
   const handleShare = async () => {
     if (!transaction) return;
     const isInc = transaction.type === 'income';
-    const amountStr = `${isInc ? '+' : '-'}${formatCurrency(transaction.amount, transaction.currency || 'INR', targetCurrency)}`;
+    const amountStr = `${isInc ? '+' : '-'}${formatCurrency(getStoredAmountForCurrency(transaction, targetCurrency), targetCurrency)}`;
     const text = `💸 ExpenseAI Transaction Details:\n• Type: ${transaction.type.toUpperCase()}\n• Amount: ${amountStr}\n• Category: ${transaction.category}\n• Date: ${formatDateTime(transaction.transactionDate)}\n• Notes: ${transaction.note || transaction.description}`;
     try {
       await Share.share({ message: text });
@@ -61,11 +64,28 @@ const TransactionDetailScreen = ({ navigation, route }) => {
     }
   };
 
-  if (isLoading || !transaction) {
+  if (isLoading && !transaction) {
     return (
       <View style={styles.loadingRoot}>
         <ActivityIndicator color={colors.primary} size="large" />
         <Text style={styles.loadingText}>Fetching transaction details...</Text>
+      </View>
+    );
+  }
+
+  if (!transaction) {
+    return (
+      <View style={styles.loadingRoot}>
+        <Icon name="alert-circle-outline" size={48} color={colors.danger || '#FF4D67'} />
+        <Text style={[styles.loadingText, { marginTop: 12, fontSize: 16, color: colors.text.primary }]}>
+          Transaction details not found.
+        </Text>
+        <TouchableOpacity
+          style={{ marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.primary, borderRadius: 12 }}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -136,7 +156,7 @@ const TransactionDetailScreen = ({ navigation, route }) => {
             setDeleteAlertVisible(false);
             if (btn.style === 'destructive') {
               try {
-                await deleteMutation.mutateAsync(id);
+                await deleteMutation.mutateAsync(transaction._id);
                 navigation.goBack();
               } catch (error) {
                 setErrorMessage(error.message || 'Failed to delete transaction');
@@ -196,7 +216,7 @@ const TransactionDetailScreen = ({ navigation, route }) => {
 
             {/* Amount */}
             <Text style={[styles.amountDisplay, { color: themeColor }]}>
-              {isIncome ? '+' : '-'}{formatCurrency(transaction.amount, transaction.currency || 'INR', targetCurrency)}
+              {isIncome ? '+' : '-'}{formatCurrency(getStoredAmountForCurrency(transaction, targetCurrency), targetCurrency)}
             </Text>
 
             {/* Description */}

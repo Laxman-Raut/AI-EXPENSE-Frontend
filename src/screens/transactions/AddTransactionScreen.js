@@ -87,15 +87,8 @@ const AddTransactionScreen = ({ navigation, route }) => {
   const [pickerMonth, setPickerMonth] = useState(dayjs());
 
   // Bank selection state
-  const { banks, refetch: refetchBanks } = useBanks();
+  const { banks } = useBanks();
   const [selectedBankId, setSelectedBankId] = useState(null);
-
-  // Auto refetch banks on screen focus
-  useFocusEffect(
-    useCallback(() => {
-      refetchBanks(true);
-    }, [refetchBanks])
-  );
 
   // Auto-select primary bank when banks load or editing
   useEffect(() => {

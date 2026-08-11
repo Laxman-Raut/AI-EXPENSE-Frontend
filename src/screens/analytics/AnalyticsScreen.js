@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { LineChart, PieChart } from 'react-native-gifted-charts';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -17,7 +18,7 @@ import isBetween from 'dayjs/plugin/isBetween';
 import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
 import { colors, spacing, typography, radius } from '../../theme';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getStoredAmountForCurrency } from '../../utils/formatCurrency';
 import { useTransactions } from '../../hooks/useTransactions';
 import BankLogo from '../../components/atoms/BankLogo';
 
@@ -63,7 +64,13 @@ const AnalyticsScreen = () => {
   const [chartType, setChartType] = useState('expense'); // 'expense' | 'income'
 
   const userCurrency = useSelector((state) => state.auth?.user?.currency || state.app?.currency || 'INR');
-  const { data: transactions = [], isLoading } = useTransactions();
+  const { data: transactions = [], isLoading, refetch } = useTransactions(userCurrency);
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [userCurrency, refetch])
+  );
 
   // ─────────────────────────────────────────────────────────────
   // 1. FILTER TRANSACTIONS BY SELECTED PERIOD
@@ -93,7 +100,7 @@ const AnalyticsScreen = () => {
     let totalExpense = 0;
 
     periodFilteredTxns.forEach((t) => {
-      const amt = Number(t.amount) || 0;
+      const amt = getStoredAmountForCurrency(t, userCurrency);
       if (t.type === 'income') {
         totalIncome += amt;
       } else {
@@ -128,7 +135,7 @@ const AnalyticsScreen = () => {
       filtered.forEach((t) => {
         const h = dayjs(t.transactionDate || t.createdAt).hour();
         const idx = Math.min(6, Math.floor(h / 4));
-        hourTotals[idx] += Number(t.amount) || 0;
+        hourTotals[idx] += getStoredAmountForCurrency(t, userCurrency);
       });
       points = hours.map((h, i) => ({
         value: hourTotals[i],
@@ -140,7 +147,7 @@ const AnalyticsScreen = () => {
       const dayTotals = {};
       filtered.forEach((t) => {
         const dayNum = dayjs(t.transactionDate || t.createdAt).date();
-        dayTotals[dayNum] = (dayTotals[dayNum] || 0) + (Number(t.amount) || 0);
+        dayTotals[dayNum] = (dayTotals[dayNum] || 0) + getStoredAmountForCurrency(t, userCurrency);
       });
       for (let d = 1; d <= daysInMonth; d += interval) {
         points.push({
@@ -152,7 +159,7 @@ const AnalyticsScreen = () => {
       const monthTotals = Array(12).fill(0);
       filtered.forEach((t) => {
         const m = dayjs(t.transactionDate || t.createdAt).month();
-        monthTotals[m] += Number(t.amount) || 0;
+        monthTotals[m] += getStoredAmountForCurrency(t, userCurrency);
       });
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       points = monthNames.map((m, i) => ({
@@ -167,7 +174,7 @@ const AnalyticsScreen = () => {
         const d = dayjs(t.transactionDate || t.createdAt);
         const idx = months.findIndex((m) => m.isSame(d, 'month'));
         if (idx !== -1) {
-          monthTotals[idx] += Number(t.amount) || 0;
+          monthTotals[idx] += getStoredAmountForCurrency(t, userCurrency);
         }
       });
       points = months.map((m, i) => ({
@@ -190,7 +197,7 @@ const AnalyticsScreen = () => {
 
     txns.forEach((t) => {
       const cat = t.category || 'Others';
-      const amt = Number(t.amount) || 0;
+      const amt = getStoredAmountForCurrency(t, userCurrency);
       catMap[cat] = (catMap[cat] || 0) + amt;
       totalCatAmount += amt;
     });
@@ -230,7 +237,7 @@ const AnalyticsScreen = () => {
     let totalOutflow = 0;
 
     expenses.forEach((t) => {
-      const amt = Number(t.amount) || 0;
+      const amt = getStoredAmountForCurrency(t, userCurrency);
       let bankName = 'Unlinked / Cash';
       let accNo = '';
 
@@ -360,7 +367,7 @@ const AnalyticsScreen = () => {
             </View>
             <Text style={styles.statLabel}>Total Income</Text>
             <Text style={[styles.statValue, { color: '#00D26A' }]}>
-              {formatCurrency(stats.totalIncome, 'INR', userCurrency)}
+              {formatCurrency(stats.totalIncome, userCurrency)}
             </Text>
           </LinearGradient>
 
@@ -374,7 +381,7 @@ const AnalyticsScreen = () => {
             </View>
             <Text style={styles.statLabel}>Total Spent</Text>
             <Text style={[styles.statValue, { color: '#FF4D67' }]}>
-              {formatCurrency(stats.totalExpense, 'INR', userCurrency)}
+              {formatCurrency(stats.totalExpense, userCurrency)}
             </Text>
           </LinearGradient>
 
@@ -388,7 +395,7 @@ const AnalyticsScreen = () => {
             </View>
             <Text style={styles.statLabel}>Net Balance</Text>
             <Text style={[styles.statValue, { color: stats.netSavings >= 0 ? colors.text.primary : '#FF4D67' }]}>
-              {formatCurrency(stats.netSavings, 'INR', userCurrency)}
+              {formatCurrency(stats.netSavings, userCurrency)}
             </Text>
           </LinearGradient>
 
@@ -479,10 +486,14 @@ const AnalyticsScreen = () => {
                 />
                 <View style={styles.donutCenterText}>
                   <Text style={styles.donutCenterVal}>
+<<<<<<< Updated upstream
                     {formatCurrency(categoryBreakdown.totalCatAmount, 'INR', userCurrency)}
                   </Text>
                   <Text style={styles.donutCenterSub}>
                     {chartType === 'expense' ? 'SPENT' : 'INCOME'}
+=======
+                    {formatCurrency(categoryBreakdown.totalCatExpense, userCurrency)}
+>>>>>>> Stashed changes
                   </Text>
                 </View>
               </View>
@@ -515,7 +526,7 @@ const AnalyticsScreen = () => {
                     <Text style={styles.catBarName}>{cat.name}</Text>
                   </View>
                   <View style={styles.catBarRight}>
-                    <Text style={styles.catBarAmt}>{formatCurrency(cat.amount, 'INR', userCurrency)}</Text>
+                    <Text style={styles.catBarAmt}>{formatCurrency(cat.amount, userCurrency)}</Text>
                     <Text style={styles.catBarPct}> ({cat.percentage}%)</Text>
                   </View>
                 </View>
@@ -556,7 +567,7 @@ const AnalyticsScreen = () => {
                     </View>
                     <View style={styles.bankItemRight}>
                       <Text style={[styles.bankItemAmt, { color: '#FF4D67' }]}>
-                        -{formatCurrency(bank.amount, 'INR', userCurrency)}
+                        -{formatCurrency(bank.amount, userCurrency)}
                       </Text>
                       <Text style={styles.bankItemPct}>{bank.percentage}% of Outflow</Text>
                     </View>
@@ -605,7 +616,7 @@ const AnalyticsScreen = () => {
                     </View>
                     <View style={styles.bankItemRight}>
                       <Text style={[styles.bankItemAmt, { color: '#00D26A' }]}>
-                        +{formatCurrency(bank.amount, 'INR', userCurrency)}
+                        +{formatCurrency(bank.amount, userCurrency)}
                       </Text>
                       <Text style={styles.bankItemPct}>{bank.percentage}% of Inflow</Text>
                     </View>

@@ -17,12 +17,12 @@ const getInitialBaseUrl = () => {
     const cleanEnvUrl = process.env.API_URL.trim().replace(/\/+$/, '');
     return cleanEnvUrl.endsWith('/api') ? cleanEnvUrl : `${cleanEnvUrl}/api`;
   }
-  // Default to Render Production Server
-  return RENDER_BASE_URL;
+  // Point to local development backend server
+  return `http://${LOCALHOST_IP}:5000/api`;
 };
 
 const BASE_URL = getInitialBaseUrl();
-console.log('[API Client] Active Render Production Base URL:', BASE_URL);
+console.log('[API Client] Active Development Base URL:', BASE_URL);
 
 const apiClient = axios.create({
   baseURL: BASE_URL,

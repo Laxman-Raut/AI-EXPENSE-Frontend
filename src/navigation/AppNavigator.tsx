@@ -14,6 +14,9 @@ import {
 } from '../services/pushNotificationService';
 import { useAutoSync } from '../hooks/useSync';
 
+import { fetchAndCacheExchangeRate } from '../utils/formatCurrency';
+import apiClient from '../api/client';
+
 export const navigationRef = createNavigationContainerRef<any>();
 
 const AuthenticatedMain = () => {
@@ -27,13 +30,14 @@ const AppNavigator: React.FC = () => {
   const prevAuthRef = useRef(isAuthenticated);
 
   // ─────────────────────────────────────────────────────────────
-  // FCM Push Notification Initialization
+  // FCM Push Notification & Currency Rates Initialization
   // Runs once when user becomes authenticated
   // ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isAuthenticated) {
-      // User just logged in or app restored auth — initialize FCM
+      // User just logged in or app restored auth — initialize FCM & Live Rates
       initializePushNotifications();
+      fetchAndCacheExchangeRate(apiClient);
     }
   }, [isAuthenticated]);
 

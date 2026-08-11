@@ -77,6 +77,7 @@ export const createTransaction = async (data) => {
         const cloudItem = response.data;
         await transactionRepository.add({
           ...data,
+          ...cloudItem,
           cloudId: cloudItem._id,
           isSynced: 1,
         });
@@ -107,6 +108,7 @@ export const updateTransaction = async (id, data) => {
       if (response && response.success) {
         await transactionRepository.update({
           ...data,
+          ...response.data,
           id,
           isSynced: 1,
         });

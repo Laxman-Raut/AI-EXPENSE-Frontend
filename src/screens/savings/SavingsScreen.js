@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,11 +15,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, typography, radius } from '../../theme';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getStoredAmountForCurrency } from '../../utils/formatCurrency';
 import savingsApi from '../../api/savings';
 import { useSelector } from 'react-redux';
+import { useAuth } from '../../hooks/useAuth';
+import { getGlobalCurrency } from '../../utils/formatCurrency';
 
 const SavingsScreen = ({ navigation }) => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('active'); // active | completed | archived
   const [jars, setJars] = useState([]);
   const [summary, setSummary] = useState({
@@ -41,11 +44,12 @@ const SavingsScreen = ({ navigation }) => {
 
   const subscription = useSelector((state) => state.subscription?.subscription);
   const isPremium = subscription?.plan === 'pro' && subscription?.status === 'active';
+  const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
 
   const handleOpenGoalModal = () => {
     const existing = summary.periodicGoal?.goal;
     if (existing) {
-      setGoalTargetAmount(String(existing.targetAmount));
+      setGoalTargetAmount(String(getStoredAmountForCurrency(existing, activeCurrency, 'targetAmount')));
       setGoalPeriod(existing.period || 'monthly');
       setGoalNotes(existing.notes || '');
     } else {
@@ -55,6 +59,20 @@ const SavingsScreen = ({ navigation }) => {
     }
     setGoalModalVisible(true);
   };
+
+  const totalSavingsDisplay = useMemo(() => {
+    if (Array.isArray(jars) && jars.length > 0) {
+      return jars.reduce((sum, item) => sum + getStoredAmountForCurrency(item, activeCurrency, 'currentAmount'), 0);
+    }
+    return Number(summary.totalSavings || 0);
+  }, [jars, summary.totalSavings, activeCurrency]);
+
+  const goalSnapshot = summary.periodicGoal?.goal || null;
+  const goalSaved = goalSnapshot ? getStoredAmountForCurrency(goalSnapshot, activeCurrency, 'savedInPeriod') : 0;
+  const goalTarget = goalSnapshot ? getStoredAmountForCurrency(goalSnapshot, activeCurrency, 'targetAmount') : 0;
+  const goalRemaining = goalSnapshot ? Math.max(goalTarget - goalSaved, 0) : 0;
+  const goalPercentage = goalSnapshot && goalTarget > 0 ? Math.min(Math.round((goalSaved / goalTarget) * 100), 100) : 0;
+  const goalAchieved = goalSnapshot ? goalSaved >= goalTarget && goalTarget > 0 : false;
 
   const handleSaveGoal = async () => {
     const amountNum = Number(goalTargetAmount);
@@ -163,10 +181,12 @@ const SavingsScreen = ({ navigation }) => {
 
   const renderJarCard = ({ item }) => {
     const hasTarget = item.targetAmount && item.targetAmount > 0;
+    const currentAmount = getStoredAmountForCurrency(item, activeCurrency, 'currentAmount');
+    const targetAmount = getStoredAmountForCurrency(item, activeCurrency, 'targetAmount');
     const percentage = hasTarget
-      ? Math.min(Math.round((item.currentAmount / item.targetAmount) * 100), 100)
+      ? Math.min(Math.round((currentAmount / (targetAmount || 1)) * 100), 100)
       : 0;
-    const remaining = hasTarget ? Math.max(item.targetAmount - item.currentAmount, 0) : 0;
+    const remaining = hasTarget ? Math.max(targetAmount - currentAmount, 0) : 0;
 
     return (
       <TouchableOpacity
@@ -218,12 +238,12 @@ const SavingsScreen = ({ navigation }) => {
         <View style={styles.amountRow}>
           <View>
             <Text style={styles.amountLabel}>SAVED</Text>
-            <Text style={styles.savedAmountText}>{formatCurrency(item.currentAmount || 0)}</Text>
+            <Text style={styles.savedAmountText}>{formatCurrency(currentAmount, activeCurrency)}</Text>
           </View>
           {hasTarget ? (
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={styles.amountLabel}>TARGET</Text>
-              <Text style={styles.targetAmountText}>{formatCurrency(item.targetAmount)}</Text>
+              <Text style={styles.targetAmountText}>{formatCurrency(targetAmount, activeCurrency)}</Text>
             </View>
           ) : null}
         </View>
@@ -245,7 +265,7 @@ const SavingsScreen = ({ navigation }) => {
             <View style={styles.progressMetaRow}>
               <Text style={styles.progressText}>{percentage}% Completed</Text>
               <Text style={styles.progressText}>
-                {remaining > 0 ? `${formatCurrency(remaining)} left` : 'Goal Reached! 🎉'}
+                {remaining > 0 ? `${formatCurrency(remaining, activeCurrency)} left` : 'Goal Reached! 🎉'}
               </Text>
             </View>
           </View>
@@ -290,7 +310,7 @@ const SavingsScreen = ({ navigation }) => {
             {/* Savings Overview Hero Card */}
             <View style={styles.summaryHeroCard}>
               <Text style={styles.heroSub}>TOTAL SAVINGS</Text>
-              <Text style={styles.heroAmount}>{formatCurrency(summary.totalSavings || 0)}</Text>
+            <Text style={styles.heroAmount}>{formatCurrency(totalSavingsDisplay, activeCurrency)}</Text>
 
               <View style={styles.heroStatsRow}>
                 <View style={styles.statBox}>
@@ -365,13 +385,13 @@ const SavingsScreen = ({ navigation }) => {
                     <View>
                       <Text style={styles.goalSavedLabel}>SAVED THIS PERIOD</Text>
                       <Text style={styles.goalSavedValue}>
-                        {formatCurrency(summary.periodicGoal.goal.savedInPeriod || 0)}
+                      {formatCurrency(goalSaved, activeCurrency)}
                       </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text style={styles.goalTargetLabel}>TARGET</Text>
                       <Text style={styles.goalTargetValue}>
-                        {formatCurrency(summary.periodicGoal.goal.targetAmount)}
+                        {formatCurrency(goalTarget, activeCurrency)}
                       </Text>
                     </View>
                   </View>
@@ -381,10 +401,10 @@ const SavingsScreen = ({ navigation }) => {
                       style={[
                         styles.goalProgressBarFill,
                         {
-                          width: `${summary.periodicGoal.goal.percentage}%`,
-                          backgroundColor: summary.periodicGoal.goal.isGoalAchieved
-                            ? colors.success
-                            : colors.primary,
+                        width: `${goalPercentage}%`,
+                    backgroundColor: goalAchieved
+                          ? colors.success
+                          : colors.primary,
                         },
                       ]}
                     />
@@ -392,12 +412,12 @@ const SavingsScreen = ({ navigation }) => {
 
                   <View style={styles.goalProgressMetaRow}>
                     <Text style={styles.goalProgressText}>
-                      {summary.periodicGoal.goal.percentage}% Achieved
+                      {goalPercentage}% Achieved
                     </Text>
                     <Text style={styles.goalProgressText}>
-                      {summary.periodicGoal.goal.isGoalAchieved
+                      {goalAchieved
                         ? 'Target Achieved! 🎉'
-                        : `${formatCurrency(summary.periodicGoal.goal.remaining)} remaining`}
+                        : `${formatCurrency(goalRemaining, activeCurrency)} remaining`}
                     </Text>
                   </View>
                 </View>

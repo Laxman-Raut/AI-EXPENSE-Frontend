@@ -1,4 +1,5 @@
 import db from './database';
+import { convertCurrencyValue, getExchangeRate, normalizeCurrencyCode } from '../utils/formatCurrency';
 
 /**
  * Normalizes rows returned by react-native-quick-sqlite
@@ -16,16 +17,47 @@ const extractRows = (result) => {
   return list;
 };
 
+const buildSnapshot = (data = {}) => {
+  const currency = normalizeCurrencyCode(data.currency || data.originalCurrency || 'INR');
+  const originalAmount = Number(data.originalAmount ?? data.amount ?? 0) || 0;
+  const originalCurrency = normalizeCurrencyCode(data.originalCurrency || currency);
+  const exchangeRate = Number(data.exchangeRate || getExchangeRate() || 0) || null;
+  const exchangeRateTimestamp = data.exchangeRateTimestamp || data.rateTimestamp || new Date().toISOString();
+  const amountINR = Number(
+    data.amountINR ??
+      (originalCurrency === 'INR'
+        ? originalAmount
+        : convertCurrencyValue(originalAmount, originalCurrency, 'INR'))
+  ) || 0;
+  const amountUSD = Number(
+    data.amountUSD ??
+      (originalCurrency === 'USD'
+        ? originalAmount
+        : convertCurrencyValue(originalAmount, originalCurrency, 'USD'))
+  ) || 0;
+
+  return {
+    currency,
+    originalAmount,
+    originalCurrency,
+    amountINR,
+    amountUSD,
+    exchangeRate,
+    exchangeRateTimestamp,
+  };
+};
+
 /**
  * Adds a transaction to SQLite database
  */
 export const addTransaction = (data) => {
   try {
     const now = new Date().toISOString();
+    const snapshot = buildSnapshot(data);
     const query = `
       INSERT INTO transactions (
-        cloudId, userId, type, category, description, amount, paymentMethod, transactionDate, note, isSynced, deleted, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?);
+        cloudId, userId, type, category, description, amount, currency, originalAmount, originalCurrency, amountINR, amountUSD, exchangeRate, exchangeRateTimestamp, paymentMethod, transactionDate, bankAccount, note, isSynced, deleted, createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?);
     `;
     const params = [
       data.cloudId || null,
@@ -33,9 +65,17 @@ export const addTransaction = (data) => {
       data.type,
       data.category,
       data.description || '',
-      parseFloat(data.amount) || 0,
+      snapshot.originalAmount,
+      snapshot.currency,
+      snapshot.originalAmount,
+      snapshot.originalCurrency,
+      snapshot.amountINR,
+      snapshot.amountUSD,
+      snapshot.exchangeRate,
+      snapshot.exchangeRateTimestamp,
       data.paymentMethod || 'UPI',
       data.transactionDate || now,
+      data.bankAccount || null,
       data.note || '',
       data.isSynced ? 1 : 0,
       now,
@@ -45,6 +85,7 @@ export const addTransaction = (data) => {
     return {
       id: result.insertId,
       ...data,
+      ...snapshot,
       isSynced: data.isSynced ? 1 : 0,
     };
   } catch (error) {
@@ -60,7 +101,26 @@ export const getAllTransactions = () => {
   try {
     const query = `SELECT * FROM transactions WHERE deleted = 0 ORDER BY transactionDate DESC, id DESC;`;
     const result = db.execute(query);
-    return extractRows(result);
+    const rows = extractRows(result);
+    return rows.map((row) => {
+      const origCurr = normalizeCurrencyCode(row.originalCurrency || row.currency || 'INR');
+      const origAmt = Number(row.originalAmount ?? row.amount ?? 0) || 0;
+      const snapINR = row.amountINR !== null && row.amountINR !== undefined
+        ? Number(row.amountINR)
+        : (origCurr === 'INR' ? origAmt : convertCurrencyValue(origAmt, origCurr, 'INR'));
+      const snapUSD = row.amountUSD !== null && row.amountUSD !== undefined
+        ? Number(row.amountUSD)
+        : (origCurr === 'USD' ? origAmt : convertCurrencyValue(origAmt, origCurr, 'USD'));
+
+      return {
+        ...row,
+        amount: origAmt,
+        originalAmount: origAmt,
+        originalCurrency: origCurr,
+        amountINR: snapINR,
+        amountUSD: snapUSD,
+      };
+    });
   } catch (error) {
     console.error('Error fetching transactions from SQLite:', error);
     return [];
@@ -102,14 +162,23 @@ export const getUnsyncedTransactions = () => {
 export const updateTransaction = (data) => {
   try {
     const now = new Date().toISOString();
+    const snapshot = buildSnapshot(data);
     const query = `
       UPDATE transactions SET
         type = ?,
         category = ?,
         description = ?,
         amount = ?,
+        currency = ?,
+        originalAmount = ?,
+        originalCurrency = ?,
+        amountINR = ?,
+        amountUSD = ?,
+        exchangeRate = ?,
+        exchangeRateTimestamp = ?,
         paymentMethod = ?,
         transactionDate = ?,
+        bankAccount = ?,
         note = ?,
         isSynced = ?,
         updatedAt = ?
@@ -119,9 +188,17 @@ export const updateTransaction = (data) => {
       data.type,
       data.category,
       data.description || '',
-      parseFloat(data.amount) || 0,
+      snapshot.originalAmount,
+      snapshot.currency,
+      snapshot.originalAmount,
+      snapshot.originalCurrency,
+      snapshot.amountINR,
+      snapshot.amountUSD,
+      snapshot.exchangeRate,
+      snapshot.exchangeRateTimestamp,
       data.paymentMethod || 'UPI',
       data.transactionDate || now,
+      data.bankAccount || null,
       data.note || '',
       data.isSynced ? 1 : 0,
       now,
@@ -179,19 +256,28 @@ export const bulkInsertFromCloud = (cloudItems = []) => {
   try {
     const now = new Date().toISOString();
     for (const item of cloudItems) {
+      const snapshot = buildSnapshot(item);
       const query = `
         INSERT OR REPLACE INTO transactions (
-          cloudId, type, category, description, amount, paymentMethod, transactionDate, note, isSynced, deleted, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?);
+          cloudId, type, category, description, amount, currency, originalAmount, originalCurrency, amountINR, amountUSD, exchangeRate, exchangeRateTimestamp, paymentMethod, transactionDate, bankAccount, note, isSynced, deleted, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?);
       `;
       const params = [
         item._id || item.cloudId,
         item.type,
         item.category,
         item.description || '',
-        parseFloat(item.amount) || 0,
+        snapshot.originalAmount,
+        snapshot.currency,
+        snapshot.originalAmount,
+        snapshot.originalCurrency,
+        snapshot.amountINR,
+        snapshot.amountUSD,
+        snapshot.exchangeRate,
+        snapshot.exchangeRateTimestamp,
         item.paymentMethod || 'UPI',
         item.transactionDate || now,
+        item.bankAccount || null,
         item.note || '',
         item.createdAt || now,
         item.updatedAt || now,

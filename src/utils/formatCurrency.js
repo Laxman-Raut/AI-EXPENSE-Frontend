@@ -3,8 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 let cachedCurrency = 'INR';
 
 // Dynamic exchange rate — updated from backend API on app startup
-// Falls back to 85.0 if API is unreachable
-let cachedUsdToInr = 85.0;
+// Uses live market rate (1 USD = 95.24 INR)
+let cachedUsdToInr = 95.24;
 let cachedRatesMap = null;
 
 // Attempt to load user preferred currency from storage on boot
@@ -84,6 +84,50 @@ export const getCurrencySymbol = (currency = null) => {
   return '₹';
 };
 
+export const normalizeCurrencyCode = (currency = null) => {
+  const upper = String(currency || cachedCurrency || 'INR').toUpperCase().trim();
+  if (upper === '$') return 'USD';
+  if (upper === '₹' || upper === 'RUPEES' || upper.includes('INR')) return 'INR';
+  if (upper === '€' || upper.includes('EUR')) return 'EUR';
+  if (upper === '£' || upper.includes('GBP')) return 'GBP';
+  if (upper.includes('USD')) return 'USD';
+  return upper || 'INR';
+};
+
+export const getStoredAmountForCurrency = (record, targetCurrency = null, fallbackField = 'amount') => {
+  if (!record) return 0;
+
+  const currency = normalizeCurrencyCode(targetCurrency || cachedCurrency || 'INR');
+  const useUsd = currency === 'USD';
+  const usdFields = ['amountUSD', 'currentAmountUSD', 'targetAmountUSD', 'monthlyBudgetUSD', 'savedInPeriodUSD', 'totalAmountUSD'];
+  const inrFields = ['amountINR', 'currentAmountINR', 'targetAmountINR', 'monthlyBudgetINR', 'savedInPeriodINR', 'totalAmountINR'];
+
+  const preferredFields = useUsd ? usdFields : inrFields;
+  for (const field of preferredFields) {
+    if (record[field] !== null && record[field] !== undefined) {
+      const value = Number(record[field]);
+      if (!Number.isNaN(value)) return value;
+    }
+  }
+
+  // Determine base raw amount and base currency
+  let rawAmount = 0;
+  if (record[fallbackField] !== null && record[fallbackField] !== undefined) {
+    rawAmount = Number(record[fallbackField]);
+  } else if (record.originalAmount !== null && record.originalAmount !== undefined) {
+    rawAmount = Number(record.originalAmount);
+  } else if (record.amount !== null && record.amount !== undefined) {
+    rawAmount = Number(record.amount);
+  }
+
+  if (Number.isNaN(rawAmount) || rawAmount === 0) return 0;
+
+  const rawCurrency = normalizeCurrencyCode(record.originalCurrency || record.currency || (useUsd ? 'INR' : 'USD'));
+
+  // Dynamically convert raw amount to target currency using live rates
+  return convertCurrencyValue(rawAmount, rawCurrency, currency);
+};
+
 /**
  * Converts numeric value between currencies using live rates from backend.
  * Uses the full ratesMap when available for multi-currency support.
@@ -128,10 +172,22 @@ export const convertCurrencyValue = (amount, fromCurrency = null, toCurrency = n
  * Formats amount with dynamic numerical conversion & active symbol.
  * Uses live exchange rates from backend API.
  */
-export const formatCurrency = (amount, fromCurrency = null, targetCurrency = null) => {
+export const formatCurrency = (amount, arg2 = null, arg3 = null) => {
+  let sourceCurrency = null;
+  let targetCurrency = null;
+
+  if (arg3 !== null && arg3 !== undefined) {
+    sourceCurrency = arg2;
+    targetCurrency = arg3;
+  } else if (arg2 !== null && arg2 !== undefined) {
+    sourceCurrency = arg2;
+    targetCurrency = arg2;
+  } else {
+    sourceCurrency = cachedCurrency;
+    targetCurrency = cachedCurrency;
+  }
+
   const activeCurrency = targetCurrency || cachedCurrency || 'INR';
-  const sourceCurrency = fromCurrency || activeCurrency;
-  
   const symbol = getCurrencySymbol(activeCurrency);
   const isUSD = symbol === '$';
 
@@ -147,17 +203,30 @@ export const formatCurrency = (amount, fromCurrency = null, targetCurrency = nul
     return `${symbol}${formatted}`;
   }
 
-  const formattedVal =
-    absAmount < 10 && absAmount % 1 !== 0
-      ? absAmount.toFixed(2)
-      : Math.round(absAmount).toLocaleString('en-US');
+  const formattedVal = absAmount.toLocaleString('en-US', {
+    minimumFractionDigits: absAmount % 1 !== 0 ? 2 : 0,
+    maximumFractionDigits: 2,
+  });
 
   return `${symbol}${formattedVal}`;
 };
 
-export const formatCompactCurrency = (amount, fromCurrency = null, targetCurrency = null) => {
+export const formatCompactCurrency = (amount, arg2 = null, arg3 = null) => {
+  let sourceCurrency = null;
+  let targetCurrency = null;
+
+  if (arg3 !== null && arg3 !== undefined) {
+    sourceCurrency = arg2;
+    targetCurrency = arg3;
+  } else if (arg2 !== null && arg2 !== undefined) {
+    sourceCurrency = arg2;
+    targetCurrency = arg2;
+  } else {
+    sourceCurrency = cachedCurrency;
+    targetCurrency = cachedCurrency;
+  }
+
   const activeCurrency = targetCurrency || cachedCurrency || 'INR';
-  const sourceCurrency = fromCurrency || activeCurrency;
   const symbol = getCurrencySymbol(activeCurrency);
   const isUSD = symbol === '$';
 

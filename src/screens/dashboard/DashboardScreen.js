@@ -12,7 +12,7 @@ import Card from '../../components/molecules/Card';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useDashboardSummary, useRecentTransactions } from '../../hooks/useDashboard';
-import { formatCurrency, getGlobalCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getGlobalCurrency, getStoredAmountForCurrency } from '../../utils/formatCurrency';
 import { formatDate } from '../../utils/formatDate';
 import { useUnreadCount } from '../../hooks/useNotifications';
 import FloatingVoiceButton from '../../components/FloatingVoiceButton';
@@ -41,8 +41,9 @@ const CATEGORY_COLORS = {
 
 const DashboardScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const { data: summary, isLoading: summaryLoading, refetch: refetchSummary } = useDashboardSummary();
-  const { data: recentTxns, isLoading: recentLoading, refetch: refetchRecent } = useRecentTransactions();
+  const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
+  const { data: summary, isLoading: summaryLoading, refetch: refetchSummary } = useDashboardSummary(activeCurrency);
+  const { data: recentTxns, isLoading: recentLoading, refetch: refetchRecent } = useRecentTransactions(activeCurrency);
   const unreadCount = useUnreadCount();
 
   const subscription = useSelector((state) => state.subscription);
@@ -79,9 +80,13 @@ const DashboardScreen = ({ navigation }) => {
 
   useFocusEffect(
     React.useCallback(() => {
-      refetchBanks(true);
-      fetchSavingsData();
-    }, [refetchBanks, fetchSavingsData])
+      // Revalidate dashboard summary & recent data seamlessly in background
+      Promise.all([
+        refetchSummary(),
+        refetchRecent(),
+        fetchSavingsData(),
+      ]).catch(() => {});
+    }, [refetchSummary, refetchRecent, fetchSavingsData])
   );
 
   const [refreshing, setRefreshing] = useState(false);
@@ -153,7 +158,7 @@ const DashboardScreen = ({ navigation }) => {
   const transactionsList = recentTxns || [];
 
   // Filter transactions
-  const filteredTransactions = transactionsList.filter(txn => {
+  const filteredTransactions = transactionsList.filter((txn) => {
     if (activeFilter === 'EXPENSES') return txn.type === 'expense';
     if (activeFilter === 'INCOME') return txn.type === 'income';
     return true;
@@ -175,7 +180,13 @@ const DashboardScreen = ({ navigation }) => {
 
   // Dynamic Savings Trend Data for the Savings Card
   const savingsChartData = useMemo(() => {
-    // If no recent transactions, return mock data for a clean onboarding trend
+    if (Array.isArray(summary?.trend) && summary.trend.length > 0) {
+      return summary.trend.map((item) => ({
+        value: item.savings || 0,
+        label: item.label,
+      }));
+    }
+
     if (!recentTxns || recentTxns.length === 0) {
       return [
         { value: 1200, label: '01 Jul' },
@@ -188,7 +199,6 @@ const DashboardScreen = ({ navigation }) => {
       ];
     }
 
-    // Sort recent transactions in chronological order (oldest first)
     const sortedTxns = [...recentTxns].sort(
       (a, b) => new Date(a.transactionDate) - new Date(b.transactionDate)
     );
@@ -196,12 +206,12 @@ const DashboardScreen = ({ navigation }) => {
     let runningSavings = 0;
     const points = [];
 
-    // Loop through transactions to build savings trajectory
-    sortedTxns.forEach(txn => {
+    sortedTxns.forEach((txn) => {
+      const amt = getStoredAmountForCurrency(txn, summary?.currency || user?.currency || 'INR');
       if (txn.type === 'income') {
-        runningSavings += txn.amount;
+        runningSavings += amt;
       } else {
-        runningSavings = Math.max(runningSavings - txn.amount, 0);
+        runningSavings = Math.max(runningSavings - amt, 0);
       }
       points.push({
         value: runningSavings,
@@ -209,7 +219,6 @@ const DashboardScreen = ({ navigation }) => {
       });
     });
 
-    // If we only have 1 or 2 points, pad it to make a line
     if (points.length < 3) {
       return [
         { value: Math.max(savings * 0.3, 500), label: '01 Jul' },
@@ -219,7 +228,7 @@ const DashboardScreen = ({ navigation }) => {
     }
 
     return points;
-  }, [recentTxns, savings]);
+  }, [recentTxns, savings, summary?.trend, summary?.currency, user?.currency]);
 
   // Calculate precise spacing to fit the LineChart exactly within container width
   const chartSpacing = useMemo(() => {
@@ -230,29 +239,29 @@ const DashboardScreen = ({ navigation }) => {
 
   // Dynamic Pie Chart Data: Spent vs Saved
   const pieData = useMemo(() => {
-    if (totalIncome === 0 && totalExpense === 0) {
-      return [
-        { value: 100, color: colors.divider, label: 'No Data' }
-      ];
+    const spent = summary?.incomeSpentVsSaved?.totalExpense ?? totalExpense;
+    const saved = summary?.incomeSpentVsSaved?.totalSavings ?? Math.max(totalIncome - totalExpense, 0);
+    const total = spent + saved;
+    if (total <= 0) {
+      return [{ value: 100, color: colors.divider, label: 'No Data' }];
     }
     const data = [];
-    if (totalExpense > 0) {
+    if (spent > 0) {
       data.push({
-        value: totalExpense,
+        value: spent,
         color: colors.danger || '#FF4D67',
         label: 'Spent',
       });
     }
-    const remaining = totalIncome - totalExpense;
-    if (remaining > 0) {
+    if (saved > 0) {
       data.push({
-        value: remaining,
+        value: saved,
         color: colors.success || '#00D26A',
         label: 'Saved',
       });
     }
     return data;
-  }, [totalIncome, totalExpense]);
+  }, [summary?.incomeSpentVsSaved, totalIncome, totalExpense]);
 
   // Render Category Icon Picker helper
   const getCategoryIconInfo = (category, type) => {
@@ -367,8 +376,8 @@ const DashboardScreen = ({ navigation }) => {
             { color: (totalIncome - totalExpense) >= 0 ? colors.success : colors.danger }
           ]}>
             {(totalIncome - totalExpense) >= 0
-              ? `Remaining Savings: ${formatCurrency(totalIncome - totalExpense)}`
-              : `Overspent by: ${formatCurrency(Math.abs(totalIncome - totalExpense))}`}
+              ? `Remaining Savings: ${formatCurrency(totalIncome - totalExpense, summary?.currency || 'INR')}`
+              : `Overspent by: ${formatCurrency(Math.abs(totalIncome - totalExpense), summary?.currency || 'INR')}`}
           </Text>
 
           <View style={styles.pieContainer}>
@@ -401,11 +410,11 @@ const DashboardScreen = ({ navigation }) => {
           <View style={styles.legendRow}>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: colors.danger || '#FF4D67' }]} />
-              <Text style={styles.legendText}>Spent: {spentPercent}% ({formatCurrency(totalExpense)})</Text>
+              <Text style={styles.legendText}>Spent: {spentPercent}% ({formatCurrency(totalExpense, summary?.currency || 'INR')})</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: colors.success || '#00D26A' }]} />
-              <Text style={styles.legendText}>Saved: {savedPercent}% ({formatCurrency(Math.max(totalIncome - totalExpense, 0))})</Text>
+              <Text style={styles.legendText}>Saved: {savedPercent}% ({formatCurrency(Math.max(totalIncome - totalExpense, 0), summary?.currency || 'INR')})</Text>
             </View>
           </View>
         </Card>
@@ -507,7 +516,6 @@ const DashboardScreen = ({ navigation }) => {
             })}
           </View>
         </Card>
-
         {/* Savings Jars Widget Card */}
         <Card style={styles.bankAccountsCard}>
           <View style={styles.bankHeaderRow}>
@@ -574,7 +582,9 @@ const DashboardScreen = ({ navigation }) => {
               <Icon name="arrow-down" size={16} color={colors.danger} />
             </View>
             <Text style={styles.statsBoxLabel}>Total Expenses</Text>
-            <Text style={[styles.statsBoxAmount, { color: colors.danger }]}>{formatCurrency(totalExpense)}</Text>
+            <Text style={[styles.statsBoxAmount, { color: colors.danger }]}>
+              {formatCurrency(totalExpense, summary?.currency || 'INR')}
+            </Text>
           </LinearGradient>
 
           <LinearGradient
@@ -587,7 +597,9 @@ const DashboardScreen = ({ navigation }) => {
               <Icon name="arrow-up" size={16} color={colors.success} />
             </View>
             <Text style={styles.statsBoxLabel}>Total Income</Text>
-            <Text style={[styles.statsBoxAmount, { color: colors.success }]}>{formatCurrency(totalIncome)}</Text>
+            <Text style={[styles.statsBoxAmount, { color: colors.success }]}>
+              {formatCurrency(totalIncome, summary?.currency || 'INR')}
+            </Text>
           </LinearGradient>
         </View>
 
@@ -602,7 +614,7 @@ const DashboardScreen = ({ navigation }) => {
             <View>
               <Text style={styles.savingsLabel}>Savings</Text>
               <Text style={styles.savingsAmount}>
-                {formatCurrency(savings)} <Text style={styles.savingsPeriod}>This Month</Text>
+                {formatCurrency(savings, summary?.currency || 'INR')} <Text style={styles.savingsPeriod}>This Month</Text>
               </Text>
             </View>
             <View style={styles.savingsGrowthBox}>
@@ -611,7 +623,6 @@ const DashboardScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Interactive Savings Line Chart */}
           <View style={styles.sparklineContainer}>
             <LineChart
               data={savingsChartData}
@@ -635,35 +646,6 @@ const DashboardScreen = ({ navigation }) => {
               overflowBottom={15}
               overflowTop={15}
               curved
-              
-              // 1. DIRECT PROPS (destructured by the library components)
-              showPointerStrip={true}
-              pointerStripWidth={1.5}
-              pointerStripColor="rgba(255, 255, 255, 0.35)"
-              pointerStripUptoDataPoint={true}
-              pointerColor={colors.success}
-              pointerRadius={6}
-              pointerWidth={2}
-              activatePointersOnLongPress={false}
-              activatePointersInstantlyOnTouch={true}
-              pointerLabelWidth={130}
-              pointerLabelHeight={34}
-              shiftPointerLabelX={-65}
-              shiftPointerLabelY={-36}
-              pointerLabelComponent={(items) => {
-                if (!items) return null;
-                const item = Array.isArray(items) ? items[0] : items;
-                if (!item || item.value === undefined) return null;
-                return (
-                  <View style={styles.tooltipContainer}>
-                    <Text style={styles.tooltipText}>
-                      {formatCurrency(item.value)} • {item.label}
-                    </Text>
-                  </View>
-                );
-              }}
-              
-              // 2. POINTERCONFIG PROP OBJECT (required by wrapper to attach touch listeners)
               pointerConfig={{
                 showPointerStrip: true,
                 pointerStripWidth: 1.5,
@@ -696,7 +678,7 @@ const DashboardScreen = ({ navigation }) => {
         </LinearGradient>
 
         {/* Monthly Budget Card */}
-        {user?.monthlyBudget ? (
+        {(user?.monthlyBudget || summary?.monthlyBudgetLimit?.budgetLimit > 0) ? (
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => navigation.navigate('Budget')}
@@ -709,7 +691,7 @@ const DashboardScreen = ({ navigation }) => {
                   <Text style={styles.budgetTitle}>Monthly Budget Limit</Text>
                 </View>
                 <Text style={styles.budgetValueText}>
-                  {formatCurrency(totalExpense)} / {formatCurrency(user.monthlyBudget)}
+                  {formatCurrency(summary?.monthlyBudgetLimit?.budgetSpent ?? totalExpense, summary?.currency || 'INR')} / {formatCurrency(summary?.monthlyBudgetLimit?.budgetLimit ?? user.monthlyBudget, summary?.currency || 'INR')}
                 </Text>
               </View>
               <View style={styles.budgetProgressBarBg}>
@@ -717,23 +699,23 @@ const DashboardScreen = ({ navigation }) => {
                   style={[
                     styles.budgetProgressBarFill,
                     {
-                      width: `${Math.min(Math.round((totalExpense / user.monthlyBudget) * 100), 100)}%`,
-                      backgroundColor: (totalExpense / user.monthlyBudget) >= 0.9 ? colors.danger : colors.primary
+                      width: `${Math.min(summary?.monthlyBudgetLimit?.utilizationPercentage ?? Math.round((totalExpense / (user.monthlyBudget || 1)) * 100), 100)}%`,
+                      backgroundColor: ((summary?.monthlyBudgetLimit?.utilizationPercentage ?? ((totalExpense / (user.monthlyBudget || 1)) * 100)) >= 90) ? colors.danger : colors.primary
                     }
                   ]}
                 />
               </View>
               <View style={styles.budgetFooter}>
                 <Text style={styles.budgetPercentText}>
-                  {Math.round((totalExpense / user.monthlyBudget) * 100)}% utilized
+                  {summary?.monthlyBudgetLimit?.utilizationPercentage ?? Math.round((totalExpense / (user.monthlyBudget || 1)) * 100)}% utilized
                 </Text>
                 <Text style={[
                   styles.budgetRemainingText,
-                  { color: user.monthlyBudget - totalExpense >= 0 ? colors.success : colors.danger }
+                  { color: (summary?.monthlyBudgetLimit?.budgetRemaining ?? (user.monthlyBudget - totalExpense)) >= 0 ? colors.success : colors.danger }
                 ]}>
-                  {user.monthlyBudget - totalExpense >= 0
-                    ? `${formatCurrency(user.monthlyBudget - totalExpense)} remaining`
-                    : `${formatCurrency(Math.abs(user.monthlyBudget - totalExpense))} overspent`}
+                  {(summary?.monthlyBudgetLimit?.budgetRemaining ?? (user.monthlyBudget - totalExpense)) >= 0
+                    ? `${formatCurrency(summary?.monthlyBudgetLimit?.budgetRemaining ?? (user.monthlyBudget - totalExpense), summary?.currency || 'INR')} remaining`
+                    : `${formatCurrency(Math.abs(summary?.monthlyBudgetLimit?.budgetRemaining ?? (user.monthlyBudget - totalExpense)), summary?.currency || 'INR')} overspent`}
                 </Text>
               </View>
             </Card>
@@ -778,15 +760,15 @@ const DashboardScreen = ({ navigation }) => {
               <Text style={styles.emptyRecentText}>No recent transactions</Text>
             </View>
           ) : (
-            filteredTransactions.map((txn) => {
+            filteredTransactions.map((txn, index) => {
               const iconInfo = getCategoryIconInfo(txn.category, txn.type);
               const isExpense = txn.type === 'expense';
               return (
                 <TouchableOpacity
-                  key={txn._id}
+                  key={txn._id || txn.id || `txn-${index}`}
                   style={styles.txnItem}
                   activeOpacity={0.8}
-                  onPress={() => navigation.navigate('TransactionDetail', { id: txn._id })}
+                  onPress={() => navigation.navigate('TransactionDetail', { id: txn._id || txn.id, transaction: txn })}
                 >
                   <View style={styles.txnLeft}>
                     <View style={[styles.txnIconBox, { backgroundColor: iconInfo.bgColor + '20' }]}>
@@ -799,7 +781,7 @@ const DashboardScreen = ({ navigation }) => {
                   </View>
                   <View style={styles.txnRight}>
                     <Text style={[styles.txnAmount, isExpense ? styles.expenseText : styles.incomeText]}>
-                      {isExpense ? '-' : '+'}{formatCurrency(txn.amount, txn.currency || 'INR', user?.currency || getGlobalCurrency())}
+                      {isExpense ? '-' : '+'}{formatCurrency(getStoredAmountForCurrency(txn, user?.currency || summary?.currency || getGlobalCurrency() || 'INR'), user?.currency || summary?.currency || getGlobalCurrency() || 'INR')}
                     </Text>
                     <Text style={styles.txnTime}>
                       {txn.time || (txn.transactionDate ? formatDate(txn.transactionDate) : 'Today')}

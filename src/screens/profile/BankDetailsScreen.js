@@ -20,9 +20,11 @@ import TransactionCard from '../../components/molecules/TransactionCard';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
 import { useTransactions, useDeleteTransaction } from '../../hooks/useTransactions';
 import useBanks from '../../hooks/useBanks';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getStoredAmountForCurrency } from '../../utils/formatCurrency';
 import { useAlert } from '../../context/AlertContext';
 import BankLogo from '../../components/atoms/BankLogo';
+import { useAuth } from '../../hooks/useAuth';
+import { getGlobalCurrency } from '../../utils/formatCurrency';
 
 const formatDateGroup = (dateInput) => {
   const d = dayjs(dateInput);
@@ -34,6 +36,8 @@ const formatDateGroup = (dateInput) => {
 
 const BankDetailsScreen = ({ navigation, route }) => {
   const { bankId, bank: initialBank } = route.params || {};
+  const { user } = useAuth();
+  const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
 
   const { banks, refetch: refetchBanks } = useBanks();
   const { data: transactions, isLoading: txLoading, refetch: refetchTxns } = useTransactions();
@@ -68,16 +72,20 @@ const BankDetailsScreen = ({ navigation, route }) => {
     return transactions.filter((t) => {
       if (!t.bankAccount) return false;
       const bId = typeof t.bankAccount === 'object' ? t.bankAccount._id : t.bankAccount;
-      return String(bId) === String(targetBankId);
+      const bName = typeof t.bankAccount === 'object' ? t.bankAccount.bankName : null;
+      
+      const idMatch = bId && String(bId) === String(targetBankId);
+      const nameMatch = bName && bank?.bankName && String(bName).toLowerCase().trim() === String(bank.bankName).toLowerCase().trim();
+      return idMatch || nameMatch;
     });
-  }, [transactions, targetBankId]);
+  }, [transactions, targetBankId, bank?.bankName]);
 
   // Compute Total Income and Total Expense for this specific bank
   const { totalExpense, totalIncome } = useMemo(() => {
     let exp = 0;
     let inc = 0;
     bankTransactions.forEach((t) => {
-      const amt = Number(t.amount) || 0;
+      const amt = getStoredAmountForCurrency(t, activeCurrency);
       if (t.type === 'income') {
         inc += amt;
       } else {
@@ -85,7 +93,7 @@ const BankDetailsScreen = ({ navigation, route }) => {
       }
     });
     return { totalExpense: exp, totalIncome: inc };
-  }, [bankTransactions]);
+  }, [bankTransactions, activeCurrency]);
 
   // Apply search query and type filter
   const filteredTxns = useMemo(() => {
@@ -102,13 +110,13 @@ const BankDetailsScreen = ({ navigation, route }) => {
       result = result.filter((t) => {
         const descMatch = (t.description || '').toLowerCase().includes(q);
         const catMatch = (t.category || '').toLowerCase().includes(q);
-        const amountMatch = String(t.amount || '').includes(q);
+        const amountMatch = String(getStoredAmountForCurrency(t, activeCurrency)).includes(q);
         return descMatch || catMatch || amountMatch;
       });
     }
 
     return result;
-  }, [bankTransactions, activeFilter, searchQuery]);
+  }, [bankTransactions, activeFilter, searchQuery, activeCurrency]);
 
   // Group transactions by date
   const groupedTxns = useMemo(() => {
@@ -237,7 +245,7 @@ const BankDetailsScreen = ({ navigation, route }) => {
           </View>
           <Text style={styles.statsLabel}>Total Expenses</Text>
           <Text style={[styles.statsAmount, { color: colors.danger || '#FF4D67' }]}>
-            {formatCurrency(totalExpense)}
+            {formatCurrency(totalExpense, activeCurrency)}
           </Text>
         </LinearGradient>
 
@@ -253,7 +261,7 @@ const BankDetailsScreen = ({ navigation, route }) => {
           </View>
           <Text style={styles.statsLabel}>Total Income</Text>
           <Text style={[styles.statsAmount, { color: colors.success || '#00D26A' }]}>
-            {formatCurrency(totalIncome)}
+            {formatCurrency(totalIncome, activeCurrency)}
           </Text>
         </LinearGradient>
       </View>
@@ -327,17 +335,17 @@ const BankDetailsScreen = ({ navigation, route }) => {
               <View style={styles.dateGroupContainer}>
                 <Text style={styles.dateGroupHeader}>{item.date}</Text>
                 {item.data.map((txn) => (
-                  <TransactionCard
-                    key={txn._id}
-                    title={txn.description || txn.category}
-                    category={txn.category}
-                    paymentMethod={txn.paymentMethod || 'UPI'}
-                    amount={formatCurrency(txn.amount, txn.currency || 'INR')}
-                    type={txn.type}
-                    onEdit={() => navigation.navigate('AddTransaction', { id: txn._id })}
-                    onDelete={() => handleDelete(txn._id)}
+                <TransactionCard
+                  key={txn._id}
+                  title={txn.description || txn.category}
+                  category={txn.category}
+                  paymentMethod={txn.paymentMethod || 'UPI'}
+                  amount={formatCurrency(getStoredAmountForCurrency(txn, activeCurrency), activeCurrency)}
+                  type={txn.type}
+                    onEdit={() => navigation.navigate('AddTransaction', { id: txn._id || txn.id, transaction: txn })}
+                    onDelete={() => handleDelete(txn._id || txn.id)}
                     onPress={() =>
-                      navigation.navigate('TransactionDetail', { id: txn._id })
+                      navigation.navigate('TransactionDetail', { id: txn._id || txn.id, transaction: txn })
                     }
                   />
                 ))}

@@ -1,25 +1,29 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchDashboardSummary, fetchRecentTransactions, fetchMonthlyAnalytics } from '../api/dashboard';
+import { fetchDashboardSummary, fetchRecentTransactions } from '../services/dashboardService';
+import { fetchMonthlyAnalytics } from '../api/dashboard';
+import { getGlobalCurrency } from '../utils/formatCurrency';
 
-export const useDashboardSummary = () => {
+export const useDashboardSummary = (currency = null) => {
+  const activeCurrency = currency || getGlobalCurrency() || 'INR';
+
   return useQuery({
-    queryKey: ['dashboardSummary'],
+    queryKey: ['dashboardSummary', activeCurrency],
     queryFn: async () => {
-      const response = await fetchDashboardSummary();
-      return response.data;
+      return await fetchDashboardSummary();
     },
-    staleTime: 60 * 1000,
+    staleTime: 0,
   });
 };
 
-export const useRecentTransactions = () => {
+export const useRecentTransactions = (currency = null) => {
+  const activeCurrency = currency || getGlobalCurrency() || 'INR';
+
   return useQuery({
-    queryKey: ['recentTransactions'],
+    queryKey: ['recentTransactions', activeCurrency],
     queryFn: async () => {
-      const response = await fetchRecentTransactions();
-      return response.data;
+      return await fetchRecentTransactions();
     },
-    staleTime: 60 * 1000,
+    staleTime: 0,
   });
 };
 
@@ -27,9 +31,8 @@ export const useMonthlyAnalytics = () => {
   return useQuery({
     queryKey: ['monthlyAnalytics'],
     queryFn: async () => {
-      const response = await fetchMonthlyAnalytics();
-      return response.data;
+      return await fetchMonthlyAnalytics();
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
   });
 };

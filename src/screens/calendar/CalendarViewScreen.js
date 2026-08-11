@@ -300,7 +300,7 @@ const CalendarViewScreen = ({ navigation }) => {
               date={dayjs(item.transactionDate).format('hh:mm A')}
               amount={formatCurrency(item.amount)}
               type={item.type}
-              onPress={() => navigation.navigate('TransactionDetail', { id: item._id })}
+              onPress={() => navigation.navigate('TransactionDetail', { id: item._id || item.id, transaction: item })}
             />
           )}
           ListFooterComponent={
@@ -372,7 +372,7 @@ const CalendarViewScreen = ({ navigation }) => {
                             activeOpacity={0.7}
                             onPress={() => {
                               setBreakdownModalVisible(false);
-                              navigation.navigate('TransactionDetail', { id: txn._id });
+                              navigation.navigate('TransactionDetail', { id: txn._id || txn.id, transaction: txn });
                             }}
                           >
                             <View style={styles.subTxnDetails}>

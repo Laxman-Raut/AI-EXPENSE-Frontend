@@ -29,8 +29,16 @@ class SyncService {
         category: item.category,
         description: item.description,
         amount: item.amount,
+        currency: item.currency,
+        originalAmount: item.originalAmount,
+        originalCurrency: item.originalCurrency,
+        amountINR: item.amountINR,
+        amountUSD: item.amountUSD,
+        exchangeRate: item.exchangeRate,
+        exchangeRateTimestamp: item.exchangeRateTimestamp,
         paymentMethod: item.paymentMethod,
         transactionDate: item.transactionDate,
+        bankAccount: item.bankAccount,
         note: item.note,
       }));
 

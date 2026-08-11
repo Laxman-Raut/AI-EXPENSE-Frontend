@@ -7,13 +7,17 @@ import {
   deleteTransaction,
 } from '../services/transactionService';
 
-export const useTransactions = () => {
+import { getGlobalCurrency } from '../utils/formatCurrency';
+
+export const useTransactions = (currency = null) => {
+  const activeCurrency = currency || getGlobalCurrency() || 'INR';
+
   return useQuery({
-    queryKey: ['transactions'],
+    queryKey: ['transactions', activeCurrency],
     queryFn: async () => {
       return await fetchTransactions();
     },
-    staleTime: 60 * 1000,
+    staleTime: 0,
   });
 };
 
@@ -24,7 +28,7 @@ export const useTransaction = (id) => {
       return await fetchTransaction(id);
     },
     enabled: !!id,
-    staleTime: 60 * 1000,
+    staleTime: 0,
   });
 };
 

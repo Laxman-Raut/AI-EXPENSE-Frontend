@@ -3,8 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 let cachedCurrency: string = 'INR';
 
 // Dynamic exchange rate — updated from backend API on app startup
-// Falls back to 85.0 if API is unreachable
-let cachedUsdToInr: number = 85.0;
+// Uses live market rate (1 USD = 95.24 INR)
+let cachedUsdToInr: number = 95.24;
 let cachedRatesMap: Record<string, number> | null = null;
 
 // Attempt to load user preferred currency from storage on boot
@@ -84,6 +84,54 @@ export const getCurrencySymbol = (currency: string | null = null): string => {
   return '₹';
 };
 
+export const normalizeCurrencyCode = (currency: string | null = null): string => {
+  const upper = String(currency || cachedCurrency || 'INR').toUpperCase().trim();
+  if (upper === '$') return 'USD';
+  if (upper === '₹' || upper === 'RUPEES' || upper.includes('INR')) return 'INR';
+  if (upper === '€' || upper.includes('EUR')) return 'EUR';
+  if (upper === '£' || upper.includes('GBP')) return 'GBP';
+  if (upper.includes('USD')) return 'USD';
+  return upper || 'INR';
+};
+
+export const getStoredAmountForCurrency = (
+  record: Record<string, any> | null | undefined,
+  targetCurrency: string | null = null,
+  fallbackField = 'amount'
+): number => {
+  if (!record) return 0;
+
+  const currency = normalizeCurrencyCode(targetCurrency || cachedCurrency || 'INR');
+  const useUsd = currency === 'USD';
+  const usdFields = ['amountUSD', 'currentAmountUSD', 'targetAmountUSD', 'monthlyBudgetUSD', 'savedInPeriodUSD', 'totalAmountUSD'];
+  const inrFields = ['amountINR', 'currentAmountINR', 'targetAmountINR', 'monthlyBudgetINR', 'savedInPeriodINR', 'totalAmountINR'];
+
+  const preferredFields = useUsd ? usdFields : inrFields;
+  for (const field of preferredFields) {
+    const raw = record[field];
+    if (raw !== null && raw !== undefined) {
+      const value = Number(raw);
+      if (!Number.isNaN(value)) return value;
+    }
+  }
+
+  let rawAmount = 0;
+  const fallbackRaw = record[fallbackField];
+  if (fallbackRaw !== null && fallbackRaw !== undefined) {
+    rawAmount = Number(fallbackRaw);
+  } else if (record.originalAmount !== null && record.originalAmount !== undefined) {
+    rawAmount = Number(record.originalAmount);
+  } else if (record.amount !== null && record.amount !== undefined) {
+    rawAmount = Number(record.amount);
+  }
+
+  if (Number.isNaN(rawAmount) || rawAmount === 0) return 0;
+
+  const rawCurrency = normalizeCurrencyCode(record.originalCurrency || record.currency || (useUsd ? 'INR' : 'USD'));
+
+  return convertCurrencyValue(rawAmount, rawCurrency, currency);
+};
+
 /**
  * Converts numeric value between currencies using live rates from backend.
  * Uses the full ratesMap when available for multi-currency support.
@@ -155,10 +203,10 @@ export const formatCurrency = (
     return `${symbol}${formatted}`;
   }
 
-  const formattedVal =
-    absAmount < 10 && absAmount % 1 !== 0
-      ? absAmount.toFixed(2)
-      : Math.round(absAmount).toLocaleString('en-US');
+  const formattedVal = absAmount.toLocaleString('en-US', {
+    minimumFractionDigits: absAmount % 1 !== 0 ? 2 : 0,
+    maximumFractionDigits: 2,
+  });
 
   return `${symbol}${formattedVal}`;
 };

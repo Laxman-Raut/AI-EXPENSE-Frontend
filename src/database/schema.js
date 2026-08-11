@@ -78,9 +78,25 @@ export const createTables = () => {
 
         amount REAL NOT NULL,
 
+        currency TEXT DEFAULT 'INR',
+
+        originalAmount REAL,
+
+        originalCurrency TEXT DEFAULT 'INR',
+
+        amountINR REAL,
+
+        amountUSD REAL,
+
+        exchangeRate REAL,
+
+        exchangeRateTimestamp TEXT,
+
         paymentMethod TEXT,
 
         transactionDate TEXT,
+
+        bankAccount TEXT,
 
         note TEXT,
 

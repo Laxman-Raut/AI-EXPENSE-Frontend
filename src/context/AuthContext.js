@@ -12,6 +12,8 @@ import {
   refreshProfile as refreshProfileThunk,
 } from '../store/authSlice';
 
+import { queryClient } from '../../App';
+
 const AuthContext = createContext(undefined);
 
 export const AuthProvider = ({ children }) => {
@@ -22,33 +24,41 @@ export const AuthProvider = ({ children }) => {
     dispatch(checkStoredAuth());
   }, [dispatch]);
 
+  // Sync global currency & clear cache when user ID or currency changes
   useEffect(() => {
-    if (user && user.currency) {
-      setGlobalCurrency(user.currency);
+    if (user && user._id) {
+      if (user.currency) {
+        setGlobalCurrency(user.currency);
+      }
     }
-  }, [user]);
+  }, [user?._id, user?.currency]);
 
   const login = async (email, password) => {
+    queryClient.clear();
     const result = await dispatch(loginThunk({ email, password })).unwrap();
     return result;
   };
 
   const googleLogin = async (googleData) => {
+    queryClient.clear();
     const result = await dispatch(googleLoginThunk(googleData)).unwrap();
     return result;
   };
 
   const register = async (fullName, email, password) => {
+    queryClient.clear();
     const result = await dispatch(registerThunk({ fullName, email, password })).unwrap();
     return result;
   };
 
   const verifyOtp = async (email, otp) => {
+    queryClient.clear();
     const result = await dispatch(verifyRegistrationOtpThunk({ email, otp })).unwrap();
     return result;
   };
 
   const logout = async () => {
+    queryClient.clear();
     await dispatch(logoutThunk()).unwrap();
   };
 

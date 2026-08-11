@@ -9,14 +9,14 @@ import { AlertProvider } from './src/context/AlertContext';
 import { createTables } from './src/database/schema';
 import AppNavigator from './src/navigation/AppNavigator';
 import './src/config/googleSignin';
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
-      staleTime: 60 * 1000,
+      retry: 1,
+      staleTime: 15 * 1000, // 15 seconds stale time for instant 0ms screen transitions
       gcTime: 10 * 60 * 1000,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
+      refetchOnMount: true,
+      refetchOnReconnect: true,
       refetchOnWindowFocus: false,
     },
   },

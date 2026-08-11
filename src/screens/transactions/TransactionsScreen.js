@@ -20,7 +20,13 @@ import PrimaryButton from '../../components/atoms/PrimaryButton';
 import TransactionCard from '../../components/molecules/TransactionCard';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
 import { useTransactions, useDeleteTransaction } from '../../hooks/useTransactions';
-import { formatCurrency, getCurrencySymbol, convertCurrencyValue, getGlobalCurrency } from '../../utils/formatCurrency';
+import {
+  formatCurrency,
+  getCurrencySymbol,
+  convertCurrencyValue,
+  getGlobalCurrency,
+  getStoredAmountForCurrency,
+} from '../../utils/formatCurrency';
 import { exportToExcel, exportToPDF } from '../../utils/exportUtils';
 import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
@@ -223,7 +229,7 @@ const TransactionsScreen = ({ navigation, route }) => {
     const targetCurrency = user?.currency || getGlobalCurrency();
     if (transactions && Array.isArray(transactions)) {
       transactions.forEach((t) => {
-        const amt = convertCurrencyValue(t.amount, t.currency || 'INR', targetCurrency);
+        const amt = getStoredAmountForCurrency(t, targetCurrency);
         if (t.type === 'income') {
           totalIncome += amt;
         } else {
@@ -259,7 +265,7 @@ const TransactionsScreen = ({ navigation, route }) => {
         const catMatch = (t.category || '').toLowerCase().includes(q);
         const methodMatch = (t.paymentMethod || '').toLowerCase().includes(q);
         const notesMatch = (t.notes || t.note || '').toLowerCase().includes(q);
-        const amountMatch = (t.amount ? String(t.amount) : '').includes(q);
+        const amountMatch = String(getStoredAmountForCurrency(t, user?.currency || getGlobalCurrency() || 'INR')).includes(q);
         const dateMatch = t.transactionDate
           ? dayjs(t.transactionDate).format('DD MMMM YYYY MMMM dddd').toLowerCase().includes(q)
           : false;
@@ -302,10 +308,10 @@ const TransactionsScreen = ({ navigation, route }) => {
 
     // 5. Amount Range Filter
     if (minAmount.trim() && !isNaN(Number(minAmount))) {
-      result = result.filter((t) => Number(t.amount) >= Number(minAmount));
+      result = result.filter((t) => getStoredAmountForCurrency(t, user?.currency || getGlobalCurrency() || 'INR') >= Number(minAmount));
     }
     if (maxAmount.trim() && !isNaN(Number(maxAmount))) {
-      result = result.filter((t) => Number(t.amount) <= Number(maxAmount));
+      result = result.filter((t) => getStoredAmountForCurrency(t, user?.currency || getGlobalCurrency() || 'INR') <= Number(maxAmount));
     }
 
     // 6. Date Range Filter Presets
@@ -375,11 +381,11 @@ const TransactionsScreen = ({ navigation, route }) => {
           category={txn.category}
           paymentMethod={txn.paymentMethod}
           bankAccount={txn.bankAccount}
-          amount={formatCurrency(txn.amount, txn.currency || 'INR')}
+          amount={formatCurrency(getStoredAmountForCurrency(txn, user?.currency || getGlobalCurrency() || 'INR'), user?.currency || getGlobalCurrency() || 'INR')}
           type={txn.type}
-          onEdit={() => navigation.navigate('AddTransaction', { id: txn._id })}
-          onDelete={() => handleDelete(txn._id)}
-          onPress={() => navigation.navigate('TransactionDetail', { id: txn._id })}
+          onEdit={() => navigation.navigate('AddTransaction', { id: txn._id || txn.id, transaction: txn })}
+          onDelete={() => handleDelete(txn._id || txn.id)}
+          onPress={() => navigation.navigate('TransactionDetail', { id: txn._id || txn.id, transaction: txn })}
         />
       </View>
     );

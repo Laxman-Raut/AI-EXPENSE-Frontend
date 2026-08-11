@@ -12,13 +12,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, typography, radius } from '../../theme';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getStoredAmountForCurrency } from '../../utils/formatCurrency';
 import savingsApi from '../../api/savings';
 import CustomAlert from '../../components/molecules/CustomAlert';
 import dayjs from 'dayjs';
+import { useAuth } from '../../hooks/useAuth';
+import { getGlobalCurrency } from '../../utils/formatCurrency';
 
 const SavingsDetailsScreen = ({ route, navigation }) => {
   const { jarId } = route.params;
+  const { user } = useAuth();
+  const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
   const [jar, setJar] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -92,10 +96,12 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
   if (!jar) return null;
 
   const hasTarget = jar.targetAmount && jar.targetAmount > 0;
+  const currentAmount = getStoredAmountForCurrency(jar, activeCurrency, 'currentAmount');
+  const targetAmount = getStoredAmountForCurrency(jar, activeCurrency, 'targetAmount');
   const percentage = hasTarget
-    ? Math.min(Math.round((jar.currentAmount / jar.targetAmount) * 100), 100)
+    ? Math.min(Math.round((currentAmount / (targetAmount || 1)) * 100), 100)
     : 0;
-  const remaining = hasTarget ? Math.max(jar.targetAmount - jar.currentAmount, 0) : 0;
+  const remaining = hasTarget ? Math.max(targetAmount - currentAmount, 0) : 0;
   const sortedTransactions = [...(jar.transactions || [])].sort(
     (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
   );
@@ -140,7 +146,7 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
         </View>
 
         <Text style={[styles.txAmount, { color: isIncome ? colors.success : colors.danger }]}>
-          {isIncome ? '+' : '-'}{formatCurrency(item.amount)}
+          {isIncome ? '+' : '-'}{formatCurrency(getStoredAmountForCurrency(item, activeCurrency), activeCurrency)}
         </Text>
       </View>
     );
@@ -209,14 +215,14 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
                 <View>
                   <Text style={styles.amountDisplayLabel}>CURRENT SAVINGS</Text>
                   <Text style={styles.amountDisplayValue}>
-                    {formatCurrency(jar.currentAmount || 0)}
+                    {formatCurrency(currentAmount, activeCurrency)}
                   </Text>
                 </View>
                 {hasTarget ? (
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={styles.amountDisplayLabel}>TARGET GOAL</Text>
                     <Text style={styles.targetDisplayValue}>
-                      {formatCurrency(jar.targetAmount)}
+                      {formatCurrency(targetAmount, activeCurrency)}
                     </Text>
                   </View>
                 ) : null}
@@ -239,7 +245,7 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
                   <View style={styles.progressMetaRow}>
                     <Text style={styles.progressMetaText}>{percentage}% Completed</Text>
                     <Text style={styles.progressMetaText}>
-                      {remaining > 0 ? `${formatCurrency(remaining)} Remaining` : 'Goal Reached! 🎉'}
+                      {remaining > 0 ? `${formatCurrency(remaining, activeCurrency)} Remaining` : 'Goal Reached! 🎉'}
                     </Text>
                   </View>
                 </View>
