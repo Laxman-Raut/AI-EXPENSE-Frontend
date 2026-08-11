@@ -32,6 +32,10 @@ class TransactionRepository {
   async cacheCloudTransactions(cloudItems) {
     return dbService.bulkInsertFromCloud(cloudItems);
   }
+
+  async clearAll() {
+    return dbService.clearAllTransactions();
+  }
 }
 
 export default new TransactionRepository();

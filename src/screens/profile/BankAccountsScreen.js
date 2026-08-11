@@ -410,7 +410,7 @@ const BankAccountsScreen = ({ navigation }) => {
         ) : (
           <FlatList
             data={banks}
-            keyExtractor={(item) => item._id}
+            keyExtractor={(item, index) => item._id || item.id || `bank-${index}`}
             renderItem={renderBankCard}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}

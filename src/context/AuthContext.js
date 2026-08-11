@@ -13,6 +13,7 @@ import {
 } from '../store/authSlice';
 
 import { queryClient } from '../../App';
+import transactionRepository from '../repositories/transactionRepository';
 
 const AuthContext = createContext(undefined);
 
@@ -35,24 +36,28 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     queryClient.clear();
+    try { await transactionRepository.clearAll(); } catch (e) {}
     const result = await dispatch(loginThunk({ email, password })).unwrap();
     return result;
   };
 
   const googleLogin = async (googleData) => {
     queryClient.clear();
+    try { await transactionRepository.clearAll(); } catch (e) {}
     const result = await dispatch(googleLoginThunk(googleData)).unwrap();
     return result;
   };
 
   const register = async (fullName, email, password) => {
     queryClient.clear();
+    try { await transactionRepository.clearAll(); } catch (e) {}
     const result = await dispatch(registerThunk({ fullName, email, password })).unwrap();
     return result;
   };
 
   const verifyOtp = async (email, otp) => {
     queryClient.clear();
+    try { await transactionRepository.clearAll(); } catch (e) {}
     const result = await dispatch(verifyRegistrationOtpThunk({ email, otp })).unwrap();
     return result;
   };

@@ -288,3 +288,16 @@ export const bulkInsertFromCloud = (cloudItems = []) => {
     console.error('Error bulk inserting cloud transactions to SQLite:', error);
   }
 };
+
+/**
+ * Clears all local data from SQLite on user logout/login (prevents cross-user data leaks)
+ */
+export const clearAllTransactions = () => {
+  try {
+    db.execute('DELETE FROM transactions;');
+    db.execute('DELETE FROM users;');
+    console.log('✅ SQLite Local Database Cleared (transactions + users)');
+  } catch (error) {
+    console.error('Error clearing SQLite database:', error);
+  }
+};

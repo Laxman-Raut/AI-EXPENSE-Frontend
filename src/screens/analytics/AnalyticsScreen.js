@@ -20,6 +20,7 @@ import Card from '../../components/molecules/Card';
 import { colors, spacing, typography, radius } from '../../theme';
 import { formatCurrency, getStoredAmountForCurrency } from '../../utils/formatCurrency';
 import { useTransactions } from '../../hooks/useTransactions';
+import useBanks from '../../hooks/useBanks';
 import BankLogo from '../../components/atoms/BankLogo';
 
 dayjs.extend(isBetween);
@@ -65,6 +66,7 @@ const AnalyticsScreen = () => {
 
   const userCurrency = useSelector((state) => state.auth?.user?.currency || state.app?.currency || 'INR');
   const { data: transactions = [], isLoading, refetch } = useTransactions(userCurrency);
+  const { banks } = useBanks();
 
   useFocusEffect(
     useCallback(() => {
@@ -245,6 +247,14 @@ const AnalyticsScreen = () => {
         if (typeof t.bankAccount === 'object') {
           bankName = t.bankAccount.nickname || t.bankAccount.bankName || 'Bank Account';
           accNo = t.bankAccount.accountNumber || '';
+        } else if (banks && banks.length > 0) {
+          const matchedBank = banks.find((b) => String(b._id) === String(t.bankAccount));
+          if (matchedBank) {
+            bankName = matchedBank.nickname || matchedBank.bankName || 'Bank Account';
+            accNo = matchedBank.accountNumber || '';
+          } else {
+            bankName = 'Linked Bank';
+          }
         } else {
           bankName = 'Linked Bank';
         }
@@ -266,7 +276,7 @@ const AnalyticsScreen = () => {
       .sort((a, b) => b.amount - a.amount);
 
     return { list, totalOutflow };
-  }, [periodFilteredTxns]);
+  }, [periodFilteredTxns, banks, userCurrency]);
 
   // ─────────────────────────────────────────────────────────────
   // 6. INFLOW BANK BREAKDOWN (Money received in which bank?)
@@ -277,7 +287,7 @@ const AnalyticsScreen = () => {
     let totalInflow = 0;
 
     incomes.forEach((t) => {
-      const amt = Number(t.amount) || 0;
+      const amt = getStoredAmountForCurrency(t, userCurrency);
       let bankName = 'Unlinked / Cash';
       let accNo = '';
 
@@ -285,6 +295,14 @@ const AnalyticsScreen = () => {
         if (typeof t.bankAccount === 'object') {
           bankName = t.bankAccount.nickname || t.bankAccount.bankName || 'Bank Account';
           accNo = t.bankAccount.accountNumber || '';
+        } else if (banks && banks.length > 0) {
+          const matchedBank = banks.find((b) => String(b._id) === String(t.bankAccount));
+          if (matchedBank) {
+            bankName = matchedBank.nickname || matchedBank.bankName || 'Bank Account';
+            accNo = matchedBank.accountNumber || '';
+          } else {
+            bankName = 'Deposit Bank';
+          }
         } else {
           bankName = 'Deposit Bank';
         }
@@ -306,7 +324,7 @@ const AnalyticsScreen = () => {
       .sort((a, b) => b.amount - a.amount);
 
     return { list, totalInflow };
-  }, [periodFilteredTxns]);
+  }, [periodFilteredTxns, banks, userCurrency]);
 
   if (isLoading) {
     return (
@@ -486,14 +504,10 @@ const AnalyticsScreen = () => {
                 />
                 <View style={styles.donutCenterText}>
                   <Text style={styles.donutCenterVal}>
-<<<<<<< Updated upstream
-                    {formatCurrency(categoryBreakdown.totalCatAmount, 'INR', userCurrency)}
+                    {formatCurrency(categoryBreakdown.totalCatAmount, userCurrency)}
                   </Text>
                   <Text style={styles.donutCenterSub}>
                     {chartType === 'expense' ? 'SPENT' : 'INCOME'}
-=======
-                    {formatCurrency(categoryBreakdown.totalCatExpense, userCurrency)}
->>>>>>> Stashed changes
                   </Text>
                 </View>
               </View>

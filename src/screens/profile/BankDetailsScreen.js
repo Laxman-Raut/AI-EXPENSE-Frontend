@@ -321,7 +321,7 @@ const BankDetailsScreen = ({ navigation, route }) => {
         ) : (
           <FlatList
             data={groupedTxns}
-            keyExtractor={(item) => item.date}
+            keyExtractor={(item, index) => item.date || `group-${index}`}
             ListHeaderComponent={renderHeader}
             refreshControl={
               <RefreshControl
@@ -334,9 +334,9 @@ const BankDetailsScreen = ({ navigation, route }) => {
             renderItem={({ item }) => (
               <View style={styles.dateGroupContainer}>
                 <Text style={styles.dateGroupHeader}>{item.date}</Text>
-                {item.data.map((txn) => (
-                <TransactionCard
-                  key={txn._id}
+                {item.data.map((txn, index) => (
+                  <TransactionCard
+                    key={txn._id || txn.id || `txn-${index}`}
                   title={txn.description || txn.category}
                   category={txn.category}
                   paymentMethod={txn.paymentMethod || 'UPI'}

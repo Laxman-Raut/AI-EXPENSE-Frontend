@@ -89,9 +89,12 @@ const AddTransactionScreen = ({ navigation, route }) => {
   // Bank selection state
   const { banks } = useBanks();
   const [selectedBankId, setSelectedBankId] = useState(null);
+  const [bankInitialized, setBankInitialized] = useState(false);
 
-  // Auto-select primary bank when banks load or editing
+  // Auto-select primary bank once when banks load or when editing
   useEffect(() => {
+    if (bankInitialized) return;
+
     if (isEditing && transactionDetails) {
       if (transactionDetails.bankAccount) {
         setSelectedBankId(
@@ -99,14 +102,19 @@ const AddTransactionScreen = ({ navigation, route }) => {
             ? transactionDetails.bankAccount._id
             : transactionDetails.bankAccount
         );
+        setBankInitialized(true);
       }
-    } else if (banks && banks.length > 0 && !selectedBankId) {
+    } else if (route.params?.defaultBankId) {
+      setSelectedBankId(route.params.defaultBankId);
+      setBankInitialized(true);
+    } else if (banks && banks.length > 0) {
       const primary = banks.find((b) => b.isPrimary) || banks[0];
       if (primary) {
         setSelectedBankId(primary._id);
       }
+      setBankInitialized(true);
     }
-  }, [banks, isEditing, transactionDetails, selectedBankId]);
+  }, [banks, isEditing, transactionDetails, bankInitialized, route.params?.defaultBankId]);
 
   // Populate data when editing
   useEffect(() => {
@@ -517,6 +525,35 @@ const AddTransactionScreen = ({ navigation, route }) => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.paymentMethodsRow}
             >
+              {/* Option to clear/unselect bank account */}
+              <TouchableOpacity
+                key="none"
+                style={[
+                  styles.bankPill,
+                  !selectedBankId && styles.bankPillSelected,
+                ]}
+                onPress={() => setSelectedBankId(null)}
+                activeOpacity={0.75}
+              >
+                <Icon
+                  name="ban-outline"
+                  size={16}
+                  color={!selectedBankId ? colors.primary : colors.text.secondary}
+                  style={{ marginRight: 6 }}
+                />
+                <View>
+                  <Text
+                    style={[
+                      styles.bankPillTitle,
+                      !selectedBankId && styles.bankPillTitleSelected,
+                    ]}
+                  >
+                    None
+                  </Text>
+                  <Text style={styles.bankPillSub}>No Bank Account</Text>
+                </View>
+              </TouchableOpacity>
+
               {banks.map((b) => {
                 const isSelected = selectedBankId === b._id;
                 const maskAcc = b.accountNumber?.slice(-4) ? `•••• ${b.accountNumber.slice(-4)}` : '';
