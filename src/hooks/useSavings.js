@@ -1,9 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import savingsApi from '../api/savings';
+import { getGlobalCurrency } from '../utils/formatCurrency';
 
-export const useSavingsJars = (status = null) => {
+export const useSavingsJars = (status = null, currency = null) => {
+  const activeCurrency = currency || getGlobalCurrency() || 'INR';
+
   return useQuery({
-    queryKey: ['savingsJars', status],
+    queryKey: ['savingsJars', status, activeCurrency],
     queryFn: async () => {
       const res = await savingsApi.getSavingsJars(status);
       return res;
@@ -60,3 +63,4 @@ export const useTransferSavings = () => {
     },
   });
 };
+

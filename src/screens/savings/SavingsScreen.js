@@ -20,18 +20,31 @@ import savingsApi from '../../api/savings';
 import { useSelector } from 'react-redux';
 import { useAuth } from '../../hooks/useAuth';
 import { getGlobalCurrency } from '../../utils/formatCurrency';
+import { useSavingsJars } from '../../hooks/useSavings';
 
 const SavingsScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
   const [activeTab, setActiveTab] = useState('active'); // active | completed | archived
-  const [jars, setJars] = useState([]);
-  const [summary, setSummary] = useState({
-    totalSavings: 0,
-    activeJarsCount: 0,
-    completedJarsCount: 0,
-    archivedJarsCount: 0,
-    totalJarsCount: 0,
-  });
+
+  const {
+    data: savingsRes,
+    isLoading: savingsLoading,
+    refetch: refetchSavingsJars,
+  } = useSavingsJars(activeTab, activeCurrency);
+
+  const jars = useMemo(() => savingsRes?.data || [], [savingsRes?.data]);
+  const summary = useMemo(
+    () =>
+      savingsRes?.summary || {
+        totalSavings: 0,
+        activeJarsCount: 0,
+        completedJarsCount: 0,
+        archivedJarsCount: 0,
+        totalJarsCount: 0,
+      },
+    [savingsRes?.summary]
+  );
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -44,7 +57,6 @@ const SavingsScreen = ({ navigation }) => {
 
   const subscription = useSelector((state) => state.subscription?.subscription);
   const isPremium = subscription?.plan === 'pro' && subscription?.status === 'active';
-  const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
 
   const handleOpenGoalModal = () => {
     const existing = summary.periodicGoal?.goal;
@@ -152,13 +164,14 @@ const SavingsScreen = ({ navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
-      fetchData(true);
-    }, [activeTab])
+      refetchSavingsJars();
+    }, [refetchSavingsJars])
   );
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    fetchData(true);
+    await refetchSavingsJars();
+    setRefreshing(false);
   };
 
   const handleCreateJar = () => {

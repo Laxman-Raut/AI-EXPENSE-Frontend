@@ -22,6 +22,7 @@ import SubscriptionPromoModal from '../../components/organisms/SubscriptionPromo
 import useBanks from '../../hooks/useBanks';
 import BankLogo from '../../components/atoms/BankLogo';
 import savingsApi from '../../api/savings';
+import { useSavingsJars } from '../../hooks/useSavings';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -67,27 +68,14 @@ const DashboardScreen = ({ navigation }) => {
   }, [isPro]);
 
   const { banks, loading: banksLoading, refetch: refetchBanks } = useBanks();
-  const [savingsData, setSavingsData] = useState(null);
-
-  const fetchSavingsData = React.useCallback(async () => {
-    try {
-      const res = await savingsApi.getSavingsJars();
-      if (res && res.success) {
-        setSavingsData(res);
-      }
-    } catch (_) {}
-  }, []);
-
-  useEffect(() => {
-    fetchSavingsData();
-  }, [fetchSavingsData]);
+  const { data: savingsData, refetch: refetchSavings } = useSavingsJars(null, activeCurrency);
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('ALL'); // 'ALL' | 'EXPENSES' | 'INCOME'
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchSummary(), refetchRecent(), refetchBanks(true), fetchSavingsData()]);
+    await Promise.all([refetchSummary(), refetchRecent(), refetchBanks(true), refetchSavings()]);
     setRefreshing(false);
   };
 
@@ -542,7 +530,7 @@ const DashboardScreen = ({ navigation }) => {
                 TOTAL SAVINGS
               </Text>
               <Text style={{ fontSize: 22, fontWeight: '800', color: colors.success || '#34C759', marginTop: 2 }}>
-                {formatCurrency(savingsData?.summary?.totalSavings || 0)}
+                {formatCurrency(savingsData?.summary?.totalSavings || 0, savingsData?.summary?.currency || activeCurrency)}
               </Text>
             </View>
             <TouchableOpacity

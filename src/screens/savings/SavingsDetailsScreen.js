@@ -52,7 +52,7 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
   useFocusEffect(
     useCallback(() => {
       fetchJarDetails(true);
-    }, [jarId])
+    }, [])
   );
 
   const handleRefresh = () => {
