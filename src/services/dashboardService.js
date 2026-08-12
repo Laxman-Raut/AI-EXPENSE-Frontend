@@ -39,8 +39,9 @@ const getUserState = () => {
  */
 export const computeLocalDashboardSummary = async () => {
   const user = getUserState();
+  const userId = user?._id || user?.email || null;
   const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
-  const transactions = await transactionRepository.getAll();
+  const transactions = await transactionRepository.getAll(userId);
   const rate = getExchangeRate() || 95.24;
 
   const now = new Date();
@@ -152,6 +153,8 @@ export const fetchRecentTransactions = async () => {
     }
   }
 
-  const allTxns = await transactionRepository.getAll();
+  const user = getUserState();
+  const userId = user?._id || user?.email || null;
+  const allTxns = await transactionRepository.getAll(userId);
   return allTxns.slice(0, 5);
 };

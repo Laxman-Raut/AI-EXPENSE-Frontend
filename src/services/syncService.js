@@ -2,9 +2,21 @@ import transactionRepository from '../repositories/transactionRepository';
 import { syncBulkTransactions } from '../api/transactions';
 import { checkIsConnected } from '../utils/netInfoHelper';
 
+const getCurrentUser = () => {
+  try {
+    const storeModule = require('../store');
+    const store = storeModule.default || storeModule.store;
+    if (!store || typeof store.getState !== 'function') return null;
+    const state = store.getState();
+    return state?.auth?.user || null;
+  } catch (err) {
+    return null;
+  }
+};
+
 class SyncService {
   /**
-   * Syncs all unsynced local SQLite transactions to MongoDB Cloud
+   * Syncs all unsynced local SQLite transactions to MongoDB Cloud for current user
    */
   async syncOfflineDataToCloud() {
     try {
@@ -14,7 +26,10 @@ class SyncService {
         return { success: false, reason: 'offline' };
       }
 
-      const unsyncedTransactions = await transactionRepository.getUnsynced();
+      const user = getCurrentUser();
+      const userId = user?._id || user?.email || null;
+
+      const unsyncedTransactions = await transactionRepository.getUnsynced(userId);
       if (!unsyncedTransactions || unsyncedTransactions.length === 0) {
         console.log('No unsynced offline transactions found');
         return { success: true, syncedCount: 0 };

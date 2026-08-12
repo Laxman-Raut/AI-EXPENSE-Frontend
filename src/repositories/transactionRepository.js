@@ -5,16 +5,16 @@ class TransactionRepository {
     return dbService.addTransaction(data);
   }
 
-  async getAll() {
-    return dbService.getAllTransactions();
+  async getAll(userId = null) {
+    return dbService.getAllTransactions(userId);
   }
 
-  async getById(id) {
-    return dbService.getTransactionById(id);
+  async getById(id, userId = null) {
+    return dbService.getTransactionById(id, userId);
   }
 
-  async getUnsynced() {
-    return dbService.getUnsyncedTransactions();
+  async getUnsynced(userId = null) {
+    return dbService.getUnsyncedTransactions(userId);
   }
 
   async update(data) {
@@ -29,8 +29,8 @@ class TransactionRepository {
     return dbService.markAsSynced(localId, cloudId);
   }
 
-  async cacheCloudTransactions(cloudItems) {
-    return dbService.bulkInsertFromCloud(cloudItems);
+  async cacheCloudTransactions(cloudItems, userId = null) {
+    return dbService.bulkInsertFromCloud(cloudItems, userId);
   }
 
   async clearAll() {

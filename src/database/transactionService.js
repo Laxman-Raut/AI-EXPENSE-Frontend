@@ -95,12 +95,21 @@ export const addTransaction = (data) => {
 };
 
 /**
- * Gets all active (non-deleted) transactions from SQLite
+ * Gets all active (non-deleted) transactions for a specific user from SQLite
  */
-export const getAllTransactions = () => {
+export const getAllTransactions = (userId = null) => {
   try {
-    const query = `SELECT * FROM transactions WHERE deleted = 0 ORDER BY transactionDate DESC, id DESC;`;
-    const result = db.execute(query);
+    if (!userId) {
+      console.log('[SQLite] getAllTransactions: No userId provided, returning empty list for security.');
+      return [];
+    }
+    const userStr = String(userId);
+    const query = `
+      SELECT * FROM transactions
+      WHERE deleted = 0 AND (userId = ? OR CAST(userId AS TEXT) = ?)
+      ORDER BY transactionDate DESC, id DESC;
+    `;
+    const result = db.execute(query, [userId, userStr]);
     const rows = extractRows(result);
     return rows.map((row) => {
       const origCurr = normalizeCurrencyCode(row.originalCurrency || row.currency || 'INR');
@@ -128,12 +137,19 @@ export const getAllTransactions = () => {
 };
 
 /**
- * Gets a single transaction by SQLite ID
+ * Gets a single transaction by SQLite ID for a specific user
  */
-export const getTransactionById = (id) => {
+export const getTransactionById = (id, userId = null) => {
   try {
-    const query = `SELECT * FROM transactions WHERE id = ? AND deleted = 0;`;
-    const result = db.execute(query, [id]);
+    if (!userId) {
+      const query = `SELECT * FROM transactions WHERE id = ? AND deleted = 0;`;
+      const result = db.execute(query, [id]);
+      const rows = extractRows(result);
+      return rows.length > 0 ? rows[0] : null;
+    }
+    const userStr = String(userId);
+    const query = `SELECT * FROM transactions WHERE id = ? AND deleted = 0 AND (userId = ? OR CAST(userId AS TEXT) = ?);`;
+    const result = db.execute(query, [id, userId, userStr]);
     const rows = extractRows(result);
     return rows.length > 0 ? rows[0] : null;
   } catch (error) {
@@ -143,12 +159,18 @@ export const getTransactionById = (id) => {
 };
 
 /**
- * Gets all unsynced transactions (isSynced = 0)
+ * Gets all unsynced transactions (isSynced = 0) for a specific user
  */
-export const getUnsyncedTransactions = () => {
+export const getUnsyncedTransactions = (userId = null) => {
   try {
-    const query = `SELECT * FROM transactions WHERE isSynced = 0 AND deleted = 0;`;
-    const result = db.execute(query);
+    if (!userId) {
+      const query = `SELECT * FROM transactions WHERE isSynced = 0 AND deleted = 0;`;
+      const result = db.execute(query);
+      return extractRows(result);
+    }
+    const userStr = String(userId);
+    const query = `SELECT * FROM transactions WHERE isSynced = 0 AND deleted = 0 AND (userId = ? OR CAST(userId AS TEXT) = ?);`;
+    const result = db.execute(query, [userId, userStr]);
     return extractRows(result);
   } catch (error) {
     console.error('Error fetching unsynced transactions from SQLite:', error);
@@ -252,18 +274,20 @@ export const markAsSynced = (localId, cloudId) => {
 /**
  * Bulk inserts/replaces cloud transactions into local SQLite cache
  */
-export const bulkInsertFromCloud = (cloudItems = []) => {
+export const bulkInsertFromCloud = (cloudItems = [], userId = null) => {
   try {
     const now = new Date().toISOString();
     for (const item of cloudItems) {
       const snapshot = buildSnapshot(item);
+      const targetUserId = userId || item.userId || item.user || null;
       const query = `
         INSERT OR REPLACE INTO transactions (
-          cloudId, type, category, description, amount, currency, originalAmount, originalCurrency, amountINR, amountUSD, exchangeRate, exchangeRateTimestamp, paymentMethod, transactionDate, bankAccount, note, isSynced, deleted, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?);
+          cloudId, userId, type, category, description, amount, currency, originalAmount, originalCurrency, amountINR, amountUSD, exchangeRate, exchangeRateTimestamp, paymentMethod, transactionDate, bankAccount, note, isSynced, deleted, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?);
       `;
       const params = [
         item._id || item.cloudId,
+        targetUserId,
         item.type,
         item.category,
         item.description || '',

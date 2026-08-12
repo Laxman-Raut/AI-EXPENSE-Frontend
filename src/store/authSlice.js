@@ -116,11 +116,6 @@ export const logout = createAsyncThunk(
     } catch (err) {
       console.warn('[Auth] Clear FCM token error:', err?.message);
     }
-    try {
-      await transactionRepository.clearAll();
-    } catch (err) {
-      console.warn('[Auth] Clear local SQLite database error:', err?.message);
-    }
     await AsyncStorage.removeItem('auth_token');
     await AsyncStorage.removeItem('user');
     return null;

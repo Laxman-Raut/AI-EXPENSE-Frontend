@@ -19,18 +19,33 @@ const isUserPro = () => {
   }
 };
 
+const getCurrentUser = () => {
+  try {
+    const storeModule = require('../store');
+    const store = storeModule.default || storeModule.store;
+    if (!store || typeof store.getState !== 'function') return null;
+    const state = store.getState();
+    return state?.auth?.user || null;
+  } catch (err) {
+    return null;
+  }
+};
+
 /**
- * Fetch transactions (From MongoDB when connected, fallback to SQLite offline)
+ * Fetch transactions (From MongoDB for Pro users, fallback to SQLite for Free/Offline users)
  */
 export const fetchTransactions = async () => {
+  const isPro = isUserPro();
   const isConnected = await checkIsConnected();
+  const user = getCurrentUser();
+  const userId = user?._id || user?.email || null;
 
-  if (isConnected) {
+  if (isPro && isConnected) {
     try {
       const response = await api.fetchTransactions();
       if (response && response.success && Array.isArray(response.data)) {
-        // Cache fetched cloud transactions into local SQLite
-        await transactionRepository.cacheCloudTransactions(response.data);
+        // Cache fetched cloud transactions into local SQLite tagged with current userId
+        await transactionRepository.cacheCloudTransactions(response.data, userId);
         return response.data;
       }
     } catch (error) {
@@ -38,16 +53,19 @@ export const fetchTransactions = async () => {
     }
   }
 
-  return await transactionRepository.getAll();
+  return await transactionRepository.getAll(userId);
 };
 
 /**
  * Fetch single transaction by ID
  */
 export const fetchTransaction = async (id) => {
+  const isPro = isUserPro();
   const isConnected = await checkIsConnected();
+  const user = getCurrentUser();
+  const userId = user?._id || user?.email || null;
 
-  if (isConnected) {
+  if (isPro && isConnected) {
     try {
       const response = await api.fetchTransaction(id);
       if (response && response.success) {
@@ -58,22 +76,30 @@ export const fetchTransaction = async (id) => {
     }
   }
 
-  return await transactionRepository.getById(id);
+  return await transactionRepository.getById(id, userId);
 };
 
 /**
- * Create transaction (MongoDB when connected, local SQLite when offline)
+ * Create transaction (MongoDB for Pro users, local SQLite for Free users tagged with userId)
  */
 export const createTransaction = async (data) => {
+  const isPro = isUserPro();
   const isConnected = await checkIsConnected();
+  const user = getCurrentUser();
+  const userId = data.userId || user?._id || user?.email || null;
 
-  if (isConnected) {
+  const payload = {
+    ...data,
+    userId,
+  };
+
+  if (isPro && isConnected) {
     try {
-      const response = await api.createTransaction(data);
+      const response = await api.createTransaction(payload);
       if (response && response.success) {
         const cloudItem = response.data;
         await transactionRepository.add({
-          ...data,
+          ...payload,
           ...cloudItem,
           cloudId: cloudItem._id,
           isSynced: 1,
@@ -85,9 +111,9 @@ export const createTransaction = async (data) => {
     }
   }
 
-  // Offline: Save locally with isSynced = 0
+  // Free Tier or Offline: Save locally tagged with userId
   return await transactionRepository.add({
-    ...data,
+    ...payload,
     isSynced: 0,
   });
 };
@@ -96,14 +122,22 @@ export const createTransaction = async (data) => {
  * Update transaction
  */
 export const updateTransaction = async (id, data) => {
+  const isPro = isUserPro();
   const isConnected = await checkIsConnected();
+  const user = getCurrentUser();
+  const userId = data.userId || user?._id || user?.email || null;
 
-  if (isConnected) {
+  const payload = {
+    ...data,
+    userId,
+  };
+
+  if (isPro && isConnected) {
     try {
-      const response = await api.updateTransaction(id, data);
+      const response = await api.updateTransaction(id, payload);
       if (response && response.success) {
         await transactionRepository.update({
-          ...data,
+          ...payload,
           ...response.data,
           id,
           isSynced: 1,
@@ -116,7 +150,7 @@ export const updateTransaction = async (id, data) => {
   }
 
   return await transactionRepository.update({
-    ...data,
+    ...payload,
     id,
     isSynced: 0,
   });
@@ -126,12 +160,15 @@ export const updateTransaction = async (id, data) => {
  * Delete transaction
  */
 export const deleteTransaction = async (id) => {
+  const isPro = isUserPro();
   const isConnected = await checkIsConnected();
+  const user = getCurrentUser();
+  const userId = user?._id || user?.email || null;
 
-  const localRecord = await transactionRepository.getById(id);
+  const localRecord = await transactionRepository.getById(id, userId);
   const cloudId = localRecord?.cloudId || id;
 
-  if (isConnected && cloudId) {
+  if (isPro && isConnected && cloudId) {
     try {
       await api.deleteTransaction(cloudId);
     } catch (error) {
