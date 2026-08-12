@@ -1,66 +1,55 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import bankApi from '../api/bank';
 
 export const useBanks = () => {
-  const [banks, setBanks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
 
-  const fetchBanks = useCallback(async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
-    setError(null);
-    try {
+  const {
+    data: banks = [],
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['banks'],
+    queryFn: async () => {
       const res = await bankApi.getBanks();
-      if (res && res.success) {
-        setBanks(res.data || []);
-      } else {
-        setBanks([]);
-      }
-    } catch (err) {
-      console.log('[useBanks] Error fetching banks:', err);
-      setError(err?.response?.data?.message || 'Failed to fetch bank accounts');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return (res && res.success) ? (res.data || []) : [];
+    },
+  });
 
-  useEffect(() => {
-    fetchBanks();
-  }, [fetchBanks]);
-
-  const addBank = async (bankData) => {
-    const res = await bankApi.createBank(bankData);
-    await fetchBanks(true);
-    return res;
+  const invalidateBanks = () => {
+    queryClient.invalidateQueries({ queryKey: ['banks'] });
   };
 
-  const editBank = async (id, bankData) => {
-    const res = await bankApi.updateBank(id, bankData);
-    await fetchBanks(true);
-    return res;
-  };
+  const addMutation = useMutation({
+    mutationFn: (bankData) => bankApi.createBank(bankData),
+    onSuccess: () => invalidateBanks(),
+  });
 
-  const removeBank = async (id) => {
-    const res = await bankApi.deleteBank(id);
-    await fetchBanks(true);
-    return res;
-  };
+  const editMutation = useMutation({
+    mutationFn: ({ id, bankData }) => bankApi.updateBank(id, bankData),
+    onSuccess: () => invalidateBanks(),
+  });
 
-  const makePrimary = async (id) => {
-    const res = await bankApi.setPrimaryBank(id);
-    await fetchBanks(true);
-    return res;
-  };
+  const removeMutation = useMutation({
+    mutationFn: (id) => bankApi.deleteBank(id),
+    onSuccess: () => invalidateBanks(),
+  });
+
+  const makePrimaryMutation = useMutation({
+    mutationFn: (id) => bankApi.setPrimaryBank(id),
+    onSuccess: () => invalidateBanks(),
+  });
 
   return {
     banks,
     loading,
-    error,
-    refetch: fetchBanks,
-    addBank,
-    editBank,
-    removeBank,
-    makePrimary,
+    error: error?.message || null,
+    refetch,
+    addBank: (bankData) => addMutation.mutateAsync(bankData),
+    editBank: (id, bankData) => editMutation.mutateAsync({ id, bankData }),
+    removeBank: (id) => removeMutation.mutateAsync(id),
+    makePrimary: (id) => makePrimaryMutation.mutateAsync(id),
   };
 };
 

@@ -18,7 +18,6 @@ export const useTransactions = (currency: string | null = null) => {
     queryFn: async () => {
       return await fetchTransactions();
     },
-    staleTime: 0,
   });
 };
 

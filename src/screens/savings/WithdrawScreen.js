@@ -15,7 +15,10 @@ import { colors, spacing, typography, radius } from '../../theme';
 import { formatCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
 import savingsApi from '../../api/savings';
 
+import { useQueryClient } from '@tanstack/react-query';
+
 const WithdrawScreen = ({ route, navigation }) => {
+  const queryClient = useQueryClient();
   const { jar } = route.params;
 
   const [amount, setAmount] = useState('');
@@ -49,6 +52,9 @@ const WithdrawScreen = ({ route, navigation }) => {
         amount: numAmount,
         notes: notes.trim() || 'Withdrawal from jar',
       });
+
+      queryClient.invalidateQueries({ queryKey: ['savingsJars'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
 
       Alert.alert('Success', `Withdrew ₹${numAmount} from ${jar.name}`, [
         {

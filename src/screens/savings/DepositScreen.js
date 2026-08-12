@@ -15,9 +15,12 @@ import { formatCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
 import savingsApi from '../../api/savings';
 import CustomAlert from '../../components/molecules/CustomAlert';
 
+import { useQueryClient } from '@tanstack/react-query';
+
 const QUICK_AMOUNTS = [100, 500, 1000, 5000];
 
 const DepositScreen = ({ route, navigation }) => {
+  const queryClient = useQueryClient();
   const { jar } = route.params;
 
   const [amount, setAmount] = useState('');
@@ -62,6 +65,9 @@ const DepositScreen = ({ route, navigation }) => {
         amount: numAmount,
         notes: notes.trim() || 'Deposit into jar',
       });
+
+      queryClient.invalidateQueries({ queryKey: ['savingsJars'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
 
       showAlert(
         'Money Deposited! 💰',

@@ -62,17 +62,7 @@ const FriendsScreen = ({ navigation }) => {
   const { friends, pendingRequests, loading, error, refetch, accept, reject, remove } =
     useFriends();
 
-  // ─── Real-Time Focus Sync ───────────────────────────────
-  useFocusEffect(
-    useCallback(() => {
-      refetch(true);
-      const interval = setInterval(() => {
-        refetch(true);
-      }, 4000);
 
-      return () => clearInterval(interval);
-    }, [refetch])
-  );
 
   const handleAccept = async (requestId) => {
     try {

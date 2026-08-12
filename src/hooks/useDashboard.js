@@ -11,7 +11,6 @@ export const useDashboardSummary = (currency = null) => {
     queryFn: async () => {
       return await fetchDashboardSummary();
     },
-    staleTime: 0,
   });
 };
 
@@ -23,7 +22,6 @@ export const useRecentTransactions = (currency = null) => {
     queryFn: async () => {
       return await fetchRecentTransactions();
     },
-    staleTime: 0,
   });
 };
 
@@ -33,6 +31,5 @@ export const useMonthlyAnalytics = () => {
     queryFn: async () => {
       return await fetchMonthlyAnalytics();
     },
-    staleTime: 0,
   });
 };

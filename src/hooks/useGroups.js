@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getGroups,
   getGroupById,
@@ -11,104 +11,120 @@ import {
 } from '../api/groups';
 
 export const useGroups = () => {
-  const [groups, setGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
 
-  const fetchAll = useCallback(async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
-    setError(null);
-    try {
+  const {
+    data: groups = [],
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['groups'],
+    queryFn: async () => {
       const res = await getGroups();
-      setGroups(res.data || []);
-    } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to load groups');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return res.data || [];
+    },
+  });
 
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
-
-  const handleCreateGroup = async (groupData) => {
-    const res = await createGroup(groupData);
-    await fetchAll(true);
-    return res.data;
+  const invalidateGroups = () => {
+    queryClient.invalidateQueries({ queryKey: ['groups'] });
   };
 
-  const handleUpdateGroup = async (groupId, updateData) => {
-    const res = await updateGroup(groupId, updateData);
-    await fetchAll(true);
-    return res.data;
-  };
+  const createMutation = useMutation({
+    mutationFn: (groupData) => createGroup(groupData),
+    onSuccess: () => invalidateGroups(),
+  });
 
-  const handleDeleteGroup = async (groupId) => {
-    await deleteGroup(groupId);
-    await fetchAll(true);
-  };
+  const updateMutation = useMutation({
+    mutationFn: ({ groupId, updateData }) => updateGroup(groupId, updateData),
+    onSuccess: (_, variables) => {
+      invalidateGroups();
+      queryClient.invalidateQueries({ queryKey: ['groupDetails', variables.groupId] });
+    },
+  });
 
-  const handleAddMember = async (groupId, memberId) => {
-    const res = await addMember(groupId, memberId);
-    await fetchAll(true);
-    return res.data;
-  };
+  const deleteMutation = useMutation({
+    mutationFn: (groupId) => deleteGroup(groupId),
+    onSuccess: () => invalidateGroups(),
+  });
 
-  const handleRemoveMember = async (groupId, memberId) => {
-    const res = await removeMember(groupId, memberId);
-    await fetchAll(true);
-    return res.data;
-  };
+  const addMemberMutation = useMutation({
+    mutationFn: ({ groupId, memberId }) => addMember(groupId, memberId),
+    onSuccess: (_, variables) => {
+      invalidateGroups();
+      queryClient.invalidateQueries({ queryKey: ['groupDetails', variables.groupId] });
+    },
+  });
 
-  const handleLeaveGroup = async (groupId) => {
-    const res = await leaveGroup(groupId);
-    await fetchAll(true);
-    return res.data;
-  };
+  const removeMemberMutation = useMutation({
+    mutationFn: ({ groupId, memberId }) => removeMember(groupId, memberId),
+    onSuccess: (_, variables) => {
+      invalidateGroups();
+      queryClient.invalidateQueries({ queryKey: ['groupDetails', variables.groupId] });
+    },
+  });
+
+  const leaveGroupMutation = useMutation({
+    mutationFn: (groupId) => leaveGroup(groupId),
+    onSuccess: () => invalidateGroups(),
+  });
 
   return {
     groups,
     loading,
-    error,
-    refetch: fetchAll,
-    createGroup: handleCreateGroup,
-    updateGroup: handleUpdateGroup,
-    deleteGroup: handleDeleteGroup,
-    addMember: handleAddMember,
-    removeMember: handleRemoveMember,
-    leaveGroup: handleLeaveGroup,
+    error: error?.message || null,
+    refetch,
+    createGroup: async (groupData) => {
+      const res = await createMutation.mutateAsync(groupData);
+      return res.data;
+    },
+    updateGroup: async (groupId, updateData) => {
+      const res = await updateMutation.mutateAsync({ groupId, updateData });
+      return res.data;
+    },
+    deleteGroup: (groupId) => deleteMutation.mutateAsync(groupId),
+    addMember: async (groupId, memberId) => {
+      const res = await addMemberMutation.mutateAsync({ groupId, memberId });
+      return res.data;
+    },
+    removeMember: async (groupId, memberId) => {
+      const res = await removeMemberMutation.mutateAsync({ groupId, memberId });
+      return res.data;
+    },
+    leaveGroup: async (groupId) => {
+      const res = await leaveGroupMutation.mutateAsync(groupId);
+      return res.data;
+    },
   };
 };
 
 export const useGroupDetails = (groupId) => {
-  const [group, setGroup] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
 
-  const fetchDetails = useCallback(async (isSilent = false) => {
-    if (!groupId) return;
-    if (!isSilent) setLoading(true);
-    setError(null);
-    try {
+  const {
+    data: group = null,
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['groupDetails', groupId],
+    queryFn: async () => {
+      if (!groupId) return null;
       const res = await getGroupById(groupId);
-      setGroup(res.data || null);
-    } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to load group details');
-    } finally {
-      setLoading(false);
-    }
-  }, [groupId]);
+      return res.data || null;
+    },
+    enabled: !!groupId,
+  });
 
-  useEffect(() => {
-    fetchDetails();
-  }, [fetchDetails]);
+  const setGroup = (updater) => {
+    queryClient.setQueryData(['groupDetails', groupId], updater);
+  };
 
   return {
     group,
     loading,
-    error,
-    refetch: fetchDetails,
+    error: error?.message || null,
+    refetch,
     setGroup,
   };
 };

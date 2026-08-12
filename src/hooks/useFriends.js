@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getFriends,
   getPendingRequests,
@@ -9,58 +10,71 @@ import {
   searchUsers,
 } from '../api/friends';
 
-// Hook to manage full friends state
+// Hook to manage full friends state via React Query
 export const useFriends = () => {
-  const [friends, setFriends] = useState([]);
-  const [pendingRequests, setPendingRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
 
-  const fetchAll = useCallback(async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
-    setError(null);
-    try {
-      const [friendsRes, pendingRes] = await Promise.all([
-        getFriends(),
-        getPendingRequests(),
-      ]);
-      setFriends(friendsRes.data || []);
-      setPendingRequests(pendingRes.data || []);
-    } catch (err) {
-      if (!isSilent) setError(err?.response?.data?.message || 'Failed to load friends');
-    } finally {
-      setLoading(false);
-    }
-  }, [friends.length]);
+  const {
+    data: friends = [],
+    isLoading: loadingFriends,
+    error: friendsError,
+    refetch: refetchFriends,
+  } = useQuery({
+    queryKey: ['friends'],
+    queryFn: async () => {
+      const res = await getFriends();
+      return res.data || [];
+    },
+    refetchInterval: 30000, // Safe background polling every 30s
+  });
 
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+  const {
+    data: pendingRequests = [],
+    isLoading: loadingPending,
+    error: pendingError,
+    refetch: refetchPending,
+  } = useQuery({
+    queryKey: ['pendingRequests'],
+    queryFn: async () => {
+      const res = await getPendingRequests();
+      return res.data || [];
+    },
+    refetchInterval: 30000,
+  });
 
-  const accept = async (requestId) => {
-    await acceptFriendRequest(requestId);
-    await fetchAll();
-  };
+  const invalidateAll = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['friends'] });
+    queryClient.invalidateQueries({ queryKey: ['pendingRequests'] });
+  }, [queryClient]);
 
-  const reject = async (requestId) => {
-    await rejectFriendRequest(requestId);
-    await fetchAll();
-  };
+  const acceptMutation = useMutation({
+    mutationFn: (requestId) => acceptFriendRequest(requestId),
+    onSuccess: () => invalidateAll(),
+  });
 
-  const remove = async (friendId) => {
-    await removeFriend(friendId);
-    await fetchAll();
-  };
+  const rejectMutation = useMutation({
+    mutationFn: (requestId) => rejectFriendRequest(requestId),
+    onSuccess: () => invalidateAll(),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (friendId) => removeFriend(friendId),
+    onSuccess: () => invalidateAll(),
+  });
+
+  const fetchAll = useCallback(async () => {
+    await Promise.all([refetchFriends(), refetchPending()]);
+  }, [refetchFriends, refetchPending]);
 
   return {
     friends,
     pendingRequests,
-    loading,
-    error,
+    loading: loadingFriends || loadingPending,
+    error: (friendsError || pendingError)?.message || null,
     refetch: fetchAll,
-    accept,
-    reject,
-    remove,
+    accept: (requestId) => acceptMutation.mutateAsync(requestId),
+    reject: (requestId) => rejectMutation.mutateAsync(requestId),
+    remove: (friendId) => removeMutation.mutateAsync(friendId),
   };
 };
 

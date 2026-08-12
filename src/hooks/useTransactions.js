@@ -17,7 +17,6 @@ export const useTransactions = (currency = null) => {
     queryFn: async () => {
       return await fetchTransactions();
     },
-    staleTime: 0,
   });
 };
 
@@ -28,7 +27,6 @@ export const useTransaction = (id) => {
       return await fetchTransaction(id);
     },
     enabled: !!id,
-    staleTime: 0,
   });
 };
 

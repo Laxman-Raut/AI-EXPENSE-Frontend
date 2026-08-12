@@ -15,7 +15,10 @@ import { formatCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
 import savingsApi from '../../api/savings';
 import CustomAlert from '../../components/molecules/CustomAlert';
 
+import { useQueryClient } from '@tanstack/react-query';
+
 const TransferScreen = ({ route, navigation }) => {
+  const queryClient = useQueryClient();
   const initialFromJarId = route.params?.fromJarId;
 
   const [jars, setJars] = useState([]);
@@ -112,6 +115,9 @@ const TransferScreen = ({ route, navigation }) => {
         amount: numAmount,
         notes: notes.trim(),
       });
+
+      queryClient.invalidateQueries({ queryKey: ['savingsJars'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
 
       showAlert(
         'Transfer Complete 🎉',

@@ -78,16 +78,9 @@ const DashboardScreen = ({ navigation }) => {
     } catch (_) {}
   }, []);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      // Revalidate dashboard summary & recent data seamlessly in background
-      Promise.all([
-        refetchSummary(),
-        refetchRecent(),
-        fetchSavingsData(),
-      ]).catch(() => {});
-    }, [refetchSummary, refetchRecent, fetchSavingsData])
-  );
+  useEffect(() => {
+    fetchSavingsData();
+  }, [fetchSavingsData]);
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('ALL'); // 'ALL' | 'EXPENSES' | 'INCOME'

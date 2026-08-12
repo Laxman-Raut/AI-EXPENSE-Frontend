@@ -9,6 +9,8 @@ import { AlertProvider } from './src/context/AlertContext';
 import { createTables } from './src/database/schema';
 import AppNavigator from './src/navigation/AppNavigator';
 import './src/config/googleSignin';
+import apiClient from './src/api/client';
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -29,6 +31,9 @@ const App = () => {
     } catch (error) {
       console.error('Error initializing SQLite tables:', error);
     }
+
+    // Silent server warm-up ping (pre-warms Render backend if sleeping)
+    apiClient.get('/health').catch(() => {});
   }, []);
 
   return (
