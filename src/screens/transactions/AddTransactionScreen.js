@@ -24,7 +24,7 @@ import {
 } from '../../hooks/useTransactions';
 import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
-import { getGlobalCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
+import { getGlobalCurrency, getCurrencySymbol, getStoredAmountForCurrency } from '../../utils/formatCurrency';
 import useBanks from '../../hooks/useBanks';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -65,6 +65,7 @@ const QUICK_AMOUNTS = [100, 500, 1000, 2000, 5000];
 
 const AddTransactionScreen = ({ navigation, route }) => {
   const { user } = useAuth();
+  const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
   const transactionId = route.params?.id;
   const isEditing = !!transactionId;
 
@@ -91,17 +92,19 @@ const AddTransactionScreen = ({ navigation, route }) => {
   const [selectedBankId, setSelectedBankId] = useState(null);
   const [bankInitialized, setBankInitialized] = useState(false);
 
+  const editingTx = transactionDetails || route.params?.transaction || null;
+
   // Auto-select primary bank once when banks load or when editing
   useEffect(() => {
     if (bankInitialized) return;
 
-    if (isEditing && transactionDetails) {
-      if (transactionDetails.bankAccount) {
-        setSelectedBankId(
-          typeof transactionDetails.bankAccount === 'object'
-            ? transactionDetails.bankAccount._id
-            : transactionDetails.bankAccount
-        );
+    if (isEditing && editingTx) {
+      if (editingTx.bankAccount) {
+        const bId =
+          typeof editingTx.bankAccount === 'object'
+            ? editingTx.bankAccount._id || editingTx.bankAccount.id
+            : editingTx.bankAccount;
+        setSelectedBankId(bId);
         setBankInitialized(true);
       }
     } else if (route.params?.defaultBankId) {
@@ -114,18 +117,31 @@ const AddTransactionScreen = ({ navigation, route }) => {
       }
       setBankInitialized(true);
     }
-  }, [banks, isEditing, transactionDetails, bankInitialized, route.params?.defaultBankId]);
+  }, [banks, isEditing, editingTx, bankInitialized, route.params?.defaultBankId]);
 
   // Populate data when editing
   useEffect(() => {
-    if (isEditing && transactionDetails) {
-      setActiveType(transactionDetails.type || 'expense');
-      setAmount(String(transactionDetails.amount || ''));
-      setCategory(transactionDetails.category || 'Food');
-      setPaymentMethod(transactionDetails.paymentMethod || 'UPI');
-      setNotes(transactionDetails.description || '');
-      if (transactionDetails.transactionDate) {
-        const dateObj = new Date(transactionDetails.transactionDate);
+    if (isEditing && editingTx) {
+      setActiveType(editingTx.type || 'expense');
+      
+      const numAmt = getStoredAmountForCurrency(editingTx, activeCurrency, 'amount');
+      const fallbackAmt =
+        editingTx.originalCurrency === activeCurrency
+          ? (editingTx.originalAmount ?? editingTx.amount)
+          : (editingTx.amountUSD !== undefined && editingTx.amountUSD !== null && activeCurrency === 'USD'
+              ? editingTx.amountUSD
+              : (editingTx.amountINR !== undefined && editingTx.amountINR !== null && activeCurrency === 'INR'
+                  ? editingTx.amountINR
+                  : (editingTx.originalAmount ?? editingTx.amount)));
+
+      const finalAmt = numAmt > 0 ? numAmt : fallbackAmt;
+      setAmount(String(finalAmt !== undefined && finalAmt !== null && finalAmt !== '' ? finalAmt : ''));
+      setCategory(editingTx.category || 'Food');
+      setPaymentMethod(editingTx.paymentMethod || 'UPI');
+      setNotes(editingTx.description || editingTx.note || '');
+      const txDate = editingTx.transactionDate || editingTx.createdAt;
+      if (txDate) {
+        const dateObj = new Date(txDate);
         setTransactionDate(dateObj);
         setDateText(dayjs(dateObj).format('MMM DD, YYYY'));
         
@@ -138,7 +154,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
         }
       }
     }
-  }, [transactionDetails, isEditing]);
+  }, [editingTx, isEditing]);
 
   // Handle selected category returned from Categories screen selection
   useEffect(() => {
@@ -173,8 +189,6 @@ const AddTransactionScreen = ({ navigation, route }) => {
       showAlert('Error', 'Please enter a valid amount.');
       return;
     }
-
-    const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
 
     const payload = {
       type: activeType,

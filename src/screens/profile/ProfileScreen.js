@@ -184,27 +184,25 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   // Currency Update
-  const handleSaveCurrency = async (currCode) => {
-    setLoading(true);
-    try {
-      await updateUser({ currency: currCode });
-      setSelectedCurrency(currCode);
-      setGlobalCurrency(currCode);
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['monthlyAnalytics'] });
-      queryClient.invalidateQueries({ queryKey: ['categoryAnalytics'] });
-      queryClient.invalidateQueries({ queryKey: ['budgetUtilization'] });
-      queryClient.invalidateQueries({ queryKey: ['yearlyComparison'] });
-      queryClient.invalidateQueries({ queryKey: ['savingsJars'] });
-      queryClient.invalidateQueries({ queryKey: ['recentTransactions'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
-      setCurrencyModalVisible(false);
-      showAlert('Success', `Currency switched to ${currCode === 'USD' ? 'US Dollar ($)' : 'Rupees (₹)'}.`, [{ text: 'OK' }]);
-    } catch (err) {
-      showAlert('Update Failed', err.message || 'Could not update currency settings.', [{ text: 'OK' }]);
-    } finally {
-      setLoading(false);
-    }
+  const handleSaveCurrency = (currCode) => {
+    setSelectedCurrency(currCode);
+    setGlobalCurrency(currCode);
+    setCurrencyModalVisible(false);
+
+    queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['monthlyAnalytics'] });
+    queryClient.invalidateQueries({ queryKey: ['categoryAnalytics'] });
+    queryClient.invalidateQueries({ queryKey: ['budgetUtilization'] });
+    queryClient.invalidateQueries({ queryKey: ['yearlyComparison'] });
+    queryClient.invalidateQueries({ queryKey: ['savingsJars'] });
+    queryClient.invalidateQueries({ queryKey: ['recentTransactions'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
+
+    showAlert('Success', `Currency switched to ${currCode === 'USD' ? 'US Dollar ($)' : 'Rupees (₹)'}.`, [{ text: 'OK' }]);
+
+    updateUser({ currency: currCode }).catch((err) => {
+      console.warn('[ProfileScreen] Currency sync error:', err?.message);
+    });
   };
 
 

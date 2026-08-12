@@ -129,7 +129,12 @@ const TransactionDetailScreen = ({ navigation, route }) => {
 
         <TouchableOpacity
           style={[styles.navBtn, styles.editNavBtn]}
-          onPress={() => navigation.navigate('AddTransaction', { id: transaction._id })}
+          onPress={() =>
+            navigation.navigate('AddTransaction', {
+              id: transaction._id || transaction.id,
+              transaction,
+            })
+          }
           activeOpacity={0.7}
         >
           <Icon name="create-outline" size={20} color={colors.primary} />
@@ -301,7 +306,12 @@ const TransactionDetailScreen = ({ navigation, route }) => {
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.editBtnPrimary}
-              onPress={() => navigation.navigate('AddTransaction', { id: transaction._id })}
+              onPress={() =>
+                navigation.navigate('AddTransaction', {
+                  id: transaction._id || transaction.id,
+                  transaction,
+                })
+              }
               activeOpacity={0.85}
             >
               <LinearGradient
