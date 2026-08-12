@@ -48,18 +48,28 @@ const WithdrawScreen = ({ route, navigation }) => {
 
     setLoading(true);
     try {
-      await savingsApi.withdrawFromJar(jar._id, {
+      const res = await savingsApi.withdrawFromJar(jar._id, {
         amount: numAmount,
         notes: notes.trim() || 'Withdrawal from jar',
       });
 
+      const updatedJar = res?.data || res;
+      if (updatedJar && updatedJar._id) {
+        queryClient.setQueryData(['savingsJar', jar._id], updatedJar);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['savingsJars'] });
+      queryClient.invalidateQueries({ queryKey: ['savingsJar', jar._id] });
       queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
 
-      Alert.alert('Success', `Withdrew ₹${numAmount} from ${jar.name}`, [
+      Alert.alert('Success', `Withdrew ${getCurrencySymbol()}${numAmount} from ${jar.name}`, [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: () =>
+            navigation.navigate('SavingsDetails', {
+              jarId: jar._id,
+              initialJar: updatedJar,
+            }),
         },
       ]);
     } catch (err) {

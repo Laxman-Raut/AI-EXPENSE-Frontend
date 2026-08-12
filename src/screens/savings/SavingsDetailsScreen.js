@@ -27,6 +27,12 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(!initialJar);
   const [refreshing, setRefreshing] = useState(false);
 
+  React.useEffect(() => {
+    if (route.params?.initialJar) {
+      setJar(route.params.initialJar);
+    }
+  }, [route.params?.initialJar]);
+
   // Custom Alert States
   const [deleteAlertVisible, setDeleteAlertVisible] = useState(false);
   const [errorAlertVisible, setErrorAlertVisible] = useState(false);

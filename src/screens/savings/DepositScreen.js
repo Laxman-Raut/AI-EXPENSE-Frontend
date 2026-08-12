@@ -61,10 +61,15 @@ const DepositScreen = ({ route, navigation }) => {
 
     setLoading(true);
     try {
-      await savingsApi.depositToJar(jar._id, {
+      const res = await savingsApi.depositToJar(jar._id, {
         amount: numAmount,
         notes: notes.trim() || 'Deposit into jar',
       });
+
+      const updatedJar = res?.data || res;
+      if (updatedJar && updatedJar._id) {
+        queryClient.setQueryData(['savingsJar', jar._id], updatedJar);
+      }
 
       queryClient.invalidateQueries({ queryKey: ['savingsJars'] });
       queryClient.invalidateQueries({ queryKey: ['savingsJar', jar._id] });
@@ -76,7 +81,12 @@ const DepositScreen = ({ route, navigation }) => {
         `${symbol}${numAmount} has been added to your "${jar.name}" savings jar.`,
         'success',
         [{ text: 'Great!' }],
-        () => navigation.goBack()
+        () => {
+          navigation.navigate('SavingsDetails', {
+            jarId: jar._id,
+            initialJar: updatedJar,
+          });
+        }
       );
     } catch (err) {
       console.log('[DepositScreen] Error:', err);

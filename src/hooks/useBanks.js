@@ -17,28 +17,62 @@ export const useBanks = () => {
     },
   });
 
-  const invalidateBanks = () => {
-    queryClient.invalidateQueries({ queryKey: ['banks'] });
+  const invalidateBanks = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['banks'] });
+    await queryClient.refetchQueries({ queryKey: ['banks'] });
+    await queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
   };
 
   const addMutation = useMutation({
     mutationFn: (bankData) => bankApi.createBank(bankData),
-    onSuccess: () => invalidateBanks(),
+    onSuccess: (res) => {
+      if (res?.data) {
+        queryClient.setQueryData(['banks'], (old = []) => {
+          const list = Array.isArray(old) ? old : [];
+          if (list.some((b) => b._id === res.data._id)) return list;
+          return [res.data, ...list];
+        });
+      }
+      invalidateBanks();
+    },
   });
 
   const editMutation = useMutation({
     mutationFn: ({ id, bankData }) => bankApi.updateBank(id, bankData),
-    onSuccess: () => invalidateBanks(),
+    onSuccess: (res, variables) => {
+      if (res?.data) {
+        queryClient.setQueryData(['banks'], (old = []) => {
+          const list = Array.isArray(old) ? old : [];
+          return list.map((b) => (b._id === variables.id ? { ...b, ...res.data } : b));
+        });
+      }
+      invalidateBanks();
+    },
   });
 
   const removeMutation = useMutation({
     mutationFn: (id) => bankApi.deleteBank(id),
-    onSuccess: () => invalidateBanks(),
+    onSuccess: (_, id) => {
+      queryClient.setQueryData(['banks'], (old = []) => {
+        const list = Array.isArray(old) ? old : [];
+        return list.filter((b) => b._id !== id);
+      });
+      invalidateBanks();
+    },
   });
 
   const makePrimaryMutation = useMutation({
     mutationFn: (id) => bankApi.setPrimaryBank(id),
-    onSuccess: () => invalidateBanks(),
+    onSuccess: (res, id) => {
+      queryClient.setQueryData(['banks'], (old = []) => {
+        const list = Array.isArray(old) ? old : [];
+        return list.map((b) => ({
+          ...b,
+          isPrimary: b._id === id,
+        }));
+      });
+      invalidateBanks();
+    },
   });
 
   return {

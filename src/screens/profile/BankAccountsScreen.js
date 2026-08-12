@@ -37,8 +37,11 @@ const POPULAR_BANKS = [
 const BankAccountsScreen = ({ navigation }) => {
   const { banks, loading, refetch, addBank, editBank, removeBank, makePrimary } = useBanks();
 
-
-
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
   const [modalVisible, setModalVisible] = useState(false);
   const [editingBank, setEditingBank] = useState(null);
 
