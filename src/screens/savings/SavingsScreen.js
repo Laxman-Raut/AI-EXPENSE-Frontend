@@ -205,7 +205,7 @@ const SavingsScreen = ({ navigation }) => {
       <TouchableOpacity
         style={styles.jarCard}
         activeOpacity={0.88}
-        onPress={() => navigation.navigate('SavingsDetails', { jarId: item._id })}
+        onPress={() => navigation.navigate('SavingsDetails', { jarId: item._id, initialJar: item })}
       >
         <View style={styles.jarCardHeader}>
           <View style={[styles.iconBox, { backgroundColor: (item.color || '#4C6EF5') + '20' }]}>

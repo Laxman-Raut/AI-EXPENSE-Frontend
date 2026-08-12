@@ -67,13 +67,15 @@ const DepositScreen = ({ route, navigation }) => {
       });
 
       queryClient.invalidateQueries({ queryKey: ['savingsJars'] });
+      queryClient.invalidateQueries({ queryKey: ['savingsJar', jar._id] });
       queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
 
+      const symbol = getCurrencySymbol();
       showAlert(
-        'Money Deposited! 💰',
-        `${getCurrencySymbol()}${numAmount} successfully added to your "${jar.name}" savings jar.`,
+        'Savings Added Successfully! 💰',
+        `${symbol}${numAmount} has been added to your "${jar.name}" savings jar.`,
         'success',
-        [{ text: 'Awesome' }],
+        [{ text: 'Great!' }],
         () => navigation.goBack()
       );
     } catch (err) {

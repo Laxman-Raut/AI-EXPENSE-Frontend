@@ -20,11 +20,11 @@ import { useAuth } from '../../hooks/useAuth';
 import { getGlobalCurrency } from '../../utils/formatCurrency';
 
 const SavingsDetailsScreen = ({ route, navigation }) => {
-  const { jarId } = route.params;
+  const { jarId, initialJar } = route.params;
   const { user } = useAuth();
   const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
-  const [jar, setJar] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [jar, setJar] = useState(initialJar || null);
+  const [loading, setLoading] = useState(!initialJar);
   const [refreshing, setRefreshing] = useState(false);
 
   // Custom Alert States
@@ -33,7 +33,7 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
   const [errorMessage, setErrorMessage] = useState('');
 
   const fetchJarDetails = async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
+    if (!isSilent && !jar) setLoading(true);
     try {
       const res = await savingsApi.getJarById(jarId);
       if (res && res.data) {
