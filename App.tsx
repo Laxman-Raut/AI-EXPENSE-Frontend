@@ -15,9 +15,12 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      staleTime: 15 * 1000, // 15 seconds stale time for instant 0ms screen transitions
+      // 3 minutes tak data fresh hai — screen navigate karne pe refetch nahi hoga
+      // Individual hooks (useDashboard, useBanks etc) apni higher staleTime use karenge
+      staleTime: 3 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
-      refetchOnMount: true,
+      // mount pe refetch band — sirf tab fetch hoga jab data stale ho
+      refetchOnMount: false,
       refetchOnReconnect: true,
       refetchOnWindowFocus: false,
     },

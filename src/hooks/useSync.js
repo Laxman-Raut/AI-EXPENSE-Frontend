@@ -12,10 +12,14 @@ export const useAutoSync = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState(null);
   const wasConnectedRef = useRef(true);
+  // isSyncing ko ref se track karo — useCallback dependency se hataya
+  // Warna performSync recreate hogi → listener baar baar re-register hoga
+  const isSyncingRef = useRef(false);
   const queryClient = useQueryClient();
 
   const performSync = useCallback(async () => {
-    if (isSyncing) return;
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
     setIsSyncing(true);
     try {
       const result = await syncService.syncOfflineDataToCloud();
@@ -32,9 +36,11 @@ export const useAutoSync = () => {
       console.error('❌ Auto-sync failed:', error);
       setLastSyncResult({ success: false, error: error.message });
     } finally {
+      isSyncingRef.current = false;
       setIsSyncing(false);
     }
-  }, [isSyncing, queryClient]);
+  // isSyncing dependency hataya — ref use kar rahe hain ab
+  }, [queryClient]);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
@@ -57,3 +63,4 @@ export const useAutoSync = () => {
 };
 
 export default useAutoSync;
+

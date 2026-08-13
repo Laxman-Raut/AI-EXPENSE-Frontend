@@ -28,6 +28,8 @@ const AppNavigator: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const dispatch = useDispatch<any>();
   const prevAuthRef = useRef(isAuthenticated);
+  // Subscription last fetch timestamp track karo — 5 min se kam waqt mein dobara fetch nahi
+  const lastSubFetchRef = useRef<number>(0);
 
   // ─────────────────────────────────────────────────────────────
   // FCM Push Notification & Currency Rates Initialization
@@ -43,19 +45,27 @@ const AppNavigator: React.FC = () => {
 
   // Centralized Subscription Refresh Logic:
   // 1. Startup & Post-Login refresh
-  // 2. Foreground app state transition refresh
+  // 2. Foreground app state transition refresh (max 1x per 5 min to prevent re-render storms)
   useEffect(() => {
     if (!isAuthenticated) return;
 
     // Refresh immediately upon app start or login
-    console.log('[Subscription] Centralized Refresh: Fetching subscription details...');
+    console.log('[Subscription] Fetching subscription details...');
     dispatch(fetchSubscription());
+    lastSubFetchRef.current = Date.now();
+
+    const THROTTLE_MS = 5 * 60 * 1000; // 5 minutes
 
     // Setup listener to refresh when app returns to foreground
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
-        console.log('[Subscription] Centralized Refresh: App returned to foreground. Fetching subscription...');
-        dispatch(fetchSubscription());
+        const now = Date.now();
+        // Sirf 5 minute baad dobara fetch karo — har foreground pe nahi
+        if (now - lastSubFetchRef.current >= THROTTLE_MS) {
+          console.log('[Subscription] Throttled foreground refresh: Fetching subscription...');
+          dispatch(fetchSubscription());
+          lastSubFetchRef.current = now;
+        }
       }
     };
 
@@ -65,6 +75,7 @@ const AppNavigator: React.FC = () => {
       stateSubscription.remove();
     };
   }, [isAuthenticated, dispatch]);
+
 
   useEffect(() => {
     if (!isAuthenticated) return;
