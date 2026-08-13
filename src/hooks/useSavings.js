@@ -11,6 +11,9 @@ export const useSavingsJars = (status = null, currency = null) => {
       const res = await savingsApi.getSavingsJars(status);
       return res;
     },
+    // Savings jars 5 min tak cache fresh hain
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 };
 

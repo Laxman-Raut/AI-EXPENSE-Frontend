@@ -272,41 +272,54 @@ export const markAsSynced = (localId, cloudId) => {
 };
 
 /**
- * Bulk inserts/replaces cloud transactions into local SQLite cache
+ * Bulk inserts/replaces cloud transactions into local SQLite cache.
+ * BEGIN TRANSACTION / COMMIT use kiya hai — N separate writes ki jagah
+ * ek single batch write hoti hai, jo 10x-50x faster hoti hai.
  */
 export const bulkInsertFromCloud = (cloudItems = [], userId = null) => {
+  if (!cloudItems || cloudItems.length === 0) return;
   try {
     const now = new Date().toISOString();
-    for (const item of cloudItems) {
-      const snapshot = buildSnapshot(item);
-      const targetUserId = userId || item.userId || item.user || null;
-      const query = `
-        INSERT OR REPLACE INTO transactions (
-          cloudId, userId, type, category, description, amount, currency, originalAmount, originalCurrency, amountINR, amountUSD, exchangeRate, exchangeRateTimestamp, paymentMethod, transactionDate, bankAccount, note, isSynced, deleted, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?);
-      `;
-      const params = [
-        item._id || item.cloudId,
-        targetUserId,
-        item.type,
-        item.category,
-        item.description || '',
-        snapshot.originalAmount,
-        snapshot.currency,
-        snapshot.originalAmount,
-        snapshot.originalCurrency,
-        snapshot.amountINR,
-        snapshot.amountUSD,
-        snapshot.exchangeRate,
-        snapshot.exchangeRateTimestamp,
-        item.paymentMethod || 'UPI',
-        item.transactionDate || now,
-        item.bankAccount || null,
-        item.note || '',
-        item.createdAt || now,
-        item.updatedAt || now,
-      ];
-      db.execute(query, params);
+    // Batch transaction shuru karo — sab writes ek saath commit honge
+    db.execute('BEGIN TRANSACTION;');
+    try {
+      for (const item of cloudItems) {
+        const snapshot = buildSnapshot(item);
+        const targetUserId = userId || item.userId || item.user || null;
+        const query = `
+          INSERT OR REPLACE INTO transactions (
+            cloudId, userId, type, category, description, amount, currency, originalAmount, originalCurrency, amountINR, amountUSD, exchangeRate, exchangeRateTimestamp, paymentMethod, transactionDate, bankAccount, note, isSynced, deleted, createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?);
+        `;
+        const params = [
+          item._id || item.cloudId,
+          targetUserId,
+          item.type,
+          item.category,
+          item.description || '',
+          snapshot.originalAmount,
+          snapshot.currency,
+          snapshot.originalAmount,
+          snapshot.originalCurrency,
+          snapshot.amountINR,
+          snapshot.amountUSD,
+          snapshot.exchangeRate,
+          snapshot.exchangeRateTimestamp,
+          item.paymentMethod || 'UPI',
+          item.transactionDate || now,
+          item.bankAccount || null,
+          item.note || '',
+          item.createdAt || now,
+          item.updatedAt || now,
+        ];
+        db.execute(query, params);
+      }
+      // Sab writes ek saath commit
+      db.execute('COMMIT;');
+    } catch (innerError) {
+      // Koi bhi error aaye toh rollback karo — data corrupt nahi hoga
+      db.execute('ROLLBACK;');
+      throw innerError;
     }
   } catch (error) {
     console.error('Error bulk inserting cloud transactions to SQLite:', error);

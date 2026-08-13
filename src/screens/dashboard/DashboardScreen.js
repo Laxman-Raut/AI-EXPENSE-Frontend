@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, RefreshControl, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import { useSelector } from 'react-redux';
 import { PieChart, LineChart } from 'react-native-gifted-charts';
@@ -138,12 +138,12 @@ const DashboardScreen = ({ navigation }) => {
 
   const transactionsList = recentTxns || [];
 
-  // Filter transactions
-  const filteredTransactions = transactionsList.filter((txn) => {
-    if (activeFilter === 'EXPENSES') return txn.type === 'expense';
-    if (activeFilter === 'INCOME') return txn.type === 'income';
-    return true;
-  });
+  // Filter transactions — useMemo se sirf dependency change hone pe recalculate hoga
+  const filteredTransactions = useMemo(() => {
+    if (activeFilter === 'EXPENSES') return transactionsList.filter((txn) => txn.type === 'expense');
+    if (activeFilter === 'INCOME') return transactionsList.filter((txn) => txn.type === 'income');
+    return transactionsList;
+  }, [transactionsList, activeFilter]);
 
   // Calculate totals
   const totalExpense = summary?.totalExpense || 0;
@@ -297,8 +297,8 @@ const DashboardScreen = ({ navigation }) => {
     return 'Good Evening 🌙';
   };
 
-  // Custom Header
-  const renderHeader = () => (
+  // Custom Header — useCallback se memoize kiya, Screen component re-render nahi karega
+  const renderHeader = useCallback(() => (
     <View style={styles.header}>
       <View style={styles.headerLeft}>
         <Text style={styles.greetingText}>{getGreeting()}</Text>
@@ -331,7 +331,7 @@ const DashboardScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
     </View>
-  );
+  ), [user?.fullName, unreadCount, navigation]);
 
   return (
     <View style={styles.root}>

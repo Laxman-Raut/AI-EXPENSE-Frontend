@@ -17,6 +17,9 @@ export const useTransactions = (currency = null) => {
     queryFn: async () => {
       return await fetchTransactions();
     },
+    // 3 min tak transactions cached rahenge
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 };
 
@@ -27,6 +30,8 @@ export const useTransaction = (id) => {
       return await fetchTransaction(id);
     },
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 };
 

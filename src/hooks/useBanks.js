@@ -15,6 +15,9 @@ export const useBanks = () => {
       const res = await bankApi.getBanks();
       return (res && res.success) ? (res.data || []) : [];
     },
+    // Banks rarely change — 5 min tak cache fresh hai
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 
   const invalidateBanks = async () => {
