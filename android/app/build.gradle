@@ -12,6 +12,7 @@ react {
     codegenDir = file("../../node_modules/@react-native/codegen")
     cliFile = file("../../node_modules/react-native/cli.js")
     entryFile = file("../../index.js")
+    debuggableVariants = ["debug", "release"]
     autolinkLibrariesWithApp()
 }
 
