@@ -30,11 +30,7 @@ console.log('[API Client] Active Base URL:', BASE_URL);
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
-<<<<<<< Updated upstream
   timeout: 30000, // 30s — Render free tier needs up to 30s to wake from sleep
-=======
-  timeout: 15000,
->>>>>>> Stashed changes
   headers: {
     'Content-Type': 'application/json',
   },
