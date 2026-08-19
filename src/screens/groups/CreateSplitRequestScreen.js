@@ -233,7 +233,7 @@ const CreateSplitRequestScreen = ({ route, navigation }) => {
       } else if (err?.message) {
         errMsg = err.message;
       }
-      Alert.alert('Error', errMsg);
+      showAlert('Error', errMsg, [{ text: 'OK' }], 'destructive');
     } finally {
       submittingRef.current = false;
       setSubmitting(false);

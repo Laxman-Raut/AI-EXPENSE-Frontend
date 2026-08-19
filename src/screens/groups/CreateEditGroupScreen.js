@@ -16,6 +16,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useGroups } from '../../hooks/useGroups';
+import { useAlert } from '../../context/AlertContext';
 
 const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=150&q=80',
@@ -36,16 +37,17 @@ const CreateEditGroupScreen = ({ route, navigation }) => {
   const savingRef = useRef(false);
 
   const { createGroup, updateGroup } = useGroups();
+  const { showAlert } = useAlert();
 
   const handleSave = async () => {
     if (savingRef.current) return;
     if (!name.trim()) {
-      Alert.alert('Required Field', 'Please enter a group name.');
+      showAlert('Required Field', 'Please enter a group name.', [{ text: 'OK' }], 'warning');
       return;
     }
 
     if (name.trim().length < 3) {
-      Alert.alert('Validation Error', 'Group name must be at least 3 characters long.');
+      showAlert('Validation Error', 'Group name must be at least 3 characters long.', [{ text: 'OK' }], 'warning');
       return;
     }
 
@@ -58,18 +60,21 @@ const CreateEditGroupScreen = ({ route, navigation }) => {
           description: description.trim(),
           avatar,
         });
-        Alert.alert('Success', 'Group updated successfully');
+        showAlert('Success', 'Group updated successfully!', [
+          { text: 'Awesome', onPress: () => navigation.goBack() },
+        ], 'success');
       } else {
         await createGroup({
           name: name.trim(),
           description: description.trim(),
           avatar,
         });
-        Alert.alert('Success', 'Group created successfully');
+        showAlert('Success', 'Group created successfully! 🎉', [
+          { text: 'Awesome', onPress: () => navigation.goBack() },
+        ], 'success');
       }
-      navigation.goBack();
     } catch (err) {
-      Alert.alert('Error', err?.response?.data?.message || 'Failed to save group');
+      showAlert('Error', err?.response?.data?.message || 'Failed to save group', [{ text: 'OK' }], 'destructive');
     } finally {
       savingRef.current = false;
       setSaving(false);
