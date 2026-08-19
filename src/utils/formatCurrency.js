@@ -94,23 +94,38 @@ export const normalizeCurrencyCode = (currency = null) => {
   return upper || 'INR';
 };
 
-export const getStoredAmountForCurrency = (record, targetCurrency = null, fallbackField = 'amount', fallbackCurrency = null) => {
+export const getStoredAmountForCurrency = (
+  record,
+  targetCurrency = null,
+  fallbackField = 'amount',
+  fallbackCurrency = null
+) => {
   if (!record) return 0;
 
   const currency = normalizeCurrencyCode(targetCurrency || cachedCurrency || 'INR');
   const useUsd = currency === 'USD';
-  const usdFields = ['amountUSD', 'currentAmountUSD', 'targetAmountUSD', 'monthlyBudgetUSD', 'savedInPeriodUSD', 'totalAmountUSD'];
-  const inrFields = ['amountINR', 'currentAmountINR', 'targetAmountINR', 'monthlyBudgetINR', 'savedInPeriodINR', 'totalAmountINR'];
+  const suffix = useUsd ? 'USD' : 'INR';
 
-  const preferredFields = useUsd ? usdFields : inrFields;
-  for (const field of preferredFields) {
+  // 1. Check direct field with currency suffix (e.g. targetAmountUSD, currentAmountUSD, amountUSD)
+  const specificField = `${fallbackField}${suffix}`;
+  if (record[specificField] !== null && record[specificField] !== undefined) {
+    const val = Number(record[specificField]);
+    if (!Number.isNaN(val)) return val;
+  }
+
+  // 2. If specific field was not present, check generic fields in priority order
+  const genericFields = useUsd
+    ? [`${fallbackField}USD`, 'amountUSD', 'totalAmountUSD']
+    : [`${fallbackField}INR`, 'amountINR', 'totalAmountINR'];
+
+  for (const field of genericFields) {
     if (record[field] !== null && record[field] !== undefined) {
-      const value = Number(record[field]);
-      if (!Number.isNaN(value)) return value;
+      const val = Number(record[field]);
+      if (!Number.isNaN(val)) return val;
     }
   }
 
-  // Determine base raw amount and base currency
+  // 3. Determine base raw amount and base currency
   let rawAmount = 0;
   if (record[fallbackField] !== null && record[fallbackField] !== undefined) {
     rawAmount = Number(record[fallbackField]);
