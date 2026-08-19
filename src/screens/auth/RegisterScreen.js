@@ -79,8 +79,9 @@ const RegisterScreen = ({ navigation }) => {
       setFullNameError('Full name must be at least 3 characters');
       isValid = false;
     }
-    if (!email.includes('@')) {
-      setEmailError('Please enter a valid email address');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!email.trim() || !emailRegex.test(email.trim())) {
+      setEmailError('This email is invalid. Please enter a correct email address.');
       isValid = false;
     }
     if (!isValid) return;
@@ -93,7 +94,16 @@ const RegisterScreen = ({ navigation }) => {
       setTimer(60);
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Could not send verification code.';
-      setError(msg);
+      if (
+        msg.toLowerCase().includes('already registered') ||
+        msg.toLowerCase().includes('already exist') ||
+        msg.toLowerCase().includes('log in') ||
+        msg.toLowerCase().includes('email')
+      ) {
+        setEmailError(msg);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -268,7 +278,11 @@ const RegisterScreen = ({ navigation }) => {
 
               <Input
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (emailError) setEmailError('');
+                  if (error) setError('');
+                }}
                 placeholder="Email Address"
                 keyboardType="email-address"
                 autoCapitalize="none"
