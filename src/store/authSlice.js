@@ -49,7 +49,11 @@ export const login = createAsyncThunk(
       return rejectWithValue(response.message || 'Login failed');
     } catch (error) {
       const msg = error.response?.data?.message || error.message || 'Login failed';
-      return rejectWithValue(msg);
+      return rejectWithValue({
+        message: msg,
+        requiresVerification: error.response?.data?.requiresVerification || false,
+        email: error.response?.data?.email,
+      });
     }
   }
 );

@@ -9,10 +9,12 @@ import PrimaryButton from '../../components/atoms/PrimaryButton';
 import AppLogo from '../../components/atoms/AppLogo';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../hooks/useAuth';
+import { useAlert } from '../../context/AlertContext';
 import { configureGoogleSignIn, signInWithGoogle } from '../../services/googleAuthService';
 
 const LoginScreen = ({ navigation }) => {
   const auth = useAuth();
+  const { showAlert } = useAlert();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -49,20 +51,49 @@ const LoginScreen = ({ navigation }) => {
     }
 
     setError('');
+    setEmailError('');
+    setPasswordError('');
     setLoading(true);
 
     try {
       await auth.login(email.trim(), password);
     } catch (err) {
-      if (err.requiresVerification || err.response?.data?.requiresVerification) {
+      const requiresVerification =
+        err?.requiresVerification ||
+        err?.response?.data?.requiresVerification;
+      if (requiresVerification) {
         navigation.navigate('OtpVerification', {
           email: err.email || err.response?.data?.email || email.trim(),
         });
         return;
       }
+
       const message =
-        err.response?.data?.message || err.message || 'Login failed. Please try again.';
+        (typeof err === 'string' ? err : null) ||
+        err?.message ||
+        err?.response?.data?.message ||
+        'Login failed. Please try again.';
+
       setError(message);
+
+      const lower = message.toLowerCase();
+      if (
+        lower.includes('email') ||
+        lower.includes('user not found') ||
+        lower.includes('mail') ||
+        lower.includes('account') ||
+        lower.includes('register')
+      ) {
+        setEmailError(message);
+      } else if (
+        lower.includes('password') ||
+        lower.includes('incorrect') ||
+        lower.includes('credentials')
+      ) {
+        setPasswordError(message);
+      }
+
+      showAlert('Login Failed', message, [{ text: 'OK' }], 'warning');
     } finally {
       setLoading(false);
     }
@@ -70,6 +101,8 @@ const LoginScreen = ({ navigation }) => {
 
   const handleGoogleSignIn = async () => {
     setError('');
+    setEmailError('');
+    setPasswordError('');
     setLoading(true);
     try {
       const googleData = await signInWithGoogle();
@@ -79,8 +112,12 @@ const LoginScreen = ({ navigation }) => {
         return;
       }
       const message =
-        err.response?.data?.message || err.message || 'Google Sign-In failed. Please try again.';
+        (typeof err === 'string' ? err : null) ||
+        err?.message ||
+        err?.response?.data?.message ||
+        'Google Sign-In failed. Please try again.';
       setError(message);
+      showAlert('Sign-In Failed', message, [{ text: 'OK' }], 'warning');
     } finally {
       setLoading(false);
     }
