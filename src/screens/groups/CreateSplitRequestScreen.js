@@ -18,7 +18,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useGroupSplitRequests } from '../../hooks/useSplitRequests';
 import { useAuth } from '../../hooks/useAuth';
-import { formatCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
+import { formatCurrency, getCurrencySymbol, getGlobalCurrency } from '../../utils/formatCurrency';
 import { useAlert } from '../../context/AlertContext';
 
 const SPLIT_TYPES = [
@@ -203,7 +203,7 @@ const CreateSplitRequestScreen = ({ route, navigation }) => {
         amount: parsedTotal,
         paidBy,
         splitType,
-        currency: user?.currency || 'INR',
+        currency: (user?.currency || getGlobalCurrency() || 'INR').toUpperCase(),
         dueDate: calculatedDueDate,
         participants: participantsPayload,
       });

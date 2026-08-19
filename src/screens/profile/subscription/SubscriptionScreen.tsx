@@ -11,6 +11,7 @@ import { usePayment } from '../../../hooks/usePayment';
 import { fetchSubscription } from '../../../store/subscriptionSlice';
 import subscriptionService from '../../../services/subscriptionService';
 import { usePublicPlans } from '../../../hooks/usePlans';
+import { useAlert } from '../../../context/AlertContext';
 
 // Cast JS components as any to avoid fontWeight / prop type conflicts
 const Screen = ScreenImport as any;
@@ -108,6 +109,7 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const userCurrency = useSelector((state: any) => state.auth?.user?.currency || state.app?.currency || '₹');
   const { startSubscriptionPayment, isLoading } = usePayment();
   const { data: plans, isLoading: plansLoading, error: plansError, refetch } = usePublicPlans();
+  const { showAlert } = useAlert() as any;
 
   const [selectedPlanSlug, setSelectedPlanSlug] = useState<string | null>(null);
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -171,7 +173,7 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       : formatPrice(plan.price, plan.currency, userCurrency);
     const couponLabel = appliedCoupon ? ` (Coupon: ${couponCode.toUpperCase()})` : '';
 
-    Alert.alert(
+    showAlert(
       'Confirm Subscription',
       `Subscribe to ${plan.name} for ${displayPrice}${getBillingLabel(plan.billingCycle)}?${couponLabel}`,
       [
@@ -185,12 +187,13 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             appliedCoupon ? couponCode.trim().toUpperCase() : undefined
           ),
         },
-      ]
+      ],
+      'premium'
     );
   };
 
   const handleRestorePurchase = () => {
-    Alert.alert(
+    showAlert(
       'Restore Purchase',
       'Checking App Store / Play Store for previous purchases... your subscription details will be refreshed.',
       [
@@ -200,7 +203,8 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             dispatch(fetchSubscription());
           },
         },
-      ]
+      ],
+      'info'
     );
   };
 
@@ -522,11 +526,11 @@ const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
         {/* Legal Links Footer */}
         <View style={styles.footer}>
-          <TouchableOpacity onPress={() => Alert.alert('Terms of Service', 'Standard Terms & Conditions apply for using Expenso subscriptions.')}>
+          <TouchableOpacity onPress={() => showAlert('Terms of Service', 'Standard Terms & Conditions apply for using Expenso subscriptions.', [{ text: 'OK' }], 'info')}>
             <Text style={styles.footerLink}>Terms of Service</Text>
           </TouchableOpacity>
           <Text style={styles.footerDivider}>|</Text>
-          <TouchableOpacity onPress={() => Alert.alert('Privacy Policy', 'We value your privacy. We never sell your transaction history or user data.')}>
+          <TouchableOpacity onPress={() => showAlert('Privacy Policy', 'We value your privacy. We never sell your transaction history or user data.', [{ text: 'OK' }], 'info')}>
             <Text style={styles.footerLink}>Privacy Policy</Text>
           </TouchableOpacity>
         </View>

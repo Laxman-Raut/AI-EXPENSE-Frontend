@@ -3,26 +3,30 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // ─────────────────────────────────────────────────────────────
-// LOCALHOST & LOCAL NETWORK CONNECTION SETTINGS
+// API BASE URL CONFIGURATION
 // ─────────────────────────────────────────────────────────────
-// Host machine IP address on your local Wi-Fi network (for physical phone)
-const LOCAL_IP = '10.35.245.181';
-// Android Emulator loopback IP to host machine (10.0.2.2) or localhost for iOS/web
-const LOCALHOST_IP = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+// Primary: Render Cloud Backend (always online, 500ms–1.5s response)
+// Override: Set process.env.API_URL to point to local dev server when needed
+//   e.g. API_URL=http://10.0.2.2:5000 (Android emulator)
+//   e.g. API_URL=http://localhost:5000  (iOS simulator)
 
 const RENDER_BASE_URL = 'https://ai-expense-backend-veoz.onrender.com/api';
 
-const getInitialBaseUrl = () => {
+// Local dev IPs (kept for reference / env override)
+const LOCAL_IP = '10.35.245.181';
+const LOCALHOST_IP = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+
+const getBaseUrl = () => {
   if (process.env.API_URL) {
     const cleanEnvUrl = process.env.API_URL.trim().replace(/\/+$/, '');
     return cleanEnvUrl.endsWith('/api') ? cleanEnvUrl : `${cleanEnvUrl}/api`;
   }
-  // Point to local development backend server
-  return `http://${LOCALHOST_IP}:5000/api`;
+  // Default to Render Cloud Backend for instant responses
+  return RENDER_BASE_URL;
 };
 
-const BASE_URL = getInitialBaseUrl();
-console.log('[API Client] Active Development Base URL:', BASE_URL);
+const BASE_URL = getBaseUrl();
+console.log('[API Client] Active Base URL:', BASE_URL);
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -48,7 +52,7 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// Response interceptor — handle token expiry & network retry
+// Response interceptor — handle token expiry
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -61,35 +65,9 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // Adaptive Network Fallback Chain:
-    // Retry 1: Try LOCAL_IP (Wi-Fi network IP) if 10.0.2.2/localhost fails
-    // Retry 2: Try Render Deployed Backend if local server is offline
-    const isGetRequest = originalRequest?.method?.toLowerCase() === 'get';
-    const isTimeout = error.code === 'ECONNABORTED';
-
-    if (
-      originalRequest &&
-      (!isTimeout || isGetRequest) &&
-      (isTimeout || error.message === 'Network Error' || !error.response) &&
-      (!originalRequest._retryCount || originalRequest._retryCount < 2)
-    ) {
-      originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
-
-      if (originalRequest._retryCount === 1) {
-        originalRequest.baseURL = `http://${LOCAL_IP}:5000/api`;
-        console.log('[API Client] Retrying network request on local network IP:', originalRequest.baseURL);
-        return apiClient(originalRequest);
-      }
-
-      if (originalRequest._retryCount === 2) {
-        originalRequest.baseURL = RENDER_BASE_URL;
-        console.log('[API Client] Local server unreachable. Retrying with Render Backend:', RENDER_BASE_URL);
-        return apiClient(originalRequest);
-      }
-    }
-
     return Promise.reject(error);
   },
 );
 
 export default apiClient;
+

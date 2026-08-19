@@ -19,7 +19,7 @@ import { colors, spacing, typography, radius } from '../../theme';
 import { useSplitDetail, useGroupSplitRequests } from '../../hooks/useSplitRequests';
 import { useGroupDetails } from '../../hooks/useGroups';
 import { useAuth } from '../../hooks/useAuth';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getGlobalCurrency, getStoredAmountForCurrency } from '../../utils/formatCurrency';
 import upiService from '../../services/upiService';
 import PaymentBottomSheet from '../../components/PaymentBottomSheet';
 import Snackbar from '../../components/Snackbar';
@@ -65,8 +65,10 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
   const { user } = useAuth();
   const currentUserId = String(user?._id || user?.id || '');
 
+  const activeCurrency = (user?.currency || getGlobalCurrency() || 'INR').toUpperCase();
+
   const { splitRequest, loading, error, refetch } = useSplitDetail(splitId);
-  const { updateSplit, deleteSplit } = useGroupSplitRequests(splitRequest?.group);
+  const { updateSplit, deleteSplit } = useGroupSplitRequests(splitRequest?.group, currentUserId, activeCurrency);
   const { group } = useGroupDetails(splitRequest?.group);
 
   // ─── Real-Time Focus Sync & Auto-Polling (3s) ────────────────────────────────
@@ -361,7 +363,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
               </View>
             )}
           </View>
-          <Text style={styles.participantAmount}>{formatCurrency(item.amount || 0, splitRequest?.currency)}</Text>
+          <Text style={styles.participantAmount}>{formatCurrency(getStoredAmountForCurrency(item, activeCurrency, 'amount', splitRequest?.originalCurrency || splitRequest?.currency), activeCurrency)}</Text>
         </View>
 
         {isAccepted && canToggleStatus ? (
@@ -506,7 +508,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>TOTAL EXPENSE AMOUNT</Text>
                 <Text style={styles.totalAmount}>
-                  {formatCurrency(splitRequest?.totalAmount || splitRequest?.amount || 0, splitRequest?.currency)}
+                  {formatCurrency(getStoredAmountForCurrency(splitRequest, activeCurrency, 'totalAmount', splitRequest?.originalCurrency || splitRequest?.currency), activeCurrency)}
                 </Text>
               </View>
 
@@ -569,7 +571,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
                     <>
                       <Icon name="card-outline" size={18} color="#fff" />
                       <Text style={styles.payNowPrimaryBtnText}>
-                        Pay Now with UPI ({formatCurrency(myParticipant.amount, splitRequest?.currency)})
+                        Pay Now with UPI ({formatCurrency(getStoredAmountForCurrency(myParticipant, activeCurrency, 'amount', splitRequest?.originalCurrency || splitRequest?.currency), activeCurrency)})
                       </Text>
                     </>
                   )}

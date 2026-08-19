@@ -52,6 +52,8 @@ const ProfileScreen = ({ navigation }) => {
   const [selectedCurrency, setSelectedCurrency] = useState(user?.currency || 'INR');
   const [supportSubject, setSupportSubject] = useState('');
   const [supportMessage, setSupportMessage] = useState('');
+  const [supportCountryCode, setSupportCountryCode] = useState('+91');
+  const [supportPhoneNumber, setSupportPhoneNumber] = useState(user?.mobile || '');
   const [loading, setLoading] = useState(false);
 
   // Notification toggles
@@ -222,7 +224,12 @@ const ProfileScreen = ({ navigation }) => {
 
   const handleSendTicket = async () => {
     if (!supportSubject.trim() || !supportMessage.trim()) {
-      showAlert('Error', 'Please fill in both fields.', [{ text: 'OK' }]);
+      showAlert('Error', 'Please fill in both subject and message fields.', [{ text: 'OK' }]);
+      return;
+    }
+    const cleanPhone = (supportPhoneNumber || '').replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      showAlert('Invalid Mobile Number', 'Please enter a valid 10-digit mobile number.', [{ text: 'OK' }]);
       return;
     }
     setLoading(true);
@@ -230,6 +237,8 @@ const ProfileScreen = ({ navigation }) => {
       await apiClient.post('auth/support', {
         subject: supportSubject,
         message: supportMessage,
+        countryCode: supportCountryCode || '+91',
+        phoneNumber: cleanPhone,
       });
       setLoading(false);
       setSupportModalVisible(false);
@@ -238,7 +247,7 @@ const ProfileScreen = ({ navigation }) => {
       const ticketId = Math.floor(100000 + Math.random() * 900000);
       showAlert(
         'Ticket Submitted',
-        `Your helpdesk ticket #T-${ticketId} was successfully created. Support will email you shortly.`,
+        `Your helpdesk ticket #T-${ticketId} was successfully created. Support will contact you shortly.`,
         [{ text: 'OK' }]
       );
     } catch (err) {
@@ -547,6 +556,27 @@ const ProfileScreen = ({ navigation }) => {
                 placeholder="What do you need help with?"
                 placeholderTextColor={colors.text.muted}
               />
+
+              <Text style={styles.inputLabel}>Phone Number (For Admin Callback)</Text>
+              <View style={{ flexDirection: 'row', gap: spacing.xs, alignItems: 'center' }}>
+                <TextInput
+                  style={[styles.textInput, { width: 75, textAlign: 'center', fontWeight: 'bold' }]}
+                  value={supportCountryCode}
+                  onChangeText={setSupportCountryCode}
+                  placeholder="+91"
+                  placeholderTextColor={colors.text.muted}
+                  keyboardType="phone-pad"
+                />
+                <TextInput
+                  style={[styles.textInput, { flex: 1 }]}
+                  value={supportPhoneNumber}
+                  onChangeText={(text) => setSupportPhoneNumber(text.replace(/[^0-9]/g, ''))}
+                  maxLength={10}
+                  placeholder="Enter 10-digit mobile number"
+                  placeholderTextColor={colors.text.muted}
+                  keyboardType="number-pad"
+                />
+              </View>
 
               <Text style={styles.inputLabel}>Message</Text>
               <TextInput

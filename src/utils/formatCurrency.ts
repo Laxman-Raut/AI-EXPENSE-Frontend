@@ -97,7 +97,8 @@ export const normalizeCurrencyCode = (currency: string | null = null): string =>
 export const getStoredAmountForCurrency = (
   record: Record<string, any> | null | undefined,
   targetCurrency: string | null = null,
-  fallbackField = 'amount'
+  fallbackField = 'amount',
+  fallbackCurrency: string | null = null
 ): number => {
   if (!record) return 0;
 
@@ -127,7 +128,7 @@ export const getStoredAmountForCurrency = (
 
   if (Number.isNaN(rawAmount) || rawAmount === 0) return 0;
 
-  const rawCurrency = normalizeCurrencyCode(record.originalCurrency || record.currency || (useUsd ? 'INR' : 'USD'));
+  const rawCurrency = normalizeCurrencyCode(record.originalCurrency || record.currency || fallbackCurrency || 'INR');
 
   return convertCurrencyValue(rawAmount, rawCurrency, currency);
 };
