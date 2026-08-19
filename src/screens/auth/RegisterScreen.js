@@ -188,15 +188,13 @@ const RegisterScreen = ({ navigation }) => {
       const fullOtp = otp.join('');
       const res = await completeRegistration(fullName.trim(), email.trim(), fullOtp, password);
       
-      if (res && res.success && res.data) {
-        if (res.data.token && res.data.user) {
-          // If completeRegistration returned JWT token directly
-          await AsyncStorage.setItem('auth_token', res.data.token);
-          await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
-          await auth.refreshProfile();
-        } else {
-          // Automatically log in the user via Redux / AuthContext
+      if (res && res.success) {
+        try {
+          // Automatically log in the user so AppNavigator seamlessly transitions to the Dashboard
           await auth.login(email.trim(), password);
+        } catch {
+          // Fallback: navigate to Login screen
+          navigation.replace('Login');
         }
       }
     } catch (err) {
