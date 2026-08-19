@@ -363,7 +363,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
               </View>
             )}
           </View>
-          <Text style={styles.participantAmount}>{formatCurrency(getStoredAmountForCurrency(item, activeCurrency, 'amount'), activeCurrency)}</Text>
+          <Text style={styles.participantAmount}>{formatCurrency(getStoredAmountForCurrency(item, activeCurrency, 'amount', splitRequest?.originalCurrency || splitRequest?.currency), activeCurrency)}</Text>
         </View>
 
         {isAccepted && canToggleStatus ? (
@@ -508,7 +508,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>TOTAL EXPENSE AMOUNT</Text>
                 <Text style={styles.totalAmount}>
-                  {formatCurrency(getStoredAmountForCurrency(splitRequest, activeCurrency, 'totalAmount'), activeCurrency)}
+                  {formatCurrency(getStoredAmountForCurrency(splitRequest, activeCurrency, 'totalAmount', splitRequest?.originalCurrency || splitRequest?.currency), activeCurrency)}
                 </Text>
               </View>
 
@@ -571,7 +571,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
                     <>
                       <Icon name="card-outline" size={18} color="#fff" />
                       <Text style={styles.payNowPrimaryBtnText}>
-                        Pay Now with UPI ({formatCurrency(getStoredAmountForCurrency(myParticipant, activeCurrency, 'amount'), activeCurrency)})
+                        Pay Now with UPI ({formatCurrency(getStoredAmountForCurrency(myParticipant, activeCurrency, 'amount', splitRequest?.originalCurrency || splitRequest?.currency), activeCurrency)})
                       </Text>
                     </>
                   )}

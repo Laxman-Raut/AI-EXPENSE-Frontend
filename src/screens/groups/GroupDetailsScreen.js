@@ -75,8 +75,8 @@ const GroupDetailsScreen = ({ route, navigation }) => {
   const activeCurrency = (user?.currency || getGlobalCurrency() || 'INR').toUpperCase();
 
   // Helper: pick the correct amount based on user's active currency
-  const getSplitAmount = (item, field = 'totalAmount') => {
-    return getStoredAmountForCurrency(item, activeCurrency, field);
+  const getSplitAmount = (item, field = 'totalAmount', parentCurrency = null) => {
+    return getStoredAmountForCurrency(item, activeCurrency, field, parentCurrency || item?.currency);
   };
 
   const subscription = useSelector((state) => state.subscription);
@@ -384,7 +384,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
   const renderGooglePaySplitItem = ({ item }) => {
     const paidByObj = typeof item.paidBy === 'object' ? item.paidBy : {};
     const isCompleted = item.status === 'completed';
-    const total = getSplitAmount(item, 'totalAmount');
+    const total = getSplitAmount(item, 'totalAmount', item.currency);
 
     const dueDate = item.dueDate ? dayjs(item.dueDate) : dayjs().add(7, 'day');
     const isOverdue = !isCompleted && dayjs().isAfter(dueDate);
@@ -446,7 +446,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
               {paymentLoading ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.payShareBtnText}>Pay Share ({formatCurrency(getSplitAmount(myParticipant, 'participant'), activeCurrency)})</Text>
+                <Text style={styles.payShareBtnText}>Pay Share ({formatCurrency(getSplitAmount(myParticipant, 'amount', item.currency), activeCurrency)})</Text>
               )}
             </TouchableOpacity>
           )}

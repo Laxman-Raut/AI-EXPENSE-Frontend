@@ -94,7 +94,7 @@ export const normalizeCurrencyCode = (currency = null) => {
   return upper || 'INR';
 };
 
-export const getStoredAmountForCurrency = (record, targetCurrency = null, fallbackField = 'amount') => {
+export const getStoredAmountForCurrency = (record, targetCurrency = null, fallbackField = 'amount', fallbackCurrency = null) => {
   if (!record) return 0;
 
   const currency = normalizeCurrencyCode(targetCurrency || cachedCurrency || 'INR');
@@ -122,7 +122,7 @@ export const getStoredAmountForCurrency = (record, targetCurrency = null, fallba
 
   if (Number.isNaN(rawAmount) || rawAmount === 0) return 0;
 
-  const rawCurrency = normalizeCurrencyCode(record.originalCurrency || record.currency || (useUsd ? 'INR' : 'USD'));
+  const rawCurrency = normalizeCurrencyCode(record.originalCurrency || record.currency || fallbackCurrency || 'INR');
 
   // Dynamically convert raw amount to target currency using live rates
   return convertCurrencyValue(rawAmount, rawCurrency, currency);

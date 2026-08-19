@@ -6,6 +6,7 @@ import {
   updateSplitRequest,
   deleteSplitRequest,
 } from '../api/splitRequests';
+import { getStoredAmountForCurrency } from '../utils/formatCurrency';
 
 export const useGroupSplitRequests = (groupId, currentUserId, activeCurrency = 'INR') => {
   const [splitRequests, setSplitRequests] = useState([]);
@@ -61,11 +62,7 @@ export const useGroupSplitRequests = (groupId, currentUserId, activeCurrency = '
         const isMe = currentUserId && String(pUserId) === String(currentUserId);
 
         // Pick the correct amount based on active currency
-        const amt = Number(
-          (activeCurrency === 'USD' && p.amountUSD != null) ? p.amountUSD :
-          (activeCurrency !== 'USD' && p.amountINR != null) ? p.amountINR :
-          p.amount || 0
-        );
+        const amt = getStoredAmountForCurrency(p, activeCurrency, 'amount', split.originalCurrency || split.currency);
 
         if (isPayer && !isMe && p.status !== 'paid') {
           owedToMe += amt;
