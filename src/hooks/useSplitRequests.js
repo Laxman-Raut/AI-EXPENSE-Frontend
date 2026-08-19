@@ -7,7 +7,7 @@ import {
   deleteSplitRequest,
 } from '../api/splitRequests';
 
-export const useGroupSplitRequests = (groupId, currentUserId) => {
+export const useGroupSplitRequests = (groupId, currentUserId, activeCurrency = 'INR') => {
   const [splitRequests, setSplitRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -60,10 +60,17 @@ export const useGroupSplitRequests = (groupId, currentUserId) => {
         const pUserId = typeof p.user === 'object' ? p.user._id || p.user.id : p.user;
         const isMe = currentUserId && String(pUserId) === String(currentUserId);
 
+        // Pick the correct amount based on active currency
+        const amt = Number(
+          (activeCurrency === 'USD' && p.amountUSD != null) ? p.amountUSD :
+          (activeCurrency !== 'USD' && p.amountINR != null) ? p.amountINR :
+          p.amount || 0
+        );
+
         if (isPayer && !isMe && p.status !== 'paid') {
-          owedToMe += Number(p.amount || 0);
+          owedToMe += amt;
         } else if (!isPayer && isMe && p.status !== 'paid') {
-          iOwe += Number(p.amount || 0);
+          iOwe += amt;
         }
       });
     });
@@ -73,7 +80,7 @@ export const useGroupSplitRequests = (groupId, currentUserId) => {
       iOwe: Number(iOwe.toFixed(2)),
       netBalance: Number((owedToMe - iOwe).toFixed(2)),
     };
-  }, [splitRequests, currentUserId]);
+  }, [splitRequests, currentUserId, activeCurrency]);
 
   return {
     splitRequests,

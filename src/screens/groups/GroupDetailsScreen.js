@@ -22,7 +22,7 @@ import { useGroupDetails, useGroups } from '../../hooks/useGroups';
 import { useFriends } from '../../hooks/useFriends';
 import { useGroupSplitRequests } from '../../hooks/useSplitRequests';
 import { useAuth } from '../../hooks/useAuth';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getGlobalCurrency, getStoredAmountForCurrency } from '../../utils/formatCurrency';
 import upiService from '../../services/upiService';
 import PaymentBottomSheet from '../../components/PaymentBottomSheet';
 import Snackbar from '../../components/Snackbar';
@@ -72,6 +72,12 @@ const GroupDetailsScreen = ({ route, navigation }) => {
   const { user } = useAuth();
   const currentUserId = String(user?._id || user?.id || '');
   const { showAlert } = useAlert();
+  const activeCurrency = (user?.currency || getGlobalCurrency() || 'INR').toUpperCase();
+
+  // Helper: pick the correct amount based on user's active currency
+  const getSplitAmount = (item, field = 'totalAmount') => {
+    return getStoredAmountForCurrency(item, activeCurrency, field);
+  };
 
   const subscription = useSelector((state) => state.subscription);
 
@@ -91,7 +97,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
     refetch: refetchSplits,
     balanceSummary,
     updateSplit,
-  } = useGroupSplitRequests(groupId, currentUserId);
+  } = useGroupSplitRequests(groupId, currentUserId, activeCurrency);
 
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -378,7 +384,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
   const renderGooglePaySplitItem = ({ item }) => {
     const paidByObj = typeof item.paidBy === 'object' ? item.paidBy : {};
     const isCompleted = item.status === 'completed';
-    const total = Number(item.totalAmount || item.amount || 0);
+    const total = getSplitAmount(item, 'totalAmount');
 
     const dueDate = item.dueDate ? dayjs(item.dueDate) : dayjs().add(7, 'day');
     const isOverdue = !isCompleted && dayjs().isAfter(dueDate);
@@ -412,7 +418,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
           </View>
 
           <View style={styles.splitAmountBox}>
-            <Text style={styles.splitAmount}>{formatCurrency(total, item.currency)}</Text>
+            <Text style={styles.splitAmount}>{formatCurrency(total, activeCurrency)}</Text>
             <Text style={styles.splitTypeBadge}>{(item.splitType || 'equal').toUpperCase()}</Text>
           </View>
         </View>
@@ -440,7 +446,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
               {paymentLoading ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.payShareBtnText}>Pay Share ({formatCurrency(myParticipant.amount, item.currency)})</Text>
+                <Text style={styles.payShareBtnText}>Pay Share ({formatCurrency(getSplitAmount(myParticipant, 'participant'), activeCurrency)})</Text>
               )}
             </TouchableOpacity>
           )}
@@ -615,12 +621,12 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                 <View style={styles.balanceRow}>
                   <View style={styles.balanceCard}>
                     <Icon name="arrow-down-circle" size={18} color={colors.success} />
-                    <Text style={styles.balanceAmountSuccess}>{formatCurrency(balanceSummary.owedToMe)}</Text>
+                    <Text style={styles.balanceAmountSuccess}>{formatCurrency(balanceSummary.owedToMe, activeCurrency)}</Text>
                     <Text style={styles.balanceLabel}>Owed to You</Text>
                   </View>
                   <View style={styles.balanceCard}>
                     <Icon name="arrow-up-circle" size={18} color={colors.danger} />
-                    <Text style={styles.balanceAmountDanger}>{formatCurrency(balanceSummary.iOwe)}</Text>
+                    <Text style={styles.balanceAmountDanger}>{formatCurrency(balanceSummary.iOwe, activeCurrency)}</Text>
                     <Text style={styles.balanceLabel}>You Owe</Text>
                   </View>
                 </View>
