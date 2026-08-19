@@ -94,12 +94,8 @@ const RegisterScreen = ({ navigation }) => {
       setTimer(60);
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Could not send verification code.';
-      if (
-        msg.toLowerCase().includes('already registered') ||
-        msg.toLowerCase().includes('already exist') ||
-        msg.toLowerCase().includes('log in') ||
-        msg.toLowerCase().includes('email')
-      ) {
+      const errorCode = err.response?.data?.errorCode;
+      if (errorCode === 'EMAIL_ALREADY_REGISTERED') {
         setEmailError(msg);
       } else {
         setError(msg);
