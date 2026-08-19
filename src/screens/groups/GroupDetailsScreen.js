@@ -219,7 +219,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
       return;
     }
     const memberName = member.fullName || member.username || 'this member';
-    Alert.alert(
+    showAlert(
       'Remove Member',
       `Are you sure you want to remove ${memberName} from the group?`,
       [
@@ -237,18 +237,19 @@ const GroupDetailsScreen = ({ route, navigation }) => {
             }
           },
         },
-      ]
+      ],
+      'destructive'
     );
   };
 
   const handleLeave = () => {
-    Alert.alert(
+    showAlert(
       'Leave Group',
       'Are you sure you want to leave this group?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Leave',
+          text: 'Leave Group',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -260,7 +261,8 @@ const GroupDetailsScreen = ({ route, navigation }) => {
             }
           },
         },
-      ]
+      ],
+      'destructive'
     );
   };
 
@@ -270,13 +272,13 @@ const GroupDetailsScreen = ({ route, navigation }) => {
       return;
     }
 
-    Alert.alert(
+    showAlert(
       'Delete Group',
-      'Are you sure you want to permanently delete this group?',
+      'Are you sure you want to permanently delete this group? All split expenses inside will be removed.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Delete Group',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -288,7 +290,8 @@ const GroupDetailsScreen = ({ route, navigation }) => {
             }
           },
         },
-      ]
+      ],
+      'destructive'
     );
   };
 
@@ -510,7 +513,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
             }
             options.push({ text: 'Cancel', style: 'cancel' });
 
-            Alert.alert('Group Options', 'Select an action', options);
+            showAlert('Group Options', 'Select an action to perform:', options, 'info');
           }}
         >
           <Icon name="ellipsis-vertical" size={20} color="#fff" />

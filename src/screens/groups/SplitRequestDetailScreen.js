@@ -23,6 +23,7 @@ import { formatCurrency, getGlobalCurrency, getStoredAmountForCurrency } from '.
 import upiService from '../../services/upiService';
 import PaymentBottomSheet from '../../components/PaymentBottomSheet';
 import Snackbar from '../../components/Snackbar';
+import { useAlert } from '../../context/AlertContext';
 
 
 
@@ -70,6 +71,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
   const { splitRequest, loading, error, refetch } = useSplitDetail(splitId);
   const { updateSplit, deleteSplit } = useGroupSplitRequests(splitRequest?.group, currentUserId, activeCurrency);
   const { group } = useGroupDetails(splitRequest?.group);
+  const { showAlert } = useAlert();
 
   // ─── Real-Time Focus Sync & Auto-Polling (3s) ────────────────────────────────
   useFocusEffect(
@@ -317,7 +319,7 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
       return;
     }
 
-    Alert.alert(
+    showAlert(
       'Delete Expense',
       'Are you sure you want to delete this split expense?',
       [
@@ -335,7 +337,8 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
             }
           },
         },
-      ]
+      ],
+      'destructive'
     );
   };
 
