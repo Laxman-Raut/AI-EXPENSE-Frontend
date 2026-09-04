@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,9 @@ import {
   NativeModules,
   NativeEventEmitter,
   ScrollView,
+  Pressable,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, radius, shadow, typography } from '../theme';
 import apiClient from '../api/client';
@@ -22,7 +24,6 @@ import { useCreateTransaction } from '../hooks/useTransactions';
 import { useAuth } from '../hooks/useAuth';
 import { useAlert } from '../context/AlertContext';
 import Card from './molecules/Card';
-import PrimaryButton from './atoms/PrimaryButton';
 import dayjs from 'dayjs';
 import ChatbotDrawer from './ChatbotDrawer';
 import { usePremiumAccess } from '../hooks/usePremiumAccess';
@@ -30,11 +31,31 @@ import { useNavigation } from '@react-navigation/native';
 
 const { SpeechRecognitionModule } = NativeModules;
 
+// Fixed bar heights to avoid Math.random() on re-renders
+const BAR_TARGETS = [32, 52, 44, 60, 38, 56, 28];
+const NUM_BARS = BAR_TARGETS.length;
+
+// Category → emoji map for result chip
+const CATEGORY_EMOJI = {
+  Food: '🍔',
+  Grocery: '🛒',
+  Shopping: '🛍️',
+  Fuel: '⛽',
+  Travel: '✈️',
+  Entertainment: '🎬',
+  Medical: '💊',
+  Bills: '📄',
+  Education: '📚',
+  Salary: '💰',
+  Other: '📦',
+};
+
 const FloatingVoiceButton = () => {
   const navigation = useNavigation();
   const { isAuthenticated } = useAuth();
   const { showAlert } = useAlert();
   const { hasPremiumAccess, showPremiumAlert } = usePremiumAccess();
+
   const [modalVisible, setModalVisible] = useState(false);
   const [chatbotVisible, setChatbotVisible] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -44,127 +65,130 @@ const FloatingVoiceButton = () => {
 
   const createMutation = useCreateTransaction();
 
-  // Soundwave Animation Refs
-  const wave1 = useRef(new Animated.Value(10)).current;
-  const wave2 = useRef(new Animated.Value(10)).current;
-  const wave3 = useRef(new Animated.Value(10)).current;
-  const wave4 = useRef(new Animated.Value(10)).current;
+  // Stable wave bar refs — one per bar, never recreated
+  const waveRefs = useRef(BAR_TARGETS.map(() => new Animated.Value(4))).current;
+  // Mic button pulse ref
+  const micPulse = useRef(new Animated.Value(1)).current;
+  // Floating button glow ref
+  const glowAnim = useRef(new Animated.Value(0)).current;
 
-  // Debug log to check if component mounts and auth state
-  console.log('[FloatingVoiceButton] Rendered. isAuthenticated:', isAuthenticated, 'NativeModuleLoaded:', !!SpeechRecognitionModule);
+  // ─── Waveform animation ───────────────────────────────────────
+  useEffect(() => {
+    let animations = [];
 
-  // Set up native speech events subscriptions
+    if (isListening) {
+      animations = waveRefs.map((val, i) =>
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(val, {
+              toValue: BAR_TARGETS[i],
+              duration: 300 + i * 60,
+              useNativeDriver: false,
+            }),
+            Animated.timing(val, {
+              toValue: 4 + i * 2,
+              duration: 300 + i * 60,
+              useNativeDriver: false,
+            }),
+          ])
+        )
+      );
+      animations.forEach(a => a.start());
+
+      // Mic button pulse while listening
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(micPulse, { toValue: 1.08, duration: 500, useNativeDriver: true }),
+          Animated.timing(micPulse, { toValue: 1, duration: 500, useNativeDriver: true }),
+        ])
+      );
+      pulse.start();
+      animations.push(pulse);
+    } else {
+      waveRefs.forEach((val, i) => {
+        Animated.timing(val, {
+          toValue: 4,
+          duration: 200,
+          useNativeDriver: false,
+        }).start();
+      });
+      micPulse.setValue(1);
+    }
+
+    return () => animations.forEach(a => a.stop());
+  }, [isListening]);
+
+  // ─── Floating button glow when modal is open ──────────────────
+  useEffect(() => {
+    Animated.timing(glowAnim, {
+      toValue: modalVisible ? 1 : 0,
+      duration: 250,
+      useNativeDriver: false,
+    }).start();
+  }, [modalVisible]);
+
+  // ─── Native speech event subscriptions ───────────────────────
   useEffect(() => {
     if (!modalVisible) return;
 
     if (!SpeechRecognitionModule) {
       showAlert(
         'Native Module Missing',
-        'The native SpeechRecognitionModule is not loaded.\n\nPlease run "npm run android" to compile the new native module into the app.',
+        'The SpeechRecognitionModule is not loaded.\n\nRun "npm run android" to recompile the native module.',
         [{ text: 'OK', onPress: () => setModalVisible(false) }]
       );
       return;
     }
 
-    const eventEmitter = new NativeEventEmitter(SpeechRecognitionModule);
+    const emitter = new NativeEventEmitter(SpeechRecognitionModule);
 
-    const onSpeechStartSub = eventEmitter.addListener('onSpeechStart', () => {
-      setIsListening(true);
-      setParsedData(null);
-    });
+    const subs = [
+      emitter.addListener('onSpeechStart', () => {
+        setIsListening(true);
+        setParsedData(null);
+      }),
+      emitter.addListener('onSpeechEnd', () => {
+        setIsListening(false);
+      }),
+      emitter.addListener('onSpeechResults', event => {
+        setInputText(event.text);
+        setIsListening(false);
+      }),
+      emitter.addListener('onSpeechPartialResults', event => {
+        setInputText(event.text);
+      }),
+      emitter.addListener('onSpeechError', event => {
+        setIsListening(false);
+        // FIX: event.code is a STRING from native ("6" = cancelled, "7" = timeout)
+        // Suppress noisy no-result / timeout errors — they are normal UX events
+        const code = String(event.code);
+        if (code !== '6' && code !== '7') {
+          showAlert('Speech Error', event.message || 'An error occurred during recognition.');
+        }
+      }),
+    ];
 
-    const onSpeechEndSub = eventEmitter.addListener('onSpeechEnd', () => {
-      setIsListening(false);
-    });
-
-    const onSpeechResultsSub = eventEmitter.addListener('onSpeechResults', (event) => {
-      setInputText(event.text);
-      setIsListening(false);
-    });
-
-    const onSpeechPartialResultsSub = eventEmitter.addListener('onSpeechPartialResults', (event) => {
-      setInputText(event.text);
-    });
-
-    const onSpeechErrorSub = eventEmitter.addListener('onSpeechError', (event) => {
-      setIsListening(false);
-      // Suppress annoying timeout logs if the user just stopped speaking manually
-      if (event.code !== 7 && event.code !== 6) { 
-        showAlert('Speech Error', event.message || 'An error occurred during recognition.');
-      }
-    });
-
-    return () => {
-      onSpeechStartSub.remove();
-      onSpeechEndSub.remove();
-      onSpeechResultsSub.remove();
-      onSpeechPartialResultsSub.remove();
-      onSpeechErrorSub.remove();
-    };
+    return () => subs.forEach(s => s.remove());
   }, [modalVisible]);
-
-  useEffect(() => {
-    let anim1, anim2, anim3, anim4;
-
-    if (isListening) {
-      const createAnimationLoop = (val, max) => {
-        return Animated.loop(
-          Animated.sequence([
-            Animated.timing(val, {
-              toValue: max,
-              duration: 350 + Math.random() * 150,
-              useNativeDriver: false,
-            }),
-            Animated.timing(val, {
-              toValue: 10,
-              duration: 350 + Math.random() * 150,
-              useNativeDriver: false,
-            }),
-          ])
-        );
-      };
-
-      anim1 = createAnimationLoop(wave1, 42);
-      anim2 = createAnimationLoop(wave2, 58);
-      anim3 = createAnimationLoop(wave3, 35);
-      anim4 = createAnimationLoop(wave4, 48);
-
-      anim1.start();
-      anim2.start();
-      anim3.start();
-      anim4.start();
-    } else {
-      wave1.setValue(10);
-      wave2.setValue(10);
-      wave3.setValue(10);
-      wave4.setValue(10);
-    }
-
-    return () => {
-      if (anim1) anim1.stop();
-      if (anim2) anim2.stop();
-      if (anim3) anim3.stop();
-      if (anim4) anim4.stop();
-    };
-  }, [isListening]);
-
 
   if (!isAuthenticated) return null;
 
-  const handleStartListening = async () => {
+  // ─── Handlers ─────────────────────────────────────────────────
+  const handleStartListening = useCallback(async () => {
+    if (!SpeechRecognitionModule) return;
+
     if (Platform.OS === 'android') {
       try {
         const hasPermission = await PermissionsAndroid.check(
           PermissionsAndroid.PERMISSIONS.RECORD_AUDIO
         );
-
         if (!hasPermission) {
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
             {
               title: 'Microphone Permission Required',
-              message: 'This app needs access to your microphone to transcribe voice transactions.',
-              buttonPositive: 'OK',
+              message: 'Expenso needs microphone access to log voice transactions.',
+              buttonPositive: 'Allow',
             }
           );
           if (granted !== PermissionsAndroid.RESULTS_GRANTED) {
@@ -173,65 +197,55 @@ const FloatingVoiceButton = () => {
           }
         }
       } catch (err) {
-        console.warn(err);
+        console.warn('[VoiceAI] Permission error:', err);
         return;
       }
     }
 
     setParsedData(null);
     setInputText('');
-    
     try {
       SpeechRecognitionModule.startListening();
     } catch (e) {
       showAlert('Error', 'Failed to start speech recognition.');
     }
-  };
+  }, []);
 
-  const handleStopListening = () => {
+  const handleStopListening = useCallback(() => {
     try {
-      SpeechRecognitionModule.stopListening();
-    } catch (e) {
-      // Ignore
-    }
-  };
+      SpeechRecognitionModule?.stopListening();
+    } catch (_) {}
+  }, []);
 
-  const handleProcessText = async () => {
+  const handleProcessText = useCallback(async () => {
     if (!inputText.trim()) {
-      showAlert('Empty query', 'Please speak or type a transaction details query.');
+      showAlert('Empty Input', 'Please speak or type a transaction first.');
       return;
     }
-
     setLoading(true);
     setParsedData(null);
-
     try {
-      const response = await apiClient.post('ai/voice/transaction', {
-        text: inputText,
-      });
-
-      if (response.data && response.data.success) {
+      const response = await apiClient.post('ai/voice/transaction', { text: inputText });
+      if (response.data?.success) {
         setParsedData(response.data.data);
       } else {
-        showAlert('Processing Failed', 'Gemini failed to parse transaction fields.');
+        showAlert('Processing Failed', 'AI failed to parse the transaction details.');
       }
     } catch (error) {
-      const errMsg = error.response?.data?.message || error.message || 'Error communicating with AI parser.';
-      const isLimitReached = error.response?.data?.code === 'LIMIT_REACHED' || error.response?.status === 403;
+      const errMsg = error.response?.data?.message || error.message || 'Error communicating with AI.';
+      const isLimitReached =
+        error.response?.data?.code === 'LIMIT_REACHED' || error.response?.status === 403;
       if (isLimitReached) {
         showAlert(
-          'AI Limit Reached 🚀',
-          errMsg || 'You have reached your daily plan limit for Voice Transactions. Upgrade your plan to unlock more scans!',
+          'Limit Reached 🚀',
+          errMsg || 'You have reached your Voice AI limit. Upgrade to Pro!',
           [
             { text: 'Cancel', style: 'cancel' },
             {
-              text: 'Upgrade Plan ⚡',
+              text: 'Upgrade ⚡',
               onPress: () => {
                 setModalVisible(false);
-                navigation.navigate('Profile', {
-                  screen: 'Subscription',
-                  initial: false,
-                });
+                navigation.navigate('Profile', { screen: 'Subscription', initial: false });
               },
             },
           ],
@@ -243,24 +257,21 @@ const FloatingVoiceButton = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [inputText]);
 
-  const handleSaveTransaction = async () => {
+  const handleSaveTransaction = useCallback(async () => {
     if (!parsedData) return;
-
     try {
-      const payload = {
+      await createMutation.mutateAsync({
         type: parsedData.type || 'expense',
         category: parsedData.category || 'Other',
         amount: Number(parsedData.amount),
         description: parsedData.description || 'Voice AI Transaction',
         paymentMethod: parsedData.paymentMethod || 'UPI',
         transactionDate: parsedData.transactionDate || new Date().toISOString(),
-        note: parsedData.note || 'Parsed via Voice AI Assistant',
-      };
-
-      await createMutation.mutateAsync(payload);
-      showAlert('Saved!', 'Transaction successfully logged to ledger.', [
+        note: parsedData.note || 'Logged via Voice AI',
+      });
+      showAlert('Saved! ✅', 'Transaction logged successfully.', [
         {
           text: 'OK',
           onPress: () => {
@@ -271,206 +282,325 @@ const FloatingVoiceButton = () => {
         },
       ]);
     } catch (error) {
-      showAlert('Error Saving', error.message || 'Failed to register transaction.');
+      showAlert('Save Failed', error.message || 'Could not save the transaction.');
     }
-  };
+  }, [parsedData]);
 
+  const handleCloseModal = useCallback(() => {
+    setModalVisible(false);
+    setIsListening(false);
+    setParsedData(null);
+  }, []);
+
+  // ─── Derived styles ───────────────────────────────────────────
+  const glowBorderColor = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(138,63,252,0)', 'rgba(138,63,252,0.6)'],
+  });
+
+  // ─── Render ───────────────────────────────────────────────────
   return (
     <>
-      {/* Stable Floating Buttons Stack */}
+      {/* ── Floating Buttons ─────────────────────────────────── */}
       <View style={styles.floatingContainer}>
         {/* Chatbot Button */}
         <TouchableOpacity
-          style={[styles.floatingButton, !hasPremiumAccess && { opacity: 0.65 }]}
-          activeOpacity={0.7}
-          onPress={() => {
-            if (hasPremiumAccess) {
-              setChatbotVisible(true);
-            } else {
-              showPremiumAlert();
-            }
-          }}
+          style={[styles.floatingButton, !hasPremiumAccess && styles.floatingButtonLocked]}
+          activeOpacity={0.75}
+          onPress={() => (hasPremiumAccess ? setChatbotVisible(true) : showPremiumAlert())}
         >
-          <Icon name="chatbubble-ellipses-outline" size={22} color={colors.primary} />
+          <Icon name="chatbubble-ellipses-outline" size={20} color={colors.primary} />
           {!hasPremiumAccess && (
             <View style={styles.proBadge}>
-              <Icon name="lock-closed" size={8} color="#FFFFFF" />
+              <Icon name="lock-closed" size={7} color="#FFF" />
             </View>
           )}
         </TouchableOpacity>
 
-        {/* Voice Button */}
-        <TouchableOpacity
-          style={[styles.floatingButton, !hasPremiumAccess && { opacity: 0.65 }]}
-          activeOpacity={0.7}
-          onPress={() => {
-            if (hasPremiumAccess) {
-              console.log('[FloatingVoiceButton] Voice button tapped! Opening modal');
-              setModalVisible(true);
-            } else {
-              showPremiumAlert();
-            }
-          }}
-        >
-          <Icon name="mic-outline" size={22} color={colors.primary} />
-          {!hasPremiumAccess && (
-            <View style={styles.proBadge}>
-              <Icon name="lock-closed" size={8} color="#FFFFFF" />
-            </View>
-          )}
-        </TouchableOpacity>
+        {/* Voice Button — glows when modal is open */}
+        <Animated.View style={[styles.floatingButton, { borderColor: glowBorderColor }, !hasPremiumAccess && styles.floatingButtonLocked]}>
+          <TouchableOpacity
+            style={styles.floatingInner}
+            activeOpacity={0.75}
+            onPress={() => {
+              if (hasPremiumAccess) {
+                setModalVisible(true);
+              } else {
+                showPremiumAlert();
+              }
+            }}
+          >
+            <Icon name="mic-outline" size={20} color={colors.primary} />
+            {!hasPremiumAccess && (
+              <View style={styles.proBadge}>
+                <Icon name="lock-closed" size={7} color="#FFF" />
+              </View>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
       </View>
 
-      {/* Voice Assistant Overlay Modal */}
+      {/* ── Voice Modal ───────────────────────────────────────── */}
       <Modal
         visible={modalVisible}
         animationType="slide"
         transparent
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={handleCloseModal}
       >
+        <Pressable style={styles.backdrop} onPress={handleCloseModal} />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
+          style={styles.sheetWrapper}
         >
-          <View style={styles.modalContent}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <View style={styles.modalHeaderTitleBox}>
-                <Icon name="sparkles" size={18} color={colors.primary} />
-                <Text style={styles.modalTitle}>Voice AI Assistant</Text>
+          <View style={styles.sheet}>
+            {/* Drag handle */}
+            <View style={styles.dragHandle} />
+
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerTitle}>
+                <LinearGradient
+                  colors={['#8A3FFC', '#B06EFF']}
+                  style={styles.headerIconBg}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Icon name="mic" size={14} color="#FFF" />
+                </LinearGradient>
+                <Text style={styles.headerText}>Voice AI Logger</Text>
               </View>
-              <TouchableOpacity
-                onPress={() => {
-                  setModalVisible(false);
-                  setParsedData(null);
-                  setIsListening(false);
-                }}
-              >
-                <Icon name="close" size={24} color={colors.text.secondary} />
+              <TouchableOpacity onPress={handleCloseModal} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+                <Icon name="close-circle" size={26} color={colors.text.muted} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-              {/* Listening Mic State */}
+            <ScrollView
+              contentContainerStyle={styles.body}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* ── Listening section ── */}
               {!parsedData && (
-                <View style={styles.micSection}>
-                  <Text style={styles.listenInstruction}>
-                    {isListening ? "Listening... Speak now" : "Tap the mic and speak transaction details"}
+                <>
+                  {/* Status label */}
+                  <Text style={styles.statusLabel}>
+                    {isListening
+                      ? '🎙️  Listening... speak now'
+                      : '  Tap the mic and speak a transaction'}
                   </Text>
 
-                  {/* Pulsing Visual Waveform */}
+                  {/* Waveform */}
                   <View style={styles.waveRow}>
-                    <Animated.View style={[styles.waveBar, { height: wave1 }]} />
-                    <Animated.View style={[styles.waveBar, { height: wave2, backgroundColor: colors.secondary }]} />
-                    <Animated.View style={[styles.waveBar, { height: wave3 }]} />
-                    <Animated.View style={[styles.waveBar, { height: wave4, backgroundColor: colors.secondary }]} />
+                    {waveRefs.map((val, i) => (
+                      <Animated.View
+                        key={i}
+                        style={[
+                          styles.waveBar,
+                          {
+                            height: val,
+                            backgroundColor: isListening
+                              ? i % 2 === 0
+                                ? colors.primary
+                                : '#B06EFF'
+                              : colors.divider,
+                          },
+                        ]}
+                      />
+                    ))}
                   </View>
 
-                  <TouchableOpacity
-                    style={[styles.micBigButton, isListening && styles.micActive]}
-                    onPress={isListening ? handleStopListening : handleStartListening}
-                    activeOpacity={0.8}
-                  >
-                    <Icon name={isListening ? "stop" : "mic"} size={42} color="#FFFFFF" />
-                  </TouchableOpacity>
+                  {/* Big Mic Button */}
+                  <Animated.View style={{ transform: [{ scale: micPulse }], alignSelf: 'center' }}>
+                    <TouchableOpacity
+                      onPress={isListening ? handleStopListening : handleStartListening}
+                      activeOpacity={0.85}
+                    >
+                      <LinearGradient
+                        colors={isListening ? ['#FF4D67', '#FF7070'] : ['#8A3FFC', '#B06EFF']}
+                        style={styles.micButton}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
+                        <Icon
+                          name={isListening ? 'stop' : 'mic'}
+                          size={38}
+                          color="#FFF"
+                        />
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </Animated.View>
 
-                  <Text style={styles.exampleText}>
-                    e.g. "I spent 400 rupees on dinner yesterday at Burger King"
+                  <Text style={styles.exampleHint}>
+                    e.g. "Spent ₹450 on dinner at Zomato using UPI"
                   </Text>
-                </View>
-              )}
 
-              {/* Text Fallback / Input Editor */}
-              {!parsedData && (
-                <View style={styles.inputSection}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Or type voice command details..."
-                    placeholderTextColor={colors.text.muted}
-                    value={inputText}
-                    onChangeText={setInputText}
-                    multiline
-                  />
-
-                  {loading ? (
-                    <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: spacing.md }} />
-                  ) : (
-                    <View style={styles.processBtnWrapper}>
-                      <PrimaryButton
-                        title="Process Command"
-                        onPress={handleProcessText}
-                        type="primary"
+                  {/* Pill text input + send */}
+                  <View style={styles.inputRow}>
+                    <TextInput
+                      style={styles.pillInput}
+                      placeholder="Or type transaction details..."
+                      placeholderTextColor={colors.text.muted}
+                      value={inputText}
+                      onChangeText={setInputText}
+                      multiline
+                    />
+                    {loading ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={colors.primary}
+                        style={styles.sendBtn}
                       />
-                    </View>
-                  )}
-                </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
+                        onPress={handleProcessText}
+                        disabled={!inputText.trim()}
+                        activeOpacity={0.75}
+                      >
+                        <LinearGradient
+                          colors={
+                            inputText.trim()
+                              ? ['#8A3FFC', '#B06EFF']
+                              : [colors.divider, colors.divider]
+                          }
+                          style={styles.sendGradient}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                        >
+                          <Icon name="arrow-up" size={18} color="#FFF" />
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </>
               )}
 
-              {/* Parsed Result Form Preview */}
+              {/* ── Result card ── */}
               {parsedData && (
-                <View style={styles.resultContainer}>
-                  <Text style={styles.successLabel}>AI Detected Transaction</Text>
-                  
+                <View style={styles.resultSection}>
+                  {/* Success header */}
+                  <View style={styles.successBadge}>
+                    <Icon name="checkmark-circle" size={16} color={colors.success} />
+                    <Text style={styles.successText}>AI Detected Transaction</Text>
+                  </View>
+
                   <Card style={styles.resultCard}>
-                    <View style={styles.resultRow}>
-                      <Text style={styles.resultFieldName}>Description</Text>
-                      <Text style={styles.resultFieldValue}>{parsedData.description}</Text>
-                    </View>
-                    <View style={styles.divider} />
-
-                    <View style={styles.resultRow}>
-                      <Text style={styles.resultFieldName}>Amount</Text>
-                      <Text style={[styles.resultFieldValue, styles.amountHighlight]}>
-                        ₹{parsedData.amount}
+                    {/* Amount — hero */}
+                    <View style={styles.amountHero}>
+                      <Text style={styles.amountLabel}>Amount</Text>
+                      <Text
+                        style={[
+                          styles.amountValue,
+                          {
+                            color:
+                              parsedData.type === 'income' ? colors.success : colors.danger,
+                          },
+                        ]}
+                      >
+                        {parsedData.type === 'income' ? '+' : '−'}₹{parsedData.amount}
                       </Text>
                     </View>
-                    <View style={styles.divider} />
 
-                    <View style={styles.resultRow}>
-                      <Text style={styles.resultFieldName}>Category</Text>
-                      <Text style={styles.resultFieldValue}>{parsedData.category}</Text>
-                    </View>
-                    <View style={styles.divider} />
+                    <View style={styles.chipRow}>
+                      {/* Type chip */}
+                      <View
+                        style={[
+                          styles.chip,
+                          {
+                            backgroundColor:
+                              parsedData.type === 'income'
+                                ? 'rgba(0,210,106,0.12)'
+                                : 'rgba(255,77,103,0.12)',
+                            borderColor:
+                              parsedData.type === 'income' ? colors.success : colors.danger,
+                          },
+                        ]}
+                      >
+                        <Icon
+                          name={
+                            parsedData.type === 'income' ? 'arrow-down-circle' : 'arrow-up-circle'
+                          }
+                          size={12}
+                          color={parsedData.type === 'income' ? colors.success : colors.danger}
+                        />
+                        <Text
+                          style={[
+                            styles.chipText,
+                            {
+                              color:
+                                parsedData.type === 'income' ? colors.success : colors.danger,
+                            },
+                          ]}
+                        >
+                          {parsedData.type?.toUpperCase()}
+                        </Text>
+                      </View>
 
-                    <View style={styles.resultRow}>
-                      <Text style={styles.resultFieldName}>Type</Text>
-                      <Text style={[styles.resultFieldValue, { textTransform: 'capitalize', color: parsedData.type === 'income' ? colors.success : colors.danger }]}>
-                        {parsedData.type}
-                      </Text>
+                      {/* Category chip */}
+                      <View style={[styles.chip, styles.categoryChip]}>
+                        <Text style={styles.chipEmoji}>
+                          {CATEGORY_EMOJI[parsedData.category] || '📦'}
+                        </Text>
+                        <Text style={[styles.chipText, { color: colors.primary }]}>
+                          {parsedData.category}
+                        </Text>
+                      </View>
+
+                      {/* Date chip */}
+                      <View style={[styles.chip, styles.dateChip]}>
+                        <Icon name="calendar-outline" size={11} color={colors.text.secondary} />
+                        <Text style={[styles.chipText, { color: colors.text.secondary }]}>
+                          {dayjs(parsedData.transactionDate).format('DD MMM')}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.divider} />
+
+                    {/* Description */}
+                    <View style={styles.detailRow}>
+                      <Icon name="document-text-outline" size={14} color={colors.text.muted} />
+                      <Text style={styles.detailText}>{parsedData.description}</Text>
+                    </View>
 
                     {parsedData.paymentMethod && (
-                      <>
-                        <View style={styles.resultRow}>
-                          <Text style={styles.resultFieldName}>Payment Method</Text>
-                          <Text style={styles.resultFieldValue}>{parsedData.paymentMethod}</Text>
-                        </View>
-                        <View style={styles.divider} />
-                      </>
+                      <View style={styles.detailRow}>
+                        <Icon name="card-outline" size={14} color={colors.text.muted} />
+                        <Text style={styles.detailText}>{parsedData.paymentMethod}</Text>
+                      </View>
                     )}
 
-                    <View style={styles.resultRow}>
-                      <Text style={styles.resultFieldName}>Date</Text>
-                      <Text style={styles.resultFieldValue}>
-                        {dayjs(parsedData.transactionDate).format('YYYY-MM-DD')}
-                      </Text>
-                    </View>
+                    {parsedData.note ? (
+                      <View style={styles.detailRow}>
+                        <Icon name="chatbubble-outline" size={14} color={colors.text.muted} />
+                        <Text style={styles.detailText}>{parsedData.note}</Text>
+                      </View>
+                    ) : null}
                   </Card>
 
-                  <View style={styles.actionBtnRow}>
+                  {/* Action buttons */}
+                  <View style={styles.actionRow}>
                     <TouchableOpacity
-                      style={[styles.actionBtn, styles.cancelBtn]}
+                      style={styles.editBtn}
                       onPress={() => setParsedData(null)}
+                      activeOpacity={0.75}
                     >
-                      <Text style={styles.cancelText}>Edit Details</Text>
+                      <Icon name="pencil-outline" size={15} color={colors.text.primary} />
+                      <Text style={styles.editBtnText}>Edit</Text>
                     </TouchableOpacity>
-                    
+
                     <TouchableOpacity
-                      style={[styles.actionBtn, styles.saveBtn]}
+                      style={styles.saveBtn}
                       onPress={handleSaveTransaction}
+                      activeOpacity={0.85}
                     >
-                      <Text style={styles.saveText}>Approve & Save</Text>
+                      <LinearGradient
+                        colors={['#8A3FFC', '#B06EFF']}
+                        style={styles.saveBtnGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
+                        <Icon name="checkmark" size={16} color="#FFF" />
+                        <Text style={styles.saveBtnText}>Approve & Save</Text>
+                      </LinearGradient>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -480,19 +610,24 @@ const FloatingVoiceButton = () => {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Chatbot Global Drawer */}
-      <ChatbotDrawer visible={chatbotVisible} onClose={() => setChatbotVisible(false)} navigation={navigation} />
+      {/* ── Chatbot Drawer ──────────────────────────────────── */}
+      <ChatbotDrawer
+        visible={chatbotVisible}
+        onClose={() => setChatbotVisible(false)}
+        navigation={navigation}
+      />
     </>
   );
 };
 
 const styles = StyleSheet.create({
+  // ── Floating buttons ───────────────────────────────────────────
   floatingContainer: {
     position: 'absolute',
     bottom: 96,
     right: 16,
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     zIndex: 9999,
     elevation: 99,
   },
@@ -500,182 +635,23 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(18, 19, 26, 0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    ...shadow.md,
-    elevation: 6,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    maxHeight: '85%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-  },
-  modalHeaderTitleBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  modalTitle: {
-    fontSize: typography.sizes.base,
-    fontWeight: typography.weights.bold,
-    color: colors.text.primary,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-  },
-  micSection: {
-    alignItems: 'center',
-    marginVertical: spacing.md,
-  },
-  listenInstruction: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
-    color: colors.text.secondary,
-    textAlign: 'center',
-    marginBottom: spacing.md,
-  },
-  micBigButton: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadow.md,
-    elevation: 6,
-    marginVertical: spacing.lg,
-  },
-  micActive: {
-    backgroundColor: colors.danger,
-  },
-  exampleText: {
-    fontSize: typography.sizes.xs,
-    color: colors.text.muted,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginTop: spacing.sm,
-    lineHeight: 18,
-    paddingHorizontal: spacing.xl,
-  },
-  waveRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 60,
-    marginBottom: spacing.xs,
-  },
-  waveBar: {
-    width: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
-  },
-  inputSection: {
-    marginTop: spacing.md,
-  },
-  textInput: {
-    backgroundColor: colors.background,
-    borderRadius: radius.md,
-    color: colors.text.primary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: typography.sizes.sm,
-    minHeight: 80,
-    textAlignVertical: 'top',
-    borderWidth: 1,
-    borderColor: colors.divider,
-  },
-  processBtnWrapper: {
-    marginTop: spacing.md,
-  },
-  resultContainer: {
-    marginTop: spacing.xs,
-  },
-  successLabel: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.bold,
-    color: colors.success,
-    marginBottom: spacing.sm,
-    alignSelf: 'center',
-  },
-  resultCard: {
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  resultRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  resultFieldName: {
-    fontSize: typography.sizes.sm,
-    color: colors.text.secondary,
-    fontWeight: typography.weights.medium,
-  },
-  resultFieldValue: {
-    fontSize: typography.sizes.sm,
-    color: colors.text.primary,
-    fontWeight: typography.weights.semibold,
-  },
-  amountHighlight: {
-    fontSize: typography.sizes.lg,
-    color: colors.primary,
-    fontWeight: typography.weights.bold,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.divider,
-    marginVertical: spacing.xs,
-  },
-  actionBtnRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.md,
-  },
-  actionBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: radius.md,
+    backgroundColor: 'rgba(18,19,26,0.92)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
+    borderColor: 'rgba(138,63,252,0)',
+    ...shadow.md,
+    elevation: 8,
   },
-  cancelBtn: {
-    borderColor: colors.divider,
-    backgroundColor: 'transparent',
+  floatingInner: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 22,
   },
-  cancelText: {
-    color: colors.text.primary,
-    fontWeight: typography.weights.bold,
-    fontSize: typography.sizes.sm,
-  },
-  saveBtn: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  saveText: {
-    color: '#FFFFFF',
-    fontWeight: typography.weights.bold,
-    fontSize: typography.sizes.sm,
+  floatingButtonLocked: {
+    opacity: 0.6,
   },
   proBadge: {
     position: 'absolute',
@@ -689,6 +665,270 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.card,
+  },
+
+  // ── Modal / Sheet ──────────────────────────────────────────────
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  sheetWrapper: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  sheet: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '88%',
+    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+  },
+  dragHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.divider,
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 4,
+  },
+
+  // ── Header ────────────────────────────────────────────────────
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  headerTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  headerIconBg: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerText: {
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+    letterSpacing: 0.2,
+  },
+
+  // ── Body ──────────────────────────────────────────────────────
+  body: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+
+  // ── Listening state ───────────────────────────────────────────
+  statusLabel: {
+    fontSize: typography.sizes.sm,
+    color: colors.text.secondary,
+    fontWeight: typography.weights.medium,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  waveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 64,
+    marginBottom: spacing.md,
+  },
+  waveBar: {
+    width: 5,
+    borderRadius: 3,
+  },
+  micButton: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadow.md,
+    elevation: 10,
+    marginBottom: spacing.md,
+  },
+  exampleHint: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.muted,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.xl,
+  },
+
+  // ── Pill input ────────────────────────────────────────────────
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.sm,
+  },
+  pillInput: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    color: colors.text.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: typography.sizes.sm,
+    minHeight: 48,
+    maxHeight: 120,
+    textAlignVertical: 'center',
+    borderWidth: 1,
+    borderColor: colors.divider,
+  },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  sendBtnDisabled: {
+    opacity: 0.5,
+  },
+  sendGradient: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // ── Result card ───────────────────────────────────────────────
+  resultSection: {
+    gap: spacing.md,
+  },
+  successBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    alignSelf: 'center',
+  },
+  successText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.success,
+  },
+  resultCard: {
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  amountHero: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+    marginBottom: spacing.sm,
+  },
+  amountLabel: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.muted,
+    fontWeight: typography.weights.medium,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  amountValue: {
+    fontSize: 36,
+    fontWeight: typography.weights.bold,
+    letterSpacing: -0.5,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  categoryChip: {
+    borderColor: 'rgba(138,63,252,0.35)',
+    backgroundColor: 'rgba(138,63,252,0.1)',
+  },
+  dateChip: {
+    borderColor: colors.divider,
+    backgroundColor: colors.surface,
+  },
+  chipEmoji: {
+    fontSize: 12,
+  },
+  chipText: {
+    fontSize: 11,
+    fontWeight: typography.weights.bold,
+    letterSpacing: 0.3,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+  },
+  detailText: {
+    flex: 1,
+    fontSize: typography.sizes.sm,
+    color: colors.text.secondary,
+    lineHeight: 20,
+  },
+
+  // ── Action buttons ────────────────────────────────────────────
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  editBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    height: 50,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderWidth: 1.5,
+    borderColor: colors.divider,
+    backgroundColor: colors.surface,
+  },
+  editBtnText: {
+    color: colors.text.primary,
+    fontWeight: typography.weights.bold,
+    fontSize: typography.sizes.sm,
+  },
+  saveBtn: {
+    flex: 2,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+  },
+  saveBtnGradient: {
+    height: 50,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderRadius: radius.md,
+  },
+  saveBtnText: {
+    color: '#FFF',
+    fontWeight: typography.weights.bold,
+    fontSize: typography.sizes.sm,
   },
 });
 
