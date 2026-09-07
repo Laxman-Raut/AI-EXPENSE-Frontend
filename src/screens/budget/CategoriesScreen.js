@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Modal } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Modal, TextInput } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Screen from '../../components/templates/Screen';
 import Card from '../../components/molecules/Card';
@@ -7,6 +7,7 @@ import Input from '../../components/atoms/Input';
 import PrimaryButton from '../../components/atoms/PrimaryButton';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAlert } from '../../context/AlertContext';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const DEFAULT_EXPENSE_CATEGORIES = [
   { name: 'Food', icon: 'fast-food-outline', color: '#FF9500' },
@@ -38,7 +39,18 @@ const CategoriesScreen = ({ navigation, route }) => {
   const [categories, setCategories] = useState(initialCategoryList);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const { showAlert } = useAlert();
+
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  const filteredCategories = useMemo(() => {
+    if (!debouncedSearch.trim()) return categories;
+    return categories.filter(cat =>
+      cat.name.toLowerCase().includes(debouncedSearch.toLowerCase())
+    );
+  }, [categories, debouncedSearch]);
 
   const handleAddCategory = () => {
     setAddModalVisible(true);
@@ -71,7 +83,11 @@ const CategoriesScreen = ({ navigation, route }) => {
       <Text style={styles.headerTitle}>
         {isIncomeType ? 'Income Categories' : 'Expense Categories'}
       </Text>
-      <TouchableOpacity style={styles.searchBtn} activeOpacity={0.7}>
+      <TouchableOpacity 
+        style={styles.searchBtn} 
+        activeOpacity={0.7}
+        onPress={() => setShowSearch(!showSearch)}
+      >
         <Icon name="search-outline" size={22} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
@@ -84,9 +100,32 @@ const CategoriesScreen = ({ navigation, route }) => {
         header={renderHeader()}
         style={styles.contentContainer}
       >
+        {showSearch && (
+          <View style={styles.searchContainer}>
+            <Icon name="search-outline" size={18} color={colors.text.secondary} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search categories..."
+              placeholderTextColor={colors.text.muted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Icon name="close-circle" size={18} color={colors.text.muted} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
         {/* Category List */}
         <View style={styles.listContainer}>
-          {categories.map((cat, idx) => (
+          {filteredCategories.length === 0 && searchQuery.length > 0 ? (
+            <View style={{ padding: spacing.xl, alignItems: 'center' }}>
+              <Text style={{ color: colors.text.secondary }}>No categories found.</Text>
+            </View>
+          ) : (
+            filteredCategories.map((cat, idx) => (
             <TouchableOpacity
               key={cat.name + idx}
               style={[
@@ -115,7 +154,7 @@ const CategoriesScreen = ({ navigation, route }) => {
               </View>
               <Icon name="chevron-forward" size={16} color={colors.text.muted} />
             </TouchableOpacity>
-          ))}
+          )))}
         </View>
 
         {/* Add Category Button */}
@@ -207,6 +246,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg || 14,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    height: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.text.primary,
+    fontSize: 14,
+    marginLeft: spacing.sm,
   },
   listContainer: {
     backgroundColor: colors.card,

@@ -16,8 +16,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useGroups } from '../../hooks/useGroups';
-
-
+import { useDebounce } from '../../hooks/useDebounce';
 
 const getInitials = (name = '') =>
   name
@@ -55,6 +54,7 @@ const GroupAvatarCircle = ({ name, avatar, size = 52 }) => {
 
 const GroupsListScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const { groups, loading, error, refetch } = useGroups();
 
   // ─── Real-Time Focus Sync ───────────────────────────────
@@ -62,21 +62,26 @@ const GroupsListScreen = ({ navigation }) => {
     useCallback(() => {
       refetch(true);
 
-      const interval = setInterval(() => {
-        refetch(true);
-      }, 4000);
+      let interval;
+      if (searchQuery.length === 0) {
+        interval = setInterval(() => {
+          refetch(true);
+        }, 4000);
+      }
 
-      return () => clearInterval(interval);
-    }, [refetch])
+      return () => {
+        if (interval) clearInterval(interval);
+      };
+    }, [refetch, searchQuery])
   );
 
   const filteredGroups = useMemo(() => {
-    if (!searchQuery.trim()) return groups;
+    if (!debouncedSearchQuery.trim()) return groups;
     return groups.filter((g) =>
-      g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      g.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      g.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+      g.description?.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     );
-  }, [groups, searchQuery]);
+  }, [groups, debouncedSearchQuery]);
 
   const renderGroupCard = ({ item }) => {
     const memberCount = item.members ? item.members.length : 1;
@@ -199,6 +204,7 @@ const GroupsListScreen = ({ navigation }) => {
           renderItem={renderGroupCard}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
               refreshing={loading}

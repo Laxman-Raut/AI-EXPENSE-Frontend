@@ -170,6 +170,7 @@ const UserSearchScreen = ({ navigation }) => {
           {query.length > 0 && (
             <TouchableOpacity
               onPress={() => {
+                if (debounceRef.current) clearTimeout(debounceRef.current);
                 setQuery('');
                 search('');
               }}
@@ -214,6 +215,8 @@ const UserSearchScreen = ({ navigation }) => {
           renderItem={renderUser}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
       )}

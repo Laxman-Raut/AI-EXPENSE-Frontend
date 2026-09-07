@@ -32,6 +32,7 @@ import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 import { useAuth } from '../../hooks/useAuth';
 import useBanks from '../../hooks/useBanks';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const FILTER_CHIPS = [
   'All',
@@ -88,6 +89,7 @@ const TransactionsScreen = ({ navigation, route }) => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [activeFilter, setActiveFilter] = useState('All');
 
   // Dynamic filter chips combining base filters + user's added bank accounts + categories
@@ -258,14 +260,15 @@ const TransactionsScreen = ({ navigation, route }) => {
     }
 
     // 1. Smart Multi-Field Search Query
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    if (debouncedSearchQuery.trim()) {
+      const q = debouncedSearchQuery.toLowerCase().trim();
       result = result.filter((t) => {
         const descMatch = (t.description || '').toLowerCase().includes(q);
         const catMatch = (t.category || '').toLowerCase().includes(q);
         const methodMatch = (t.paymentMethod || '').toLowerCase().includes(q);
-        const notesMatch = (t.notes || t.note || '').toLowerCase().includes(q);
-        const amountMatch = String(getStoredAmountForCurrency(t, user?.currency || getGlobalCurrency() || 'INR')).includes(q);
+        const qNum = q.replace(/[^0-9.]/g, '');
+        const amountMatch = String(getStoredAmountForCurrency(t, user?.currency || getGlobalCurrency() || 'INR')).includes(q) ||
+          (qNum.length > 0 && String(getStoredAmountForCurrency(t, user?.currency || getGlobalCurrency() || 'INR')).includes(qNum));
         const dateMatch = t.transactionDate
           ? dayjs(t.transactionDate).format('DD MMMM YYYY MMMM dddd').toLowerCase().includes(q)
           : false;
@@ -346,7 +349,7 @@ const TransactionsScreen = ({ navigation, route }) => {
     }
 
     return result;
-  }, [transactions, searchQuery, selectedBankId, activeFilter, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy]);
+  }, [transactions, debouncedSearchQuery, selectedBankId, activeFilter, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy]);
 
   const listRows = useMemo(() => {
     const rows = [];

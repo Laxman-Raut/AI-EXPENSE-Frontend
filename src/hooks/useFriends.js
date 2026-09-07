@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getFriends,
@@ -83,21 +83,38 @@ export const useUserSearch = () => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const abortRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, []);
 
   const search = useCallback(async (query) => {
     if (!query || query.trim().length < 2) {
       setResults([]);
       return;
     }
+    
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = new AbortController();
+    
     setLoading(true);
     setError(null);
     try {
-      const res = await searchUsers(query.trim());
+      const res = await searchUsers(query.trim(), { signal: abortRef.current.signal });
       setResults(res.data || []);
     } catch (err) {
+      if (err?.name === 'CanceledError' || err?.message === 'canceled') {
+        return; // Ignore canceled requests
+      }
       setError(err?.response?.data?.message || 'Search failed');
     } finally {
-      setLoading(false);
+      // Only stop loading if we haven't been aborted
+      if (!abortRef.current?.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, []);
 
