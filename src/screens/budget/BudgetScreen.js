@@ -19,9 +19,23 @@ import { useAlert } from '../../context/AlertContext';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 
-const BudgetScreen = () => {
+const DEFAULT_EXPENSE_CATEGORIES = [
+  { name: 'Food', icon: 'fast-food', color: '#FF9500', defaultPct: 0.20 },
+  { name: 'Shopping', icon: 'bag-handle', color: '#FF2D55', defaultPct: 0.15 },
+  { name: 'Travel', icon: 'car', color: '#5856D6', defaultPct: 0.10 },
+  { name: 'Grocery', icon: 'cart', color: '#34C759', defaultPct: 0.15 },
+  { name: 'Rent', icon: 'home', color: '#AF52DE', defaultPct: 0.20 },
+  { name: 'Investments', icon: 'trending-up', color: '#007AFF', defaultPct: 0.10 },
+  { name: 'Health', icon: 'heart', color: '#FF3B30', defaultPct: 0.05 },
+  { name: 'EMI/Bill', icon: 'receipt', color: '#FFCC00', defaultPct: 0.15 },
+  { name: 'Subscriptions', icon: 'tv', color: '#5AC8FA', defaultPct: 0.05 },
+  { name: 'Others', icon: 'ellipsis-horizontal', color: '#8E8E93', defaultPct: 0.05 },
+];
+
+const BudgetScreen = ({ navigation }) => {
   const { user, updateUser } = useAuth();
-  const { data: transactions } = useTransactions();
+  const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
+  const { data: transactions } = useTransactions(activeCurrency);
   const { showAlert } = useAlert();
   const queryClient = useQueryClient();
 
@@ -29,27 +43,44 @@ const BudgetScreen = () => {
   const [newBudgetVal, setNewBudgetVal] = useState('');
   const [updateLoading, setUpdateLoading] = useState(false);
 
-  // New Category Budget states
+  // Category Budget states
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [catBudgets, setCatBudgets] = useState({});
-
-  const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
 
   // Retrieve user total budget limit in active currency
   const monthlyBudget = useMemo(() => {
     const stored = getStoredAmountForCurrency(user, activeCurrency, 'monthlyBudget');
     if (stored > 0) return stored;
     if (activeCurrency === 'USD') {
+      if (user?.monthlyBudgetUSD && user.monthlyBudgetUSD > 0) return Number(user.monthlyBudgetUSD);
       if (user?.monthlyBudget && user.monthlyBudget > 0) return convertCurrencyValue(user.monthlyBudget, 'INR', 'USD');
-      return 525;
+      return 0;
     }
-    return user?.monthlyBudget || 50000;
+    if (user?.monthlyBudgetINR && user.monthlyBudgetINR > 0) return Number(user.monthlyBudgetINR);
+    return Number(user?.monthlyBudget || 0);
   }, [user, activeCurrency]);
+
+  // Calculate actual total spent in active currency for the current month across ALL categories
+  const totalSpent = useMemo(() => {
+    if (!transactions || !Array.isArray(transactions)) return 0;
+    const now = dayjs();
+    const currentMonthTxns = transactions.filter(t => {
+      if (!t.transactionDate && !t.createdAt) return false;
+      const tDate = dayjs(t.transactionDate || t.createdAt);
+      return tDate.isSame(now, 'month') && t.type === 'expense';
+    });
+
+    const sum = currentMonthTxns.reduce((acc, t) => {
+      return acc + getStoredAmountForCurrency(t, activeCurrency);
+    }, 0);
+
+    return Number(sum.toFixed(2));
+  }, [transactions, activeCurrency]);
 
   // Calculate dynamic categories spent and limits in active currency
   const categories = useMemo(() => {
     const now = dayjs();
-    const currentMonthTxns = transactions ? transactions.filter(t => {
+    const currentMonthTxns = transactions && Array.isArray(transactions) ? transactions.filter(t => {
       if (!t.transactionDate && !t.createdAt) return false;
       const tDate = dayjs(t.transactionDate || t.createdAt);
       return tDate.isSame(now, 'month') && t.type === 'expense';
@@ -57,31 +88,64 @@ const BudgetScreen = () => {
 
     const spentMap = {};
     currentMonthTxns.forEach(t => {
-      const cat = t.category || 'Others';
+      let cat = t.category || 'Others';
+      if (cat === 'Bills') cat = 'EMI/Bill';
       const amt = getStoredAmountForCurrency(t, activeCurrency);
       spentMap[cat] = (spentMap[cat] || 0) + amt;
     });
 
-    const categoryConfigs = [
-      { name: 'Food', limitPct: 0.25, icon: 'fast-food', color: '#4B8CFF' },
-      { name: 'Shopping', limitPct: 0.20, icon: 'bag', color: '#00D26A' },
-      { name: 'Bills', limitPct: 0.30, icon: 'receipt', color: '#FFB648' },
-      { name: 'Travel', limitPct: 0.15, icon: 'car', color: '#FF4D67' },
-      { name: 'Investments', limitPct: 0.10, icon: 'trending-up', color: '#AF52DE' },
-    ];
+    // Build comprehensive map: default categories + any category with transactions + categoryBudgets
+    const categoryMap = new Map();
+    DEFAULT_EXPENSE_CATEGORIES.forEach(cfg => {
+      categoryMap.set(cfg.name, { ...cfg });
+    });
 
-    return categoryConfigs.map(cfg => {
+    Object.keys(spentMap).forEach(catName => {
+      if (!categoryMap.has(catName)) {
+        categoryMap.set(catName, {
+          name: catName,
+          icon: 'pricetag',
+          color: colors.primary,
+          defaultPct: 0.05,
+        });
+      }
+    });
+
+    const userCatBudgets = user?.categoryBudgets || {};
+    const budgetKeys = typeof userCatBudgets.keys === 'function'
+      ? Array.from(userCatBudgets.keys())
+      : Object.keys(userCatBudgets);
+
+    budgetKeys.forEach(catName => {
+      if (!categoryMap.has(catName)) {
+        categoryMap.set(catName, {
+          name: catName,
+          icon: 'pricetag',
+          color: colors.primary,
+          defaultPct: 0.05,
+        });
+      }
+    });
+
+    return Array.from(categoryMap.values()).map(cfg => {
       const spent = spentMap[cfg.name] || 0;
-      const rawUserLimit = user?.categoryBudgets?.[cfg.name] || (user?.categoryBudgets && typeof user.categoryBudgets.get === 'function' ? user.categoryBudgets.get(cfg.name) : null);
+      const rawUserLimit = typeof userCatBudgets.get === 'function'
+        ? userCatBudgets.get(cfg.name)
+        : userCatBudgets[cfg.name];
+
       let limit = 0;
       if (rawUserLimit !== undefined && rawUserLimit !== null && rawUserLimit > 0) {
-        limit = activeCurrency === 'USD' ? convertCurrencyValue(rawUserLimit, 'INR', 'USD') : rawUserLimit;
-      } else {
-        limit = Number((monthlyBudget * cfg.limitPct).toFixed(2));
+        // Stored in base INR, convert to active currency
+        limit = activeCurrency === 'USD'
+          ? convertCurrencyValue(rawUserLimit, 'INR', 'USD')
+          : Number(rawUserLimit);
+      } else if (monthlyBudget > 0) {
+        limit = Number((monthlyBudget * (cfg.defaultPct || 0.10)).toFixed(2));
       }
+
       return {
         name: cfg.name,
-        limit,
+        limit: Number(limit.toFixed(2)),
         spent: Number(spent.toFixed(2)),
         icon: cfg.icon,
         color: cfg.color,
@@ -89,13 +153,8 @@ const BudgetScreen = () => {
     });
   }, [transactions, monthlyBudget, user, activeCurrency]);
 
-  // Calculate stats
-  const totalSpent = useMemo(() => {
-    return categories.reduce((sum, cat) => sum + cat.spent, 0);
-  }, [categories]);
-
   const remainingBudget = useMemo(() => {
-    return monthlyBudget - totalSpent;
+    return Number((monthlyBudget - totalSpent).toFixed(2));
   }, [monthlyBudget, totalSpent]);
 
   const utilizationPercentage = useMemo(() => {
@@ -103,16 +162,21 @@ const BudgetScreen = () => {
     return Math.min(Math.round((totalSpent / monthlyBudget) * 100), 100);
   }, [totalSpent, monthlyBudget]);
 
+  const handleOpenBudgetModal = () => {
+    setNewBudgetVal(monthlyBudget > 0 ? String(monthlyBudget) : '');
+    setModalVisible(true);
+  };
+
   const handleUpdateBudget = async () => {
     const val = Number(newBudgetVal);
-    if (!newBudgetVal || isNaN(val) || val <= 0) {
+    if (!newBudgetVal || isNaN(val) || val < 0) {
       showAlert('Error', 'Please enter a valid budget amount.');
       return;
     }
     
     try {
       setUpdateLoading(true);
-      await updateUser({ monthlyBudget: val });
+      await updateUser({ monthlyBudget: val, currency: activeCurrency });
       queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
       queryClient.invalidateQueries({ queryKey: ['recentTransactions'] });
       queryClient.invalidateQueries({ queryKey: ['monthlyAnalytics'] });
@@ -130,7 +194,7 @@ const BudgetScreen = () => {
   const handleOpenCategoryModal = () => {
     const initialBudgets = {};
     categories.forEach(cat => {
-      initialBudgets[cat.name] = String(cat.limit);
+      initialBudgets[cat.name] = cat.limit > 0 ? String(cat.limit) : '';
     });
     setCatBudgets(initialBudgets);
     setCategoryModalVisible(true);
@@ -139,17 +203,23 @@ const BudgetScreen = () => {
   const handleSaveCategoryBudgets = async () => {
     const updatedBudgets = {};
     for (const key of Object.keys(catBudgets)) {
-      const val = Number(catBudgets[key]);
-      if (catBudgets[key] && (isNaN(val) || val < 0)) {
+      const raw = catBudgets[key];
+      if (raw === undefined || raw === null || String(raw).trim() === '') continue;
+      const val = Number(raw);
+      if (isNaN(val) || val < 0) {
         showAlert('Error', `Please enter a valid amount for ${key}.`);
         return;
       }
-      updatedBudgets[key] = val;
+      // Store in base INR so that multi-currency conversion remains consistent
+      const inrVal = activeCurrency === 'USD'
+        ? Math.round(convertCurrencyValue(val, 'USD', 'INR'))
+        : Math.round(val);
+      updatedBudgets[key] = inrVal;
     }
 
     try {
       setUpdateLoading(true);
-      await updateUser({ categoryBudgets: updatedBudgets });
+      await updateUser({ categoryBudgets: updatedBudgets, currency: activeCurrency });
       queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
       queryClient.invalidateQueries({ queryKey: ['recentTransactions'] });
       queryClient.invalidateQueries({ queryKey: ['monthlyAnalytics'] });
@@ -165,54 +235,96 @@ const BudgetScreen = () => {
 
   // Find any category exceeding 80% limit
   const alertCategories = useMemo(() => {
-    return categories.filter(c => (c.spent / c.limit) >= 0.8);
+    return categories.filter(c => c.limit > 0 && (c.spent / c.limit) >= 0.8);
   }, [categories]);
+
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <TouchableOpacity
+        style={styles.backBtn}
+        onPress={() => navigation?.goBack?.()}
+        activeOpacity={0.7}
+      >
+        <Icon name="chevron-back" size={22} color={colors.text.primary} />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>Monthly Budget</Text>
+      <TouchableOpacity
+        style={styles.backBtn}
+        onPress={handleOpenBudgetModal}
+        activeOpacity={0.7}
+      >
+        <Icon name="create-outline" size={20} color={colors.primary} />
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <View style={styles.root}>
       <Screen 
         scrollable 
+        header={renderHeader()}
         style={styles.contentContainer}
         safeAreaStyle={styles.safeArea}
       >
         {/* Monthly Budget Card */}
         <View style={styles.section}>
-          <Card style={[styles.budgetCard, shadow.md]}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardLabel}>MONTHLY BUDGET LIMIT</Text>
-              <TouchableOpacity onPress={() => setModalVisible(true)}>
-                <Icon name="create-outline" size={20} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.budgetValue}>{formatCurrency(monthlyBudget, activeCurrency)}</Text>
-
-            <View style={styles.progressSection}>
-              <View style={styles.progressLabelRow}>
-                <Text style={styles.progressText}>Spent: {formatCurrency(totalSpent, activeCurrency)}</Text>
-                <Text style={styles.progressText}>{utilizationPercentage}% Used</Text>
+          {monthlyBudget > 0 ? (
+            <Card style={[styles.budgetCard, shadow.md]}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardLabel}>MONTHLY BUDGET LIMIT</Text>
+                <TouchableOpacity onPress={handleOpenBudgetModal}>
+                  <Icon name="create-outline" size={20} color={colors.primary} />
+                </TouchableOpacity>
               </View>
-              <View style={styles.progressBarBg}>
-                <View 
-                  style={[
-                    styles.progressBarFill, 
-                    { width: `${utilizationPercentage}%`, backgroundColor: colors.primary }
-                  ]} 
-                />
-              </View>
-            </View>
 
-            {/* Remaining budget highlights */}
-            <View style={styles.cardFooter}>
-              <Text style={styles.remainingLabel}>REMAINING BALANCE</Text>
-              <Text style={[
-                styles.remainingValue, 
-                { color: remainingBudget >= 0 ? colors.success : colors.danger }
-              ]}>
-                {formatCurrency(remainingBudget, activeCurrency)}
+              <Text style={styles.budgetValue}>{formatCurrency(monthlyBudget, activeCurrency)}</Text>
+
+              <View style={styles.progressSection}>
+                <View style={styles.progressLabelRow}>
+                  <Text style={styles.progressText}>Spent: {formatCurrency(totalSpent, activeCurrency)}</Text>
+                  <Text style={styles.progressText}>{utilizationPercentage}% Used</Text>
+                </View>
+                <View style={styles.progressBarBg}>
+                  <View 
+                    style={[
+                      styles.progressBarFill, 
+                      {
+                        width: `${utilizationPercentage}%`,
+                        backgroundColor: utilizationPercentage >= 90 ? colors.danger : colors.primary,
+                      }
+                    ]} 
+                  />
+                </View>
+              </View>
+
+              {/* Remaining budget highlights */}
+              <View style={styles.cardFooter}>
+                <Text style={styles.remainingLabel}>
+                  {remainingBudget >= 0 ? 'REMAINING BALANCE' : 'OVERSPENT BY'}
+                </Text>
+                <Text style={[
+                  styles.remainingValue, 
+                  { color: remainingBudget >= 0 ? colors.success : colors.danger }
+                ]}>
+                  {formatCurrency(Math.abs(remainingBudget), activeCurrency)}
+                </Text>
+              </View>
+            </Card>
+          ) : (
+            <Card style={[styles.emptyBudgetCard, shadow.md]}>
+              <Icon name="wallet-outline" size={40} color={colors.primary} />
+              <Text style={styles.emptyBudgetText}>No Monthly Budget Set</Text>
+              <Text style={styles.emptyBudgetSub}>
+                Set a monthly spending limit to track your expenses, avoid overspending, and receive smart budget burn alerts.
               </Text>
-            </View>
-          </Card>
+              <PrimaryButton
+                title="Set Monthly Budget"
+                onPress={handleOpenBudgetModal}
+                type="primary"
+                style={{ width: '100%', maxWidth: 220 }}
+              />
+            </Card>
+          )}
         </View>
 
         {/* Budget Alert Card (Shows warnings if 80%+ limit reached) */}
@@ -225,7 +337,7 @@ const BudgetScreen = () => {
               </View>
               {alertCategories.map(c => (
                 <Text key={c.name} style={styles.alertText}>
-                  • **{c.name}** category utilization is at **{Math.round((c.spent/c.limit)*100)}%** ({formatCurrency(c.spent)} of {formatCurrency(c.limit)} limit).
+                  • <Text style={{ fontWeight: 'bold' }}>{c.name}</Text> utilization is at <Text style={{ fontWeight: 'bold' }}>{Math.round((c.spent/c.limit)*100)}%</Text> ({formatCurrency(c.spent, activeCurrency)} of {formatCurrency(c.limit, activeCurrency)} limit).
                 </Text>
               ))}
             </Card>
@@ -243,7 +355,7 @@ const BudgetScreen = () => {
 
           <View style={styles.categoriesList}>
             {categories.map((cat) => {
-              const pct = Math.min(Math.round((cat.spent / cat.limit) * 100), 100);
+              const pct = cat.limit > 0 ? Math.min(Math.round((cat.spent / cat.limit) * 100), 100) : 0;
               return (
                 <Card key={cat.name} style={styles.catCard}>
                   <View style={styles.catRow}>
@@ -256,18 +368,25 @@ const BudgetScreen = () => {
                     
                     <View style={styles.catHeaderRight}>
                       <Text style={styles.catSpent}>{formatCurrency(cat.spent, activeCurrency)}</Text>
-                      <Text style={styles.catLimit}>/ {formatCurrency(cat.limit, activeCurrency)}</Text>
+                      {cat.limit > 0 ? (
+                        <Text style={styles.catLimit}>/ {formatCurrency(cat.limit, activeCurrency)}</Text>
+                      ) : null}
                     </View>
                   </View>
 
-                  <View style={styles.progressBarBg}>
-                    <View 
-                      style={[
-                        styles.progressBarFill, 
-                        { width: `${pct}%`, backgroundColor: cat.color }
-                      ]} 
-                    />
-                  </View>
+                  {cat.limit > 0 ? (
+                    <View style={styles.progressBarBg}>
+                      <View 
+                        style={[
+                          styles.progressBarFill, 
+                          {
+                            width: `${pct}%`,
+                            backgroundColor: pct >= 90 ? colors.danger : cat.color,
+                          }
+                        ]} 
+                      />
+                    </View>
+                  ) : null}
                 </Card>
               );
             })}
@@ -275,13 +394,15 @@ const BudgetScreen = () => {
         </View>
 
         {/* Update Budget trigger button */}
-        <View style={styles.btnWrapper}>
-          <PrimaryButton
-            title="Update Monthly Budget"
-            onPress={() => setModalVisible(true)}
-            type="outline"
-          />
-        </View>
+        {monthlyBudget > 0 && (
+          <View style={styles.btnWrapper}>
+            <PrimaryButton
+              title="Update Monthly Budget"
+              onPress={handleOpenBudgetModal}
+              type="outline"
+            />
+          </View>
+        )}
 
         {/* Scroll footer padding */}
         <View style={{ height: 100 }} />
@@ -299,10 +420,10 @@ const BudgetScreen = () => {
             <Text style={styles.modalTitle}>Update Budget Limit</Text>
             
             <Input
-              label={`New Monthly Budget (${getCurrencySymbol()})`}
+              label={`Monthly Budget Limit (${getCurrencySymbol(activeCurrency)})`}
               value={newBudgetVal}
               onChangeText={setNewBudgetVal}
-              placeholder="e.g. 2500"
+              placeholder="e.g. 25000"
               keyboardType="numeric"
               icon={<Icon name="cash-outline" size={18} color={colors.text.secondary} />}
             />
@@ -336,15 +457,14 @@ const BudgetScreen = () => {
         <View style={styles.modalOverlay}>
           <Card style={styles.modalContent}>
             <Text style={styles.modalTitle}>Adjust Category Limits</Text>
-            <ScrollView style={{ maxHeight: 300, marginBottom: spacing.md }} showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ maxHeight: 340, marginBottom: spacing.md }} showsVerticalScrollIndicator={false}>
               {categories.map(cat => (
                 <Input
                   key={cat.name}
-                  label={`${cat.name} Limit (${getCurrencySymbol()})`}
-                  value={catBudgets[cat.name] || ''}
+                  label={`${cat.name} Limit (${getCurrencySymbol(activeCurrency)})`}
                   value={catBudgets[cat.name] || ''}
                   onChangeText={(val) => setCatBudgets(prev => ({ ...prev, [cat.name]: val }))}
-                  placeholder="e.g. 500"
+                  placeholder="e.g. 5000"
                   keyboardType="numeric"
                   icon={<Icon name={cat.icon} size={18} color={cat.color} />}
                 />
@@ -381,9 +501,52 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  contentContainer: {
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.background,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  headerTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+  },
+  emptyBudgetCard: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyBudgetText: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  emptyBudgetSub: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: spacing.lg,
+  },
+  contentContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
   },
   section: {
     marginBottom: spacing.xl,

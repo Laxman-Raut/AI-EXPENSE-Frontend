@@ -12,7 +12,7 @@ import Card from '../../components/molecules/Card';
 import { colors, spacing, typography, radius, shadow } from '../../theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useDashboardSummary, useRecentTransactions } from '../../hooks/useDashboard';
-import { formatCurrency, getGlobalCurrency, getStoredAmountForCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getGlobalCurrency, getStoredAmountForCurrency, convertCurrencyValue } from '../../utils/formatCurrency';
 import { formatDate } from '../../utils/formatDate';
 import { useUnreadCount } from '../../hooks/useNotifications';
 import FloatingVoiceButton from '../../components/FloatingVoiceButton';
@@ -136,14 +136,13 @@ const DashboardScreen = ({ navigation }) => {
     },
   ];
 
-  const transactionsList = recentTxns || [];
-
   // Filter transactions — useMemo se sirf dependency change hone pe recalculate hoga
   const filteredTransactions = useMemo(() => {
-    if (activeFilter === 'EXPENSES') return transactionsList.filter((txn) => txn.type === 'expense');
-    if (activeFilter === 'INCOME') return transactionsList.filter((txn) => txn.type === 'income');
-    return transactionsList;
-  }, [transactionsList, activeFilter]);
+    const list = recentTxns || [];
+    if (activeFilter === 'EXPENSES') return list.filter((txn) => txn.type === 'expense');
+    if (activeFilter === 'INCOME') return list.filter((txn) => txn.type === 'income');
+    return list;
+  }, [recentTxns, activeFilter]);
 
   // Calculate totals
   const totalExpense = summary?.totalExpense || 0;
@@ -158,6 +157,33 @@ const DashboardScreen = ({ navigation }) => {
   const savedPercent = useMemo(() => {
     return Math.max(100 - spentPercent, 0);
   }, [spentPercent]);
+
+  // Monthly Budget calculations
+  const activeBudgetLimit = useMemo(() => {
+    if (summary?.monthlyBudgetLimit?.budgetLimit && summary.monthlyBudgetLimit.budgetLimit > 0) {
+      return summary.monthlyBudgetLimit.budgetLimit;
+    }
+    if (activeCurrency === 'USD') {
+      if (user?.monthlyBudgetUSD && user.monthlyBudgetUSD > 0) return Number(user.monthlyBudgetUSD);
+      if (user?.monthlyBudget && user.monthlyBudget > 0) return convertCurrencyValue(user.monthlyBudget, 'INR', 'USD');
+      return 0;
+    }
+    if (user?.monthlyBudgetINR && user.monthlyBudgetINR > 0) return Number(user.monthlyBudgetINR);
+    return Number(user?.monthlyBudget || 0);
+  }, [summary, user, activeCurrency]);
+
+  const activeBudgetSpent = summary?.monthlyBudgetLimit?.budgetSpent ?? (summary?.monthlyExpense ?? totalExpense);
+  const activeBudgetRemaining = activeBudgetLimit > 0
+    ? (summary?.monthlyBudgetLimit?.budgetRemaining !== undefined
+        ? summary.monthlyBudgetLimit.budgetRemaining
+        : (activeBudgetLimit - activeBudgetSpent))
+    : 0;
+
+  const activeBudgetUtilPct = activeBudgetLimit > 0
+    ? (summary?.monthlyBudgetLimit?.utilizationPercentage !== undefined
+        ? summary.monthlyBudgetLimit.utilizationPercentage
+        : Math.min(Math.round((activeBudgetSpent / activeBudgetLimit) * 100), 100))
+    : 0;
 
   // Dynamic Savings Trend Data for the Savings Card
   const savingsChartData = useMemo(() => {
@@ -471,7 +497,7 @@ const DashboardScreen = ({ navigation }) => {
                     <View style={styles.seeAllIconWrapper}>
                       <Icon name="grid" size={18} color="#FF9500" />
                     </View>
-                    <Text style={styles.seeAllText}>See All</Text>
+                    <Text style={styles.bankSeeAllText}>See All</Text>
                     <Text style={styles.seeAllSubtext}>{slot.totalCount} Banks</Text>
                   </TouchableOpacity>
                 );
@@ -659,49 +685,67 @@ const DashboardScreen = ({ navigation }) => {
         </LinearGradient>
 
         {/* Monthly Budget Card */}
-        {(user?.monthlyBudget || summary?.monthlyBudgetLimit?.budgetLimit > 0) ? (
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => navigation.navigate('Budget')}
-            style={styles.budgetCardContainer}
-          >
-            <Card style={styles.budgetCard}>
-              <View style={styles.budgetHeader}>
-                <View style={styles.budgetTitleRow}>
-                  <Icon name="wallet-outline" size={18} color={colors.primary} />
-                  <Text style={styles.budgetTitle}>Monthly Budget Limit</Text>
-                </View>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('Budget')}
+          style={styles.budgetCardContainer}
+        >
+          <Card style={styles.budgetCard}>
+            <View style={styles.budgetHeader}>
+              <View style={styles.budgetTitleRow}>
+                <Icon name="wallet-outline" size={18} color={colors.primary} />
+                <Text style={styles.budgetTitle}>Monthly Budget Limit</Text>
+              </View>
+              {activeBudgetLimit > 0 ? (
                 <Text style={styles.budgetValueText}>
-                  {formatCurrency(summary?.monthlyBudgetLimit?.budgetSpent ?? totalExpense, summary?.currency || 'INR')} / {formatCurrency(summary?.monthlyBudgetLimit?.budgetLimit ?? user.monthlyBudget, summary?.currency || 'INR')}
+                  {formatCurrency(activeBudgetSpent, activeCurrency)} / {formatCurrency(activeBudgetLimit, activeCurrency)}
+                </Text>
+              ) : (
+                <Text style={[styles.budgetValueText, { color: colors.text.secondary }]}>
+                  Not Set
+                </Text>
+              )}
+            </View>
+
+            {activeBudgetLimit > 0 ? (
+              <>
+                <View style={styles.budgetProgressBarBg}>
+                  <View
+                    style={[
+                      styles.budgetProgressBarFill,
+                      {
+                        width: `${Math.min(activeBudgetUtilPct, 100)}%`,
+                        backgroundColor: activeBudgetUtilPct >= 90 ? colors.danger : colors.primary
+                      }
+                    ]}
+                  />
+                </View>
+                <View style={styles.budgetFooter}>
+                  <Text style={styles.budgetPercentText}>
+                    {activeBudgetUtilPct}% utilized
+                  </Text>
+                  <Text style={[
+                    styles.budgetRemainingText,
+                    { color: activeBudgetRemaining >= 0 ? colors.success : colors.danger }
+                  ]}>
+                    {activeBudgetRemaining >= 0
+                      ? `${formatCurrency(activeBudgetRemaining, activeCurrency)} remaining`
+                      : `${formatCurrency(Math.abs(activeBudgetRemaining), activeCurrency)} overspent`}
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                <Text style={{ fontSize: typography.sizes.xs, color: colors.text.muted }}>
+                  Set a monthly limit to track your spending
+                </Text>
+                <Text style={{ fontSize: typography.sizes.xs, color: colors.primary, fontWeight: typography.weights.bold }}>
+                  Set Budget →
                 </Text>
               </View>
-              <View style={styles.budgetProgressBarBg}>
-                <View
-                  style={[
-                    styles.budgetProgressBarFill,
-                    {
-                      width: `${Math.min(summary?.monthlyBudgetLimit?.utilizationPercentage ?? Math.round((totalExpense / (user.monthlyBudget || 1)) * 100), 100)}%`,
-                      backgroundColor: ((summary?.monthlyBudgetLimit?.utilizationPercentage ?? ((totalExpense / (user.monthlyBudget || 1)) * 100)) >= 90) ? colors.danger : colors.primary
-                    }
-                  ]}
-                />
-              </View>
-              <View style={styles.budgetFooter}>
-                <Text style={styles.budgetPercentText}>
-                  {summary?.monthlyBudgetLimit?.utilizationPercentage ?? Math.round((totalExpense / (user.monthlyBudget || 1)) * 100)}% utilized
-                </Text>
-                <Text style={[
-                  styles.budgetRemainingText,
-                  { color: (summary?.monthlyBudgetLimit?.budgetRemaining ?? (user.monthlyBudget - totalExpense)) >= 0 ? colors.success : colors.danger }
-                ]}>
-                  {(summary?.monthlyBudgetLimit?.budgetRemaining ?? (user.monthlyBudget - totalExpense)) >= 0
-                    ? `${formatCurrency(summary?.monthlyBudgetLimit?.budgetRemaining ?? (user.monthlyBudget - totalExpense), summary?.currency || 'INR')} remaining`
-                    : `${formatCurrency(Math.abs(summary?.monthlyBudgetLimit?.budgetRemaining ?? (user.monthlyBudget - totalExpense)), summary?.currency || 'INR')} overspent`}
-                </Text>
-              </View>
-            </Card>
-          </TouchableOpacity>
-        ) : null}
+            )}
+          </Card>
+        </TouchableOpacity>
 
         {/* Tab Filters */}
         <View style={styles.filterContainer}>
@@ -1336,7 +1380,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 4,
   },
-  seeAllText: {
+  bankSeeAllText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#FF9500',

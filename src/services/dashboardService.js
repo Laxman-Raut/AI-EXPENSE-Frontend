@@ -83,12 +83,12 @@ export const computeLocalDashboardSummary = async () => {
     ? Math.max(Number((((totalIncome - totalExpense) / totalIncome) * 100).toFixed(1)), 0)
     : 0;
 
-  const rawBudget = Number(user.monthlyBudget) || 50000;
+  const rawBudget = Number(user.monthlyBudgetINR || user.monthlyBudget || 0);
   const budgetLimit = activeCurrency === 'USD'
-    ? (user.monthlyBudgetUSD && user.monthlyBudgetUSD > 0 ? user.monthlyBudgetUSD : Number((rawBudget / rate).toFixed(2)))
-    : (user.monthlyBudgetINR && user.monthlyBudgetINR > 0 ? user.monthlyBudgetINR : rawBudget);
+    ? (user.monthlyBudgetUSD && user.monthlyBudgetUSD > 0 ? Number(user.monthlyBudgetUSD) : (rawBudget > 0 ? Number((rawBudget / rate).toFixed(2)) : 0))
+    : (user.monthlyBudgetINR && user.monthlyBudgetINR > 0 ? Number(user.monthlyBudgetINR) : rawBudget);
 
-  const budgetRemaining = Math.max(Number((budgetLimit - monthlyExpense).toFixed(2)), 0);
+  const budgetRemaining = budgetLimit > 0 ? Number((budgetLimit - monthlyExpense).toFixed(2)) : 0;
   const budgetUtilizationPercentage = budgetLimit > 0
     ? Number(((monthlyExpense / budgetLimit) * 100).toFixed(1))
     : 0;
