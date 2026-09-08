@@ -30,7 +30,7 @@ console.log('[API Client] Active Base URL:', BASE_URL);
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
-  timeout: 30000, // 30s — Render free tier needs up to 30s to wake from sleep
+  timeout: 60000, // 60s — comfortably accommodates cloud cold starts and LLM generation
   headers: {
     'Content-Type': 'application/json',
   },
