@@ -5,7 +5,7 @@ import { useDispatch } from 'react-redux';
 import ReceiveSharingIntent from 'react-native-receive-sharing-intent';
 import { useAuth } from '../hooks/useAuth';
 import AuthStack from './AuthStack';
-import MainTabs from './MainTabs';
+import RootNavigator from './MainTabs';
 import LoadingSpinner from '../components/atoms/LoadingSpinner';
 import { fetchSubscription } from '../store/subscriptionSlice';
 import {
@@ -21,7 +21,7 @@ export const navigationRef = createNavigationContainerRef<any>();
 
 const AuthenticatedMain = () => {
   useAutoSync();
-  return <MainTabs />;
+  return <RootNavigator />;
 };
 
 const AppNavigator: React.FC = () => {
@@ -143,24 +143,15 @@ const AppNavigator: React.FC = () => {
       console.log('[ShareIntent] Built sharedFile:', JSON.stringify(sharedFile));
 
       // ─────────────────────────────────────────────────────────────────
-      // CRITICAL FIX: Correct nested navigation for React Navigation v7
-      //
-      // Structure: NavigationContainer > Tab "Today" > DashboardStack > "ReceiptScanner"
-      //
-      // To navigate to a screen inside a nested stack that's inside a tab,
-      // params must be nested: { screen, params: { params: { sharedFile } }, initial: false }
-      //
-      // `initial: false` ensures ReceiptScanner is PUSHED even when TodayHome
-      // is already the active screen (without it the navigate call is a no-op).
+      // ReceiptScanner is a root-level modal screen in RootNavigator,
+      // so we can navigate directly without nesting into a tab stack.
       // ─────────────────────────────────────────────────────────────────
       const navigateToScanner = (attempts: number = 0) => {
         if (navigationRef.isReady()) {
           console.log(`[ShareIntent] Navigation ready — navigating to ReceiptScanner (attempt ${attempts + 1})`);
           try {
-            navigationRef.navigate('Today', {
-              screen: 'ReceiptScanner',
-              initial: false,
-              params: { sharedFile },
+            navigationRef.navigate('ReceiptScanner', {
+              sharedFile,
             } as any);
             console.log('[ShareIntent] navigate() called successfully');
             ReceiveSharingIntent.clearReceivedFiles();

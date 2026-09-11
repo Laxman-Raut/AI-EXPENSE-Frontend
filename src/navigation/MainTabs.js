@@ -34,6 +34,8 @@ import CreateEditGroupScreen from '../screens/groups/CreateEditGroupScreen';
 import CreateSplitRequestScreen from '../screens/groups/CreateSplitRequestScreen';
 import SplitRequestDetailScreen from '../screens/groups/SplitRequestDetailScreen';
 
+import AIInsightsScreen from '../screens/ai/AIInsightsScreen';
+
 import BankAccountsScreen from '../screens/profile/BankAccountsScreen';
 import BankDetailsScreen from '../screens/profile/BankDetailsScreen';
 
@@ -45,7 +47,9 @@ import WithdrawScreen from '../screens/savings/WithdrawScreen';
 import TransferScreen from '../screens/savings/TransferScreen';
 
 const Tab = createBottomTabNavigator();
+const RootStack = createNativeStackNavigator();
 const DashboardStack = createNativeStackNavigator();
+const AnalyticsStack = createNativeStackNavigator();
 const TransactionsStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
 const FriendsStack = createNativeStackNavigator();
@@ -75,27 +79,15 @@ const AnimatedTabIcon = ({ name, color, focused }) => {
 const DashboardStackScreen = () => (
   <DashboardStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
     <DashboardStack.Screen name="TodayHome" component={DashboardScreen} />
-    <DashboardStack.Screen name="BankDetails" component={BankDetailsScreen} />
-    <DashboardStack.Screen name="BankAccounts" component={BankAccountsScreen} />
-    <DashboardStack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
-    <DashboardStack.Screen name="AddTransaction" component={AddTransactionScreen} />
-    <DashboardStack.Screen name="ReceiptScanner" component={ReceiptScannerScreen} />
-    <DashboardStack.Screen name="ReceiptImport" component={ReceiptImportScreen} />
-    <DashboardStack.Screen name="Categories" component={CategoriesScreen} />
-    <DashboardStack.Screen name="Calendar" component={CalendarViewScreen} />
-    <DashboardStack.Screen name="Budget" component={BudgetScreen} />
-    <DashboardStack.Screen name="Notifications" component={NotificationScreen} />
-    <DashboardStack.Screen name="Subscription" component={SubscriptionScreen} />
-    <DashboardStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
-    <DashboardStack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
-    <DashboardStack.Screen name="PremiumFeatures" component={PremiumFeaturesScreen} />
-    <DashboardStack.Screen name="Savings" component={SavingsScreen} />
-    <DashboardStack.Screen name="CreateSavingsJar" component={CreateSavingsJarScreen} />
-    <DashboardStack.Screen name="SavingsDetails" component={SavingsDetailsScreen} />
-    <DashboardStack.Screen name="Deposit" component={DepositScreen} />
-    <DashboardStack.Screen name="Withdraw" component={WithdrawScreen} />
-    <DashboardStack.Screen name="Transfer" component={TransferScreen} />
   </DashboardStack.Navigator>
+);
+
+// Stack navigation for Analytics tab
+const AnalyticsStackScreen = () => (
+  <AnalyticsStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+    <AnalyticsStack.Screen name="AnalyticsHome" component={AnalyticsScreen} />
+    <AnalyticsStack.Screen name="AIInsights" component={AIInsightsScreen} />
+  </AnalyticsStack.Navigator>
 );
 
 // Stack navigation for Friends tab
@@ -115,22 +107,8 @@ const FriendsStackScreen = () => (
 const ProfileStackScreen = () => (
   <ProfileStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
     <ProfileStack.Screen name="ProfileHome" component={ProfileScreen} />
-    <ProfileStack.Screen name="Budget" component={BudgetScreen} />
     <ProfileStack.Screen name="RecurringTransactions" component={RecurringTransactionsScreen} />
     <ProfileStack.Screen name="AddEditRecurring" component={AddEditRecurringScreen} />
-    <ProfileStack.Screen name="Categories" component={CategoriesScreen} />
-    <ProfileStack.Screen name="Subscription" component={SubscriptionScreen} />
-    <ProfileStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
-    <ProfileStack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
-    <ProfileStack.Screen name="PremiumFeatures" component={PremiumFeaturesScreen} />
-    <ProfileStack.Screen name="BankAccounts" component={BankAccountsScreen} />
-    <ProfileStack.Screen name="BankDetails" component={BankDetailsScreen} />
-    <ProfileStack.Screen name="Savings" component={SavingsScreen} />
-    <ProfileStack.Screen name="CreateSavingsJar" component={CreateSavingsJarScreen} />
-    <ProfileStack.Screen name="SavingsDetails" component={SavingsDetailsScreen} />
-    <ProfileStack.Screen name="Deposit" component={DepositScreen} />
-    <ProfileStack.Screen name="Withdraw" component={WithdrawScreen} />
-    <ProfileStack.Screen name="Transfer" component={TransferScreen} />
   </ProfileStack.Navigator>
 );
 
@@ -138,25 +116,6 @@ const ProfileStackScreen = () => (
 const TransactionsStackScreen = () => (
   <TransactionsStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
     <TransactionsStack.Screen name="TransactionsList" component={TransactionsScreen} />
-    <TransactionsStack.Screen name="BankDetails" component={BankDetailsScreen} />
-    <TransactionsStack.Screen name="BankAccounts" component={BankAccountsScreen} />
-    <TransactionsStack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
-    <TransactionsStack.Screen name="AddTransaction" component={AddTransactionScreen} />
-    <TransactionsStack.Screen name="ReceiptScanner" component={ReceiptScannerScreen} />
-    <TransactionsStack.Screen name="ReceiptImport" component={ReceiptImportScreen} />
-    <TransactionsStack.Screen name="Categories" component={CategoriesScreen} />
-    <TransactionsStack.Screen name="Calendar" component={CalendarViewScreen} />
-    <TransactionsStack.Screen name="Notifications" component={NotificationScreen} />
-    <TransactionsStack.Screen name="Subscription" component={SubscriptionScreen} />
-    <TransactionsStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
-    <TransactionsStack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
-    <TransactionsStack.Screen name="PremiumFeatures" component={PremiumFeaturesScreen} />
-    <TransactionsStack.Screen name="Savings" component={SavingsScreen} />
-    <TransactionsStack.Screen name="CreateSavingsJar" component={CreateSavingsJarScreen} />
-    <TransactionsStack.Screen name="SavingsDetails" component={SavingsDetailsScreen} />
-    <TransactionsStack.Screen name="Deposit" component={DepositScreen} />
-    <TransactionsStack.Screen name="Withdraw" component={WithdrawScreen} />
-    <TransactionsStack.Screen name="Transfer" component={TransferScreen} />
   </TransactionsStack.Navigator>
 );
 
@@ -220,12 +179,17 @@ const MainTabs = () => {
         />
         <Tab.Screen
           name="Analytics"
-          component={AnalyticsScreen}
+          component={AnalyticsStackScreen}
           options={{
             tabBarIcon: ({ color, focused }) => (
               <AnimatedTabIcon name={focused ? 'analytics' : 'analytics-outline'} color={color} focused={focused} />
             ),
           }}
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              navigation.navigate('Analytics', { screen: 'AnalyticsHome' });
+            },
+          })}
         />
         <Tab.Screen
           name="Add"
@@ -235,7 +199,7 @@ const MainTabs = () => {
             tabBarButton: () => (
               <CustomTabBarButton
                 onPress={() => {
-                  navigation.navigate('Today', { screen: 'AddTransaction' });
+                  navigation.navigate('AddTransaction');
                 }}
               />
             ),
@@ -336,4 +300,43 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MainTabs;
+const RootNavigator = () => {
+  return (
+    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      {/* Main Tabs Group */}
+      <RootStack.Group>
+        <RootStack.Screen name="MainTabs" component={MainTabs} />
+      </RootStack.Group>
+
+      {/* Shared Screens - accessible from any tab */}
+      <RootStack.Group screenOptions={{ animation: 'slide_from_right' }}>
+        <RootStack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
+        <RootStack.Screen name="BankDetails" component={BankDetailsScreen} />
+        <RootStack.Screen name="BankAccounts" component={BankAccountsScreen} />
+        <RootStack.Screen name="Categories" component={CategoriesScreen} />
+        <RootStack.Screen name="Calendar" component={CalendarViewScreen} />
+        <RootStack.Screen name="Budget" component={BudgetScreen} />
+        <RootStack.Screen name="Notifications" component={NotificationScreen} />
+        <RootStack.Screen name="Savings" component={SavingsScreen} />
+        <RootStack.Screen name="CreateSavingsJar" component={CreateSavingsJarScreen} />
+        <RootStack.Screen name="SavingsDetails" component={SavingsDetailsScreen} />
+        <RootStack.Screen name="Deposit" component={DepositScreen} />
+        <RootStack.Screen name="Withdraw" component={WithdrawScreen} />
+        <RootStack.Screen name="Transfer" component={TransferScreen} />
+        <RootStack.Screen name="Subscription" component={SubscriptionScreen} />
+        <RootStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
+        <RootStack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
+        <RootStack.Screen name="PremiumFeatures" component={PremiumFeaturesScreen} />
+      </RootStack.Group>
+
+      {/* Modal Screens - slide up from bottom */}
+      <RootStack.Group screenOptions={{ presentation: 'modal', animation: 'slide_from_bottom' }}>
+        <RootStack.Screen name="AddTransaction" component={AddTransactionScreen} />
+        <RootStack.Screen name="ReceiptScanner" component={ReceiptScannerScreen} />
+        <RootStack.Screen name="ReceiptImport" component={ReceiptImportScreen} />
+      </RootStack.Group>
+    </RootStack.Navigator>
+  );
+};
+
+export default RootNavigator;
