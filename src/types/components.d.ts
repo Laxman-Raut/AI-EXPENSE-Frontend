@@ -34,13 +34,16 @@ declare module '*/components/molecules/Header' {
   import React from 'react';
   import { ViewStyle, TextStyle } from 'react-native';
   export interface HeaderProps {
-    title: string;
+    title?: string;
     subtitle?: string;
     leftIcon?: React.ReactNode;
     onLeftPress?: () => void;
     rightIcon?: React.ReactNode;
     onRightPress?: () => void;
     rightActions?: React.ReactNode;
+    showBack?: boolean;
+    safeArea?: boolean;
+    bordered?: boolean;
     style?: ViewStyle | any;
     titleStyle?: TextStyle | any;
   }
