@@ -11,17 +11,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, typography, radius } from '../../theme';
-import { formatCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
+import { formatCurrency, getCurrencySymbol, getGlobalCurrency } from '../../utils/formatCurrency';
 import savingsApi from '../../api/savings';
 import CustomAlert from '../../components/molecules/CustomAlert';
-
+import { useAuth } from '../../hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 
 const QUICK_AMOUNTS = [100, 500, 1000, 5000];
 
 const DepositScreen = ({ route, navigation }) => {
   const queryClient = useQueryClient();
-  const { jar } = route.params;
+  const jar = route.params?.jar;
+  const { user } = useAuth();
+  const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
+
+  React.useEffect(() => {
+    if (!jar) {
+      navigation.goBack();
+    }
+  }, [jar, navigation]);
 
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
@@ -97,6 +105,8 @@ const DepositScreen = ({ route, navigation }) => {
     }
   };
 
+  if (!jar) return null;
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Header */}
@@ -120,7 +130,7 @@ const DepositScreen = ({ route, navigation }) => {
             <Text style={styles.jarBannerBalance}>
               Current Balance:{' '}
               <Text style={{ color: colors.success, fontWeight: '700' }}>
-                {formatCurrency(jar.currentAmount || 0)}
+                {formatCurrency(jar.currentAmount || 0, activeCurrency)}
               </Text>
             </Text>
           </View>
@@ -130,7 +140,7 @@ const DepositScreen = ({ route, navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>DEPOSIT AMOUNT *</Text>
           <View style={styles.amountInputCard}>
-            <Text style={styles.currencySymbol}>{getCurrencySymbol()}</Text>
+            <Text style={styles.currencySymbol}>{getCurrencySymbol(activeCurrency)}</Text>
             <TextInput
               style={styles.amountInput}
               placeholder="0"

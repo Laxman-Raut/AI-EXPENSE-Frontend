@@ -18,9 +18,12 @@ import CustomAlert from '../../components/molecules/CustomAlert';
 import dayjs from 'dayjs';
 import { useAuth } from '../../hooks/useAuth';
 import { getGlobalCurrency } from '../../utils/formatCurrency';
+import { useQueryClient } from '@tanstack/react-query';
 
 const SavingsDetailsScreen = ({ route, navigation }) => {
-  const { jarId, initialJar } = route.params;
+  const queryClient = useQueryClient();
+  const jarId = route.params?.jarId;
+  const initialJar = route.params?.initialJar;
   const { user } = useAuth();
   const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
   const [jar, setJar] = useState(initialJar || null);
@@ -39,6 +42,7 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
   const [errorMessage, setErrorMessage] = useState('');
 
   const fetchJarDetails = async (isSilent = false) => {
+    if (!jarId) return;
     if (!isSilent && !jar) setLoading(true);
     try {
       const res = await savingsApi.getJarById(jarId);
@@ -58,7 +62,7 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
   useFocusEffect(
     useCallback(() => {
       fetchJarDetails(true);
-    }, [])
+    }, [jarId])
   );
 
   const handleRefresh = () => {
@@ -71,6 +75,9 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
     const newStatus = jar.status === 'archived' ? 'active' : 'archived';
     try {
       await savingsApi.updateJar(jar._id, { status: newStatus });
+      queryClient.invalidateQueries({ queryKey: ['savingsJars'] });
+      queryClient.invalidateQueries({ queryKey: ['savingsJar', jar._id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
       fetchJarDetails(true);
     } catch (err) {
       setErrorMessage('Failed to update jar status');
@@ -81,6 +88,9 @@ const SavingsDetailsScreen = ({ route, navigation }) => {
   const handleDeleteJar = async () => {
     try {
       await savingsApi.deleteJar(jar._id);
+      queryClient.invalidateQueries({ queryKey: ['savingsJars'] });
+      queryClient.invalidateQueries({ queryKey: ['savingsJar', jar._id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
       setDeleteAlertVisible(false);
       navigation.goBack();
     } catch (err) {

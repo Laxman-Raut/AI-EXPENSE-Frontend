@@ -70,6 +70,12 @@ const DashboardScreen = ({ navigation }) => {
   const { banks, loading: banksLoading, refetch: refetchBanks } = useBanks();
   const { data: savingsData, refetch: refetchSavings } = useSavingsJars(null, activeCurrency);
 
+  useFocusEffect(
+    useCallback(() => {
+      refetchSavings();
+    }, [refetchSavings])
+  );
+
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('ALL'); // 'ALL' | 'EXPENSES' | 'INCOME'
 

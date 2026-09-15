@@ -11,15 +11,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, typography, radius } from '../../theme';
-import { formatCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
+import { formatCurrency, getCurrencySymbol, getGlobalCurrency, getStoredAmountForCurrency } from '../../utils/formatCurrency';
 import savingsApi from '../../api/savings';
 import CustomAlert from '../../components/molecules/CustomAlert';
-
+import { useAuth } from '../../hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 
 const TransferScreen = ({ route, navigation }) => {
   const queryClient = useQueryClient();
   const initialFromJarId = route.params?.fromJarId;
+  const { user } = useAuth();
+  const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
 
   const [jars, setJars] = useState([]);
   const [fromJarId, setFromJarId] = useState(initialFromJarId || '');
@@ -56,16 +58,16 @@ const TransferScreen = ({ route, navigation }) => {
   const loadJars = async () => {
     setFetchingJars(true);
     try {
-      const res = await savingsApi.getSavingsJars('active');
+      const res = await savingsApi.getSavingsJars();
       if (res && res.data) {
-        const activeJars = res.data;
-        setJars(activeJars);
+        const availableJars = (res.data || []).filter((j) => j.status !== 'archived');
+        setJars(availableJars);
 
-        if (activeJars.length > 0) {
-          const defaultFrom = initialFromJarId || activeJars[0]._id;
+        if (availableJars.length > 0) {
+          const defaultFrom = initialFromJarId || availableJars[0]._id;
           setFromJarId(defaultFrom);
 
-          const defaultTo = activeJars.find((j) => j._id !== defaultFrom)?._id || '';
+          const defaultTo = availableJars.find((j) => j._id !== defaultFrom)?._id || '';
           setToJarId(defaultTo);
         }
       }
@@ -79,7 +81,9 @@ const TransferScreen = ({ route, navigation }) => {
   const selectedFromJar = jars.find((j) => j._id === fromJarId);
   const selectedToJar = jars.find((j) => j._id === toJarId);
 
-  const availableBalance = selectedFromJar?.currentAmount || 0;
+  const availableBalance = selectedFromJar
+    ? getStoredAmountForCurrency(selectedFromJar, activeCurrency, 'currentAmount')
+    : 0;
 
   const handleTransfer = async () => {
     if (!fromJarId || !toJarId) {
@@ -101,7 +105,7 @@ const TransferScreen = ({ route, navigation }) => {
     if (numAmount > availableBalance) {
       showAlert(
         'Insufficient Balance',
-        `Source jar "${selectedFromJar?.name}" only has ${formatCurrency(availableBalance)} available.`,
+        `Source jar "${selectedFromJar?.name}" only has ${formatCurrency(availableBalance, activeCurrency)} available.`,
         'warning'
       );
       return;
@@ -117,11 +121,13 @@ const TransferScreen = ({ route, navigation }) => {
       });
 
       queryClient.invalidateQueries({ queryKey: ['savingsJars'] });
+      queryClient.invalidateQueries({ queryKey: ['savingsJar', fromJarId] });
+      queryClient.invalidateQueries({ queryKey: ['savingsJar', toJarId] });
       queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
 
       showAlert(
         'Transfer Complete 🎉',
-        `Successfully transferred ${formatCurrency(numAmount)} from "${selectedFromJar?.name}" to "${selectedToJar?.name}"!`,
+        `Successfully transferred ${formatCurrency(numAmount, activeCurrency)} from "${selectedFromJar?.name}" to "${selectedToJar?.name}"!`,
         'success',
         [{ text: 'Awesome' }],
         () => navigation.goBack()
@@ -204,7 +210,7 @@ const TransferScreen = ({ route, navigation }) => {
                 <Text style={styles.chipEmoji}>{j.icon || '🏆'}</Text>
                 <View>
                   <Text style={styles.chipName}>{j.name}</Text>
-                  <Text style={styles.chipBalance}>{formatCurrency(j.currentAmount || 0)}</Text>
+                  <Text style={styles.chipBalance}>{formatCurrency(getStoredAmountForCurrency(j, activeCurrency, 'currentAmount'), activeCurrency)}</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -236,7 +242,7 @@ const TransferScreen = ({ route, navigation }) => {
                 <Text style={styles.chipEmoji}>{j.icon || '🏆'}</Text>
                 <View>
                   <Text style={styles.chipName}>{j.name}</Text>
-                  <Text style={styles.chipBalance}>{formatCurrency(j.currentAmount || 0)}</Text>
+                  <Text style={styles.chipBalance}>{formatCurrency(getStoredAmountForCurrency(j, activeCurrency, 'currentAmount'), activeCurrency)}</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -247,7 +253,7 @@ const TransferScreen = ({ route, navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>TRANSFER AMOUNT *</Text>
           <View style={styles.amountInputCard}>
-            <Text style={styles.currencySymbol}>{getCurrencySymbol()}</Text>
+            <Text style={styles.currencySymbol}>{getCurrencySymbol(activeCurrency)}</Text>
             <TextInput
               style={styles.amountInput}
               placeholder="0"

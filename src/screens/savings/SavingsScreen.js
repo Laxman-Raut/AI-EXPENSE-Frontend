@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, typography, radius } from '../../theme';
-import { formatCurrency, getStoredAmountForCurrency } from '../../utils/formatCurrency';
+import { formatCurrency, getStoredAmountForCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
 import savingsApi from '../../api/savings';
 import { useSelector } from 'react-redux';
 import { useAuth } from '../../hooks/useAuth';
@@ -46,7 +46,6 @@ const SavingsScreen = ({ navigation }) => {
     [savingsRes?.summary]
   );
   const [suggestions, setSuggestions] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const [goalModalVisible, setGoalModalVisible] = useState(false);
@@ -73,11 +72,8 @@ const SavingsScreen = ({ navigation }) => {
   };
 
   const totalSavingsDisplay = useMemo(() => {
-    if (Array.isArray(jars) && jars.length > 0) {
-      return jars.reduce((sum, item) => sum + getStoredAmountForCurrency(item, activeCurrency, 'currentAmount'), 0);
-    }
     return Number(summary.totalSavings || 0);
-  }, [jars, summary.totalSavings, activeCurrency]);
+  }, [summary.totalSavings]);
 
   const goalSnapshot = summary.periodicGoal?.goal || null;
   const goalSaved = goalSnapshot ? getStoredAmountForCurrency(goalSnapshot, activeCurrency, 'savedInPeriod') : 0;
@@ -101,7 +97,7 @@ const SavingsScreen = ({ navigation }) => {
         notes: goalNotes.trim(),
       });
       setGoalModalVisible(false);
-      fetchData(true);
+      refetchSavingsJars();
       Alert.alert('Success', `${goalPeriod.charAt(0).toUpperCase() + goalPeriod.slice(1)} Savings Goal updated! 🎉`);
     } catch (err) {
       console.log('[SavingsScreen] Save goal error:', err);
@@ -124,7 +120,7 @@ const SavingsScreen = ({ navigation }) => {
             try {
               await savingsApi.deleteSavingsGoal();
               setGoalModalVisible(false);
-              fetchData(true);
+              refetchSavingsJars();
             } catch (err) {
               Alert.alert('Error', 'Failed to remove Savings Goal');
             }
@@ -134,18 +130,9 @@ const SavingsScreen = ({ navigation }) => {
     );
   };
 
-  const fetchData = async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
-    try {
-      const res = await savingsApi.getSavingsJars(activeTab);
-      if (res && res.success) {
-        setJars(res.data || []);
-        if (res.summary) {
-          setSummary(res.summary);
-        }
-      }
-
-      // Fetch AI Suggestions
+  // Load AI Suggestions separately
+  React.useEffect(() => {
+    const loadSuggestions = async () => {
       try {
         const aiRes = await savingsApi.getAISuggestions();
         if (aiRes && aiRes.suggestions) {
@@ -154,13 +141,9 @@ const SavingsScreen = ({ navigation }) => {
       } catch (_) {
         /* silent catch */
       }
-    } catch (err) {
-      console.log('[SavingsScreen] Fetch error:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+    };
+    loadSuggestions();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -490,7 +473,7 @@ const SavingsScreen = ({ navigation }) => {
           </View>
         }
         ListEmptyComponent={
-          loading ? (
+          savingsLoading ? (
             <View style={styles.centerContainer}>
               <ActivityIndicator size="large" color={colors.primary} />
               <Text style={styles.loadingText}>Loading Savings Jars...</Text>
@@ -551,9 +534,9 @@ const SavingsScreen = ({ navigation }) => {
               ))}
             </View>
 
-            <Text style={styles.fieldLabel}>Target Amount (₹)</Text>
+            <Text style={styles.fieldLabel}>Target Amount ({getCurrencySymbol(activeCurrency)})</Text>
             <View style={styles.inputWrapper}>
-              <Text style={styles.inputPrefix}>₹</Text>
+              <Text style={styles.inputPrefix}>{getCurrencySymbol(activeCurrency)}</Text>
               <TextInput
                 style={styles.modalInput}
                 value={goalTargetAmount}

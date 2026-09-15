@@ -14,6 +14,7 @@ import { colors, spacing, typography, radius } from '../../theme';
 import savingsApi from '../../api/savings';
 import CustomAlert from '../../components/molecules/CustomAlert';
 import { getCurrencySymbol } from '../../utils/formatCurrency';
+import { useQueryClient } from '@tanstack/react-query';
 
 const PRESET_TEMPLATES = [
   { name: 'Emergency Fund', icon: '🛡️', color: '#FF6B6B', defaultTarget: '50000' },
@@ -39,6 +40,7 @@ const COLOR_OPTIONS = [
 ];
 
 const CreateSavingsJarScreen = ({ route, navigation }) => {
+  const queryClient = useQueryClient();
   const existingJar = route.params?.jar;
   const isEditing = Boolean(existingJar);
 
@@ -99,6 +101,9 @@ const CreateSavingsJarScreen = ({ route, navigation }) => {
 
       if (isEditing) {
         await savingsApi.updateJar(existingJar._id, payload);
+        queryClient.invalidateQueries({ queryKey: ['savingsJars'] });
+        queryClient.invalidateQueries({ queryKey: ['savingsJar', existingJar._id] });
+        queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
         showAlert(
           'Jar Updated! 🎉',
           `Your savings goal "${name.trim()}" has been updated successfully.`,
@@ -108,6 +113,8 @@ const CreateSavingsJarScreen = ({ route, navigation }) => {
         );
       } else {
         await savingsApi.createJar(payload);
+        queryClient.invalidateQueries({ queryKey: ['savingsJars'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
         showAlert(
           'Savings Goal Set! 🏺',
           `Your new savings jar "${name.trim()}" is ready. Start saving now!`,

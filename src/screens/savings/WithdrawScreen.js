@@ -12,20 +12,28 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, typography, radius } from '../../theme';
-import { formatCurrency, getCurrencySymbol } from '../../utils/formatCurrency';
+import { formatCurrency, getCurrencySymbol, getGlobalCurrency, getStoredAmountForCurrency } from '../../utils/formatCurrency';
 import savingsApi from '../../api/savings';
-
+import { useAuth } from '../../hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 
 const WithdrawScreen = ({ route, navigation }) => {
   const queryClient = useQueryClient();
-  const { jar } = route.params;
+  const jar = route.params?.jar;
+  const { user } = useAuth();
+  const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
+
+  React.useEffect(() => {
+    if (!jar) {
+      navigation.goBack();
+    }
+  }, [jar, navigation]);
 
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const availableBalance = jar.currentAmount || 0;
+  const availableBalance = jar ? getStoredAmountForCurrency(jar, activeCurrency, 'currentAmount') : 0;
 
   const handleSetMax = () => {
     setAmount(String(availableBalance));
@@ -41,7 +49,7 @@ const WithdrawScreen = ({ route, navigation }) => {
     if (numAmount > availableBalance) {
       Alert.alert(
         'Insufficient Funds',
-        `You cannot withdraw more than your available balance (${formatCurrency(availableBalance)}).`
+        `You cannot withdraw more than your available balance (${formatCurrency(availableBalance, activeCurrency)}).`
       );
       return;
     }
@@ -62,7 +70,7 @@ const WithdrawScreen = ({ route, navigation }) => {
       queryClient.invalidateQueries({ queryKey: ['savingsJar', jar._id] });
       queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
 
-      Alert.alert('Success', `Withdrew ${getCurrencySymbol()}${numAmount} from ${jar.name}`, [
+      Alert.alert('Success', `Withdrew ${getCurrencySymbol(activeCurrency)}${numAmount} from ${jar.name}`, [
         {
           text: 'OK',
           onPress: () =>
@@ -80,6 +88,8 @@ const WithdrawScreen = ({ route, navigation }) => {
       setLoading(false);
     }
   };
+
+  if (!jar) return null;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -102,7 +112,7 @@ const WithdrawScreen = ({ route, navigation }) => {
             <Text style={styles.jarBannerSub}>WITHDRAWING FROM</Text>
             <Text style={styles.jarBannerName}>{jar.name}</Text>
             <Text style={styles.jarBannerBalance}>
-              Available Balance: <Text style={{ color: colors.primary, fontWeight: '700' }}>{formatCurrency(availableBalance)}</Text>
+              Available Balance: <Text style={{ color: colors.primary, fontWeight: '700' }}>{formatCurrency(availableBalance, activeCurrency)}</Text>
             </Text>
           </View>
         </View>
@@ -112,12 +122,12 @@ const WithdrawScreen = ({ route, navigation }) => {
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>WITHDRAWAL AMOUNT *</Text>
             <TouchableOpacity onPress={handleSetMax}>
-              <Text style={styles.maxBtnText}>Withdraw All ({formatCurrency(availableBalance)})</Text>
+              <Text style={styles.maxBtnText}>Withdraw All ({formatCurrency(availableBalance, activeCurrency)})</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.amountInputCard}>
-            <Text style={styles.currencySymbol}>{getCurrencySymbol()}</Text>
+            <Text style={styles.currencySymbol}>{getCurrencySymbol(activeCurrency)}</Text>
             <TextInput
               style={styles.amountInput}
               placeholder="0"
