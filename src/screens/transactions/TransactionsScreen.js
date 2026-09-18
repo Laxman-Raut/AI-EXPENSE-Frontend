@@ -266,6 +266,7 @@ const TransactionsScreen = ({ navigation, route }) => {
         const descMatch = (t.description || '').toLowerCase().includes(q);
         const catMatch = (t.category || '').toLowerCase().includes(q);
         const methodMatch = (t.paymentMethod || '').toLowerCase().includes(q);
+        const notesMatch = (t.note || t.notes || '').toLowerCase().includes(q);
         const qNum = q.replace(/[^0-9.]/g, '');
         const amountMatch = String(getStoredAmountForCurrency(t, user?.currency || getGlobalCurrency() || 'INR')).includes(q) ||
           (qNum.length > 0 && String(getStoredAmountForCurrency(t, user?.currency || getGlobalCurrency() || 'INR')).includes(qNum));
@@ -349,7 +350,7 @@ const TransactionsScreen = ({ navigation, route }) => {
     }
 
     return result;
-  }, [transactions, debouncedSearchQuery, selectedBankId, activeFilter, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy]);
+  }, [transactions, debouncedSearchQuery, selectedBankId, activeFilter, selectedPaymentMethod, minAmount, maxAmount, dateRangeFilter, sortBy, user?.currency]);
 
   const listRows = useMemo(() => {
     const rows = [];
@@ -392,7 +393,7 @@ const TransactionsScreen = ({ navigation, route }) => {
         />
       </View>
     );
-  }, [handleDelete, navigation]);
+  }, [handleDelete, navigation, user?.currency]);
 
   // Header Component featuring the Hero Digital Wallet Card
   const renderHeader = () => (

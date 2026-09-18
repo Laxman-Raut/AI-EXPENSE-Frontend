@@ -116,7 +116,7 @@ const FloatingVoiceButton = () => {
     }
 
     return () => animations.forEach(a => a.stop());
-  }, [isListening]);
+  }, [isListening, micPulse, waveRefs]);
 
   // ─── Floating button glow when modal is open ──────────────────
   useEffect(() => {
@@ -125,7 +125,7 @@ const FloatingVoiceButton = () => {
       duration: 250,
       useNativeDriver: false,
     }).start();
-  }, [modalVisible]);
+  }, [modalVisible, glowAnim]);
 
   // ─── Native speech event subscriptions ───────────────────────
   useEffect(() => {
@@ -169,9 +169,7 @@ const FloatingVoiceButton = () => {
     ];
 
     return () => subs.forEach(s => s.remove());
-  }, [modalVisible]);
-
-  if (!isAuthenticated) return null;
+  }, [modalVisible, showAlert]);
 
   // ─── Handlers ─────────────────────────────────────────────────
   const handleStartListening = useCallback(async () => {
@@ -209,7 +207,7 @@ const FloatingVoiceButton = () => {
     } catch (e) {
       showAlert('Error', 'Failed to start speech recognition.');
     }
-  }, []);
+  }, [showAlert]);
 
   const handleStopListening = useCallback(() => {
     try {
@@ -257,7 +255,7 @@ const FloatingVoiceButton = () => {
     } finally {
       setLoading(false);
     }
-  }, [inputText]);
+  }, [inputText, navigation, showAlert]);
 
   const handleSaveTransaction = useCallback(async () => {
     if (!parsedData) return;
@@ -284,7 +282,7 @@ const FloatingVoiceButton = () => {
     } catch (error) {
       showAlert('Save Failed', error.message || 'Could not save the transaction.');
     }
-  }, [parsedData]);
+  }, [parsedData, createMutation, showAlert]);
 
   const handleCloseModal = useCallback(() => {
     setModalVisible(false);
@@ -299,6 +297,8 @@ const FloatingVoiceButton = () => {
   });
 
   // ─── Render ───────────────────────────────────────────────────
+  if (!isAuthenticated) return null;
+
   return (
     <>
       {/* ── Floating Buttons ─────────────────────────────────── */}

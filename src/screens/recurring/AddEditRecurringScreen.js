@@ -122,7 +122,8 @@ const AddEditRecurringScreen = ({ navigation, route }) => {
         ]);
       }
     } catch (error) {
-      showAlert('Error', error.message || 'Something went wrong.');
+      const serverMessage = error?.response?.data?.message;
+      showAlert('Error', serverMessage || error.message || 'Something went wrong.');
     }
   };
 
