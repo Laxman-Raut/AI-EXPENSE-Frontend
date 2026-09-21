@@ -66,3 +66,8 @@ export const completeRegistration = async (fullName, email, otp, password) => {
   const response = await apiClient.post('/auth/complete-registration', { fullName, email, otp, password });
   return response.data;
 };
+
+export const logoutUser = async (refreshToken) => {
+  const response = await apiClient.post('/auth/logout', { refreshToken });
+  return response.data;
+};
