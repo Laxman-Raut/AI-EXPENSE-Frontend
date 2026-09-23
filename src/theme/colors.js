@@ -4,18 +4,20 @@ const colors = {
   primaryLight: '#A366FF',
   primaryDark: '#5E1BDB',
   secondary: '#1A1C29', // Dark secondary slate
-  
+
   // Theme backgrounds
   background: '#090A0F', // Obsidian black base
   card: '#12131A', // Slate Card / Deep Navy Grey
+  cardElevated: '#14151E', // Slightly lifted card surface
   surface: '#181A24', // Elevated surface
-  
+  inputBg: '#0E0F17', // Exclusive dark bg for input fields
+
   // Feedback states
   success: '#00D26A', // Mint green (mockup Income / Savings)
   danger: '#FF4D67', // Rose red
   warning: '#FFB648', // Amber gold
   info: '#4B8CFF', // Tech blue
-  
+
   // Neutral Text
   text: {
     primary: '#FFFFFF', // High emphasis text
@@ -23,15 +25,18 @@ const colors = {
     muted: '#54595E', // Low emphasis / placeholders
     inverse: '#090A0F', // Dark text on light components
   },
-  
+
   // Borders and dividers
   border: '#1A1C26',
   divider: '#1F222F',
-  
+
   // Overlays & Special colors
   overlay: 'rgba(0, 0, 0, 0.75)',
   glass: 'rgba(18, 19, 26, 0.8)',
-  
+
+  // Glow / effect tokens
+  primaryGlow: 'rgba(138, 63, 252, 0.25)', // Purple glow for shadows/rings
+
   // Mockup custom colors
   accent: '#FF6037', // Mockup orange accent
   income: '#00D26A',

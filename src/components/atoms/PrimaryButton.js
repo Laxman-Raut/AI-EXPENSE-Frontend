@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, ActivityIndicator, StyleSheet, View } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { colors, spacing, typography, radius } from '../../theme';
 
 const PrimaryButton = ({
@@ -24,7 +25,7 @@ const PrimaryButton = ({
         return [styles.button, styles.ghostButton, disabled && styles.disabledGhostButton];
       case 'primary':
       default:
-        return [styles.button, styles.primaryButton, disabled && styles.disabledPrimaryButton];
+        return [styles.button, styles.primaryButtonContainer, disabled && styles.disabledPrimaryButton];
     }
   };
 
@@ -42,6 +43,38 @@ const PrimaryButton = ({
     }
   };
 
+  // Primary type uses a LinearGradient wrapper for depth
+  if (type === 'primary') {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.82}
+        onPress={onPress}
+        disabled={disabled || loading}
+        style={[styles.primaryShadowWrapper, style]}
+      >
+        <LinearGradient
+          colors={
+            disabled
+              ? [colors.secondary, colors.secondary]
+              : [colors.primaryLight, colors.primaryDark]
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.button, styles.gradientButton, disabled && styles.disabledPrimaryButton]}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <View style={styles.contentContainer}>
+              {icon && <View style={styles.iconContainer}>{icon}</View>}
+              <Text style={[getTextStyles(), textStyle]}>{title}</Text>
+            </View>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <TouchableOpacity
       activeOpacity={0.8}
@@ -50,9 +83,9 @@ const PrimaryButton = ({
       style={[getButtonStyles(), style]}
     >
       {loading ? (
-        <ActivityIndicator 
-          color={type === 'outline' || type === 'ghost' ? colors.primary : colors.text.inverse} 
-          size="small" 
+        <ActivityIndicator
+          color={type === 'outline' || type === 'ghost' ? colors.primary : colors.text.inverse}
+          size="small"
         />
       ) : (
         <View style={styles.contentContainer}>
@@ -65,13 +98,25 @@ const PrimaryButton = ({
 };
 
 const styles = StyleSheet.create({
+  primaryShadowWrapper: {
+    borderRadius: radius.xl,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    elevation: 8,
+  },
   button: {
-    height: 52,
-    borderRadius: radius.md,
+    height: 54,
+    borderRadius: radius.xl,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
     flexDirection: 'row',
+  },
+  gradientButton: {
+    // radius inherited via primaryShadowWrapper clip
+    overflow: 'hidden',
   },
   contentContainer: {
     flexDirection: 'row',
@@ -81,8 +126,8 @@ const styles = StyleSheet.create({
   iconContainer: {
     marginRight: spacing.sm,
   },
-  // Type styles
-  primaryButton: {
+  // Non-primary type styles
+  primaryButtonContainer: {
     backgroundColor: colors.primary,
   },
   secondaryButton: {
@@ -101,8 +146,7 @@ const styles = StyleSheet.create({
   },
   // Disabled states
   disabledPrimaryButton: {
-    backgroundColor: colors.secondary,
-    opacity: 0.5,
+    opacity: 0.45,
   },
   disabledSecondaryButton: {
     backgroundColor: colors.secondary,
@@ -121,12 +165,12 @@ const styles = StyleSheet.create({
   // Text styles
   text: {
     fontSize: typography.sizes.md,
-    fontWeight: typography.weights.semibold,
+    fontWeight: typography.weights.bold,
     lineHeight: typography.lineHeights.md,
     textAlign: 'center',
   },
   solidText: {
-    color: colors.text.primary,
+    color: '#FFFFFF',
   },
   outlineText: {
     color: colors.primary,
@@ -136,7 +180,7 @@ const styles = StyleSheet.create({
   },
   // Disabled text
   disabledSolidText: {
-    color: colors.text.muted,
+    color: 'rgba(255,255,255,0.5)',
   },
   disabledOutlineText: {
     color: colors.text.muted,

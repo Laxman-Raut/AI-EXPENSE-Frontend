@@ -125,21 +125,35 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <Screen 
-        scrollable 
+      <Screen
+        scrollable
         loading={loading}
         style={styles.contentContainer}
       >
+        {/* Purple glow header strip */}
+        <LinearGradient
+          colors={['rgba(138, 63, 252, 0.10)', 'transparent']}
+          style={styles.headerGlow}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          pointerEvents="none"
+        />
+
         {/* Header App Branding */}
         <View style={styles.header}>
-          <AppLogo size={72} style={{ marginBottom: spacing.md }} />
+          <AppLogo size={76} style={{ marginBottom: spacing.md }} />
           <Text style={styles.appTitle}>Welcome Back!</Text>
-          <Text style={styles.subtitle}>Login to continue</Text>
+          <Text style={styles.subtitle}>Sign in to continue managing your finances</Text>
         </View>
 
-        {/* Login Form Wrapper */}
+        {/* Login Form Card */}
         <Card style={styles.formCard}>
-          {error ? <Text style={styles.errorBanner}>{error}</Text> : null}
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Icon name="alert-circle-outline" size={14} color={colors.danger} style={{ marginRight: 6 }} />
+              <Text style={styles.errorBannerText}>{error}</Text>
+            </View>
+          ) : null}
 
           <Input
             value={email}
@@ -169,7 +183,7 @@ const LoginScreen = ({ navigation }) => {
           </TouchableOpacity>
 
           <PrimaryButton
-            title="Login"
+            title="Sign In"
             onPress={handleLogin}
             disabled={loading}
             style={styles.signInBtn}
@@ -185,12 +199,14 @@ const LoginScreen = ({ navigation }) => {
           </View>
 
           <TouchableOpacity style={styles.googleBtn} activeOpacity={0.8} onPress={handleGoogleSignIn}>
-            <Icon name="logo-google" size={20} color="#EA4335" style={styles.googleIcon} />
-            <Text style={styles.googleBtnText}>Sign in with Google / Gmail</Text>
+            <View style={styles.googleIconWrapper}>
+              <Icon name="logo-google" size={18} color="#EA4335" />
+            </View>
+            <Text style={styles.googleBtnText}>Sign in with Google</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Footer Actions */}
+        {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don't have an account? </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
@@ -213,79 +229,71 @@ const styles = StyleSheet.create({
     paddingTop: spacing.huge,
     paddingBottom: spacing.huge,
   },
+  headerGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 240,
+  },
   header: {
     alignItems: 'center',
     marginBottom: spacing.xl * 1.5,
   },
-  logoContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.xl,
-    overflow: 'hidden',
-    marginBottom: spacing.md,
-    elevation: 4,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  logoGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   appTitle: {
-    fontSize: typography.sizes.xxl + 2,
-    fontWeight: typography.weights.bold,
+    fontSize: typography.sizes.xxl + 4,
+    fontWeight: '800',
     color: colors.text.primary,
     marginBottom: spacing.xs,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: typography.sizes.base,
     color: colors.text.secondary,
     textAlign: 'center',
+    lineHeight: typography.lineHeights.base + 2,
   },
   formCard: {
     padding: spacing.xl,
     marginBottom: spacing.lg,
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
+    backgroundColor: colors.cardElevated || '#14151E',
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(138, 63, 252, 0.20)',
   },
   errorBanner: {
-    backgroundColor: 'rgba(255, 77, 103, 0.1)',
-    borderColor: colors.danger,
-    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 77, 103, 0.10)',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.danger,
     borderRadius: radius.sm,
     padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  errorBannerText: {
+    flex: 1,
     color: colors.danger,
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.medium,
-    marginBottom: spacing.md,
     lineHeight: typography.lineHeights.base,
   },
   forgotBtn: {
     alignSelf: 'flex-end',
     marginBottom: spacing.xl,
+    marginTop: -spacing.sm,
   },
   forgotText: {
-    color: colors.text.secondary,
+    color: colors.primary,
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.semibold,
   },
   signInBtn: {
     width: '100%',
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
   },
   socialSection: {
     alignItems: 'center',
-    marginVertical: spacing.xl,
+    marginVertical: spacing.lg,
   },
   dividerRow: {
     flexDirection: 'row',
@@ -308,14 +316,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    height: 50,
-    borderRadius: radius.full,
-    backgroundColor: colors.card,
+    height: 52,
+    borderRadius: radius.xl,
+    backgroundColor: colors.cardElevated || '#14151E',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    gap: 10,
   },
-  googleIcon: {
-    marginRight: spacing.sm,
+  googleIconWrapper: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(234, 67, 53, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   googleBtnText: {
     color: colors.text.primary,
@@ -330,11 +344,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: colors.text.secondary,
-    fontSize: typography.sizes.base,
+    fontSize: typography.sizes.md,
   },
   signUpText: {
     color: colors.primary,
-    fontSize: typography.sizes.base,
+    fontSize: typography.sizes.md,
     fontWeight: typography.weights.bold,
   },
 });

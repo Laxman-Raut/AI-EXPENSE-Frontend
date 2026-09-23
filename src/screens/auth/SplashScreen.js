@@ -1,21 +1,22 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
 import Screen from '../../components/templates/Screen';
 import AppLogo from '../../components/atoms/AppLogo';
-import { colors, spacing, typography, radius, shadow } from '../../theme';
+import { colors, spacing, typography, radius } from '../../theme';
 import useAppStore from '../../store/useAppStore';
 
 const { width } = Dimensions.get('window');
 
 const SplashScreen = ({ onFinish }) => {
   const initStore = useAppStore((state) => state.initStore);
-  
+
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const scaleAnim = React.useRef(new Animated.Value(0.7)).current;
+  const glowAnim = React.useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
-    // Run animations
+    // Run entrance animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -30,13 +31,28 @@ const SplashScreen = ({ onFinish }) => {
       }),
     ]).start();
 
-    // Initialize Zustand store and delay slightly for aesthetics
+    // Pulsing glow behind logo
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 1400,
+          useNativeDriver: false,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0.4,
+          duration: 1400,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+
+    // Initialize store then finish
     const setupAndFinish = async () => {
       const startTime = Date.now();
       await initStore();
       const elapsedTime = Date.now() - startTime;
-      const minDelay = 2000; // Show splash for at least 2 seconds
-      
+      const minDelay = 2000;
       const remainingDelay = Math.max(0, minDelay - elapsedTime);
       setTimeout(() => {
         if (onFinish) onFinish();
@@ -44,39 +60,59 @@ const SplashScreen = ({ onFinish }) => {
     };
 
     setupAndFinish();
-  }, [fadeAnim, scaleAnim, initStore, onFinish]);
+  }, [fadeAnim, scaleAnim, glowAnim, initStore, onFinish]);
 
   return (
-    <View style={styles.root}>
+    <LinearGradient
+      colors={['#090A0F', '#0D0B1A', '#090A0F']}
+      style={styles.root}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
       <Screen style={styles.container}>
         <View style={styles.content}>
+          {/* Pulsing glow halo behind logo */}
           <Animated.View
             style={[
+              styles.logoGlowHalo,
               {
-                marginBottom: spacing.xl,
-                opacity: fadeAnim,
+                opacity: glowAnim,
                 transform: [{ scale: scaleAnim }],
               },
-            ]}>
+            ]}
+          />
+
+          <Animated.View
+            style={{
+              marginBottom: spacing.xl,
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
+              zIndex: 1,
+            }}
+          >
             <AppLogo size={110} />
           </Animated.View>
+
           <Animated.View style={{ opacity: fadeAnim, alignItems: 'center' }}>
             <Text style={styles.title}>ExpenseAI</Text>
             <Text style={styles.subtitle}>Smart Financial Intelligence</Text>
           </Animated.View>
         </View>
+
+        {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Secure Wallet Intelligence</Text>
+          <View style={styles.footerBadge}>
+            <Text style={styles.footerText}>© ExpenseAI · Powered by AI</Text>
+          </View>
         </View>
       </Screen>
-    </View>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
@@ -89,20 +125,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flex: 1,
   },
-  logoContainer: {
-    width: 110,
-    height: 110,
-    borderRadius: radius.xl,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xl,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+  logoGlowHalo: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: colors.primaryGlow || 'rgba(138, 63, 252, 0.25)',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 40,
+    elevation: 0,
   },
   title: {
     fontSize: typography.sizes.display - 4,
-    fontWeight: typography.weights.bold,
+    fontWeight: '800',
     color: colors.text.primary,
     letterSpacing: -1,
     marginBottom: spacing.xs,
@@ -114,13 +151,22 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingBottom: spacing.xxl,
+    alignItems: 'center',
+  },
+  footerBadge: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   footerText: {
     fontSize: typography.sizes.xs,
     color: colors.text.muted,
     fontWeight: typography.weights.semibold,
     textTransform: 'uppercase',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
   },
 });
 

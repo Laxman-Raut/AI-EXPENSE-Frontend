@@ -187,13 +187,11 @@ const RegisterScreen = ({ navigation }) => {
     try {
       const fullOtp = otp.join('');
       const res = await completeRegistration(fullName.trim(), email.trim(), fullOtp, password);
-      
+
       if (res && res.success) {
         try {
-          // Automatically log in the user so AppNavigator seamlessly transitions to the Dashboard
           await auth.login(email.trim(), password);
         } catch {
-          // Fallback: navigate to Login screen
           navigation.replace('Login');
         }
       }
@@ -222,10 +220,37 @@ const RegisterScreen = ({ navigation }) => {
     }
   };
 
+  // ─── STEP INDICATOR ──────────────────────────────────────────────────────────
+  const StepDot = ({ stepNum }) => {
+    const isCompleted = step > stepNum;
+    const isActive = step === stepNum;
+    return (
+      <View style={[
+        styles.stepDot,
+        isActive && styles.stepDotActive,
+        isCompleted && styles.stepDotCompleted,
+      ]}>
+        {isCompleted
+          ? <Icon name="checkmark" size={14} color="#FFFFFF" />
+          : <Text style={[styles.stepDotText, isActive && styles.stepDotTextActive]}>{stepNum}</Text>
+        }
+      </View>
+    );
+  };
+
   return (
     <View style={styles.root}>
+      {/* Purple glow strip at top */}
+      <LinearGradient
+        colors={['rgba(138, 63, 252, 0.09)', 'transparent']}
+        style={styles.headerGlow}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        pointerEvents="none"
+      />
+
       <Screen scrollable loading={loading} style={styles.contentContainer}>
-        {/* Header App Branding */}
+        {/* Header */}
         <View style={styles.header}>
           <AppLogo size={72} style={{ marginBottom: spacing.md }} />
           <Text style={styles.appTitle}>Create Account</Text>
@@ -238,25 +263,29 @@ const RegisterScreen = ({ navigation }) => {
           </Text>
         </View>
 
-        {/* Step Indicator Bar */}
+        {/* Step Indicator */}
         <View style={styles.stepIndicatorRow}>
-          <View style={[styles.stepDot, step >= 1 && styles.stepDotActive]}>
-            <Text style={styles.stepDotText}>1</Text>
-          </View>
+          <StepDot stepNum={1} />
           <View style={[styles.stepLine, step >= 2 && styles.stepLineActive]} />
-          <View style={[styles.stepDot, step >= 2 && styles.stepDotActive]}>
-            <Text style={styles.stepDotText}>2</Text>
-          </View>
+          <StepDot stepNum={2} />
           <View style={[styles.stepLine, step >= 3 && styles.stepLineActive]} />
-          <View style={[styles.stepDot, step >= 3 && styles.stepDotActive]}>
-            <Text style={styles.stepDotText}>3</Text>
-          </View>
+          <StepDot stepNum={3} />
         </View>
 
         {/* Form Card */}
         <Card style={styles.formCard}>
-          {error ? <Text style={styles.errorBanner}>{error}</Text> : null}
-          {successMsg ? <Text style={styles.successBanner}>{successMsg}</Text> : null}
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Icon name="alert-circle-outline" size={14} color={colors.danger} style={{ marginRight: 6 }} />
+              <Text style={styles.errorBannerText}>{error}</Text>
+            </View>
+          ) : null}
+          {successMsg ? (
+            <View style={styles.successBanner}>
+              <Icon name="checkmark-circle-outline" size={14} color={colors.success} style={{ marginRight: 6 }} />
+              <Text style={styles.successBannerText}>{successMsg}</Text>
+            </View>
+          ) : null}
 
           {/* ────────────────── STEP 1: NAME & EMAIL ────────────────── */}
           {step === 1 && (
@@ -298,8 +327,10 @@ const RegisterScreen = ({ navigation }) => {
           {step === 2 && (
             <>
               <View style={styles.emailBadge}>
-                <Icon name="mail" size={16} color={colors.primary} />
-                <Text style={styles.emailBadgeText}>{email}</Text>
+                <View style={styles.emailBadgeIconWrapper}>
+                  <Icon name="mail" size={14} color={colors.primary} />
+                </View>
+                <Text style={styles.emailBadgeText} numberOfLines={1}>{email}</Text>
                 <TouchableOpacity onPress={() => setStep(1)}>
                   <Text style={styles.changeEmailText}>Change</Text>
                 </TouchableOpacity>
@@ -356,7 +387,7 @@ const RegisterScreen = ({ navigation }) => {
             <>
               <View style={styles.verifiedBadge}>
                 <Icon name="checkmark-circle" size={18} color={colors.success} />
-                <Text style={styles.verifiedBadgeText}>Email Code Verified!</Text>
+                <Text style={styles.verifiedBadgeText}>Email Verified Successfully!</Text>
               </View>
 
               <Input
@@ -388,7 +419,7 @@ const RegisterScreen = ({ navigation }) => {
           )}
         </Card>
 
-        {/* Social Logins (Only on Step 1) */}
+        {/* Social Logins (Step 1 only) */}
         {step === 1 && (
           <View style={styles.socialSection}>
             <View style={styles.dividerRow}>
@@ -398,13 +429,15 @@ const RegisterScreen = ({ navigation }) => {
             </View>
 
             <TouchableOpacity style={styles.googleBtn} activeOpacity={0.8} onPress={handleGoogleSignIn}>
-              <Icon name="logo-google" size={20} color="#EA4335" style={styles.googleIcon} />
-              <Text style={styles.googleBtnText}>Sign up with Google / Gmail</Text>
+              <View style={styles.googleIconWrapper}>
+                <Icon name="logo-google" size={18} color="#EA4335" />
+              </View>
+              <Text style={styles.googleBtnText}>Sign up with Google</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Footer Actions */}
+        {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Already have an account? </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Login')} activeOpacity={0.7}>
@@ -421,6 +454,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  headerGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 220,
+    zIndex: 0,
+  },
   contentContainer: {
     paddingHorizontal: spacing.xl,
     justifyContent: 'center',
@@ -431,42 +472,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
-  logoContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: radius.xl,
-    overflow: 'hidden',
-    marginBottom: spacing.xs,
-  },
-  logoGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   appTitle: {
-    fontSize: typography.sizes.xxl,
-    fontWeight: typography.weights.bold,
+    fontSize: typography.sizes.xxl + 2,
+    fontWeight: '800',
     color: colors.text.primary,
     marginBottom: 4,
+    letterSpacing: -0.3,
   },
   subtitle: {
     fontSize: typography.sizes.base,
     color: colors.text.secondary,
     textAlign: 'center',
+    lineHeight: typography.lineHeights.base + 2,
   },
   stepIndicatorRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: spacing.md,
+    marginVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
   },
   stepDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.surface,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
@@ -474,17 +505,30 @@ const styles = StyleSheet.create({
   stepDotActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  stepDotCompleted: {
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   stepDotText: {
-    color: '#FFFFFF',
-    fontSize: 12,
+    color: colors.text.muted,
+    fontSize: 13,
     fontWeight: '700',
+  },
+  stepDotTextActive: {
+    color: '#FFFFFF',
   },
   stepLine: {
     flex: 1,
-    height: 2,
+    height: 3,
     backgroundColor: colors.border,
     marginHorizontal: 6,
+    borderRadius: 2,
   },
   stepLineActive: {
     backgroundColor: colors.primary,
@@ -492,49 +536,67 @@ const styles = StyleSheet.create({
   formCard: {
     padding: spacing.xl,
     marginBottom: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
+    backgroundColor: colors.cardElevated || '#14151E',
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(138, 63, 252, 0.18)',
   },
   errorBanner: {
-    backgroundColor: 'rgba(255, 77, 103, 0.1)',
-    borderColor: colors.danger,
-    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 77, 103, 0.10)',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.danger,
     borderRadius: radius.sm,
-    padding: spacing.sm,
-    color: colors.danger,
-    fontSize: 13,
-    fontWeight: '600',
+    padding: spacing.md,
     marginBottom: spacing.md,
   },
+  errorBannerText: {
+    flex: 1,
+    color: colors.danger,
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    lineHeight: typography.lineHeights.base,
+  },
   successBanner: {
-    backgroundColor: 'rgba(0, 210, 106, 0.1)',
-    borderColor: colors.success,
-    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 210, 106, 0.10)',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.success,
     borderRadius: radius.sm,
-    padding: spacing.sm,
-    color: colors.success,
-    fontSize: 13,
-    fontWeight: '600',
+    padding: spacing.md,
     marginBottom: spacing.md,
+  },
+  successBannerText: {
+    flex: 1,
+    color: colors.success,
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    lineHeight: typography.lineHeights.base,
   },
   actionBtn: {
     width: '100%',
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
     marginTop: spacing.sm,
   },
   emailBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(138, 63, 252, 0.18)',
     marginBottom: spacing.md,
     gap: 8,
+  },
+  emailBadgeIconWrapper: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(138, 63, 252, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emailBadgeText: {
     flex: 1,
@@ -558,22 +620,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginVertical: spacing.md,
+    gap: 6,
   },
   otpBox: {
-    width: 40,
-    height: 48,
-    borderRadius: radius.md,
+    flex: 1,
+    height: 58,
+    borderRadius: radius.lg,
     borderWidth: 1.5,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.inputBg || '#0E0F17',
     textAlign: 'center',
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: colors.text.primary,
   },
   otpBoxFilled: {
     borderColor: colors.primary,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: 'rgba(138, 63, 252, 0.12)',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   otpBoxError: {
     borderColor: colors.danger,
@@ -601,14 +669,13 @@ const styles = StyleSheet.create({
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.success + '15',
+    backgroundColor: 'rgba(0, 210, 106, 0.10)',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.success,
     borderRadius: radius.md,
-    padding: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.success + '40',
+    padding: spacing.sm + 2,
     marginBottom: spacing.md,
     gap: 8,
-    justifyContent: 'center',
   },
   verifiedBadgeText: {
     fontSize: 13,
@@ -640,14 +707,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    height: 50,
-    borderRadius: radius.full,
-    backgroundColor: colors.card,
+    height: 52,
+    borderRadius: radius.xl,
+    backgroundColor: colors.cardElevated || '#14151E',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    gap: 10,
   },
-  googleIcon: {
-    marginRight: spacing.sm,
+  googleIconWrapper: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(234, 67, 53, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   googleBtnText: {
     color: colors.text.primary,

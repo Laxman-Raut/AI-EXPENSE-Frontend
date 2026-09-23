@@ -873,9 +873,10 @@ const styles = StyleSheet.create({
   },
   usernameText: {
     fontSize: typography.sizes.xl + 2,
-    fontWeight: '800',
+    fontWeight: '900',
     color: colors.text.primary,
     marginTop: 2,
+    letterSpacing: -0.3,
   },
   headerRight: {
     flexDirection: 'row',
@@ -922,9 +923,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.xl,
     borderRadius: radius.xl,
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardElevated || '#14151E',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(138, 63, 252, 0.18)',
     marginBottom: spacing.xl,
   },
   chartTitle: {
@@ -1001,15 +1002,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeFilterTab: {
-    backgroundColor: colors.secondary,
+    backgroundColor: 'rgba(138, 63, 252, 0.20)',
+    borderWidth: 1,
+    borderColor: 'rgba(138, 63, 252, 0.50)',
   },
   filterTabText: {
     color: colors.text.secondary,
     fontSize: typography.sizes.xs,
     fontWeight: typography.weights.bold,
+    letterSpacing: 0.5,
   },
   activeFilterTabText: {
-    color: colors.text.primary,
+    color: colors.primary,
   },
   statsRow: {
     flexDirection: 'row',
@@ -1020,15 +1024,15 @@ const styles = StyleSheet.create({
   statsBoxGradient: {
     flex: 1,
     padding: spacing.lg,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
   },
   statsIconWrapper: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.xs,
@@ -1120,7 +1124,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing.md,
+    padding: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.divider,
   },
@@ -1132,9 +1136,9 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   txnIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1161,7 +1165,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   expenseText: {
-    color: colors.text.primary,
+    color: colors.danger, // 🔴 Red for expenses — critical UX fix
   },
   incomeText: {
     color: colors.success,
@@ -1217,7 +1221,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   budgetProgressBarBg: {
-    height: 6,
+    height: 8,
     backgroundColor: colors.divider,
     borderRadius: radius.full,
     overflow: 'hidden',

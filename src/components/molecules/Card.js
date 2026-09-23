@@ -6,7 +6,7 @@ const Card = ({
   children,
   onPress,
   style,
-  variant = 'solid', // 'solid' | 'outlined' | 'glass'
+  variant = 'solid', // 'solid' | 'outlined' | 'glass' | 'elevated'
   activeOpacity = 0.9,
   ...props
 }) => {
@@ -16,6 +16,8 @@ const Card = ({
         return [styles.card, styles.outlinedCard];
       case 'glass':
         return [styles.card, styles.glassCard];
+      case 'elevated':
+        return [styles.card, styles.elevatedCard];
       case 'solid':
       default:
         return [styles.card, styles.solidCard, shadow.sm];
@@ -48,9 +50,9 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   solidCard: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardElevated || '#14151E',
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: 'rgba(255, 255, 255, 0.07)',
   },
   outlinedCard: {
     backgroundColor: 'transparent',
@@ -65,6 +67,16 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
+  },
+  elevatedCard: {
+    backgroundColor: colors.cardElevated || '#14151E',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
   },
 });
 
