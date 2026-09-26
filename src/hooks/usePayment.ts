@@ -35,7 +35,7 @@ export const usePayment = () => {
       // The native SDK accepts `order_id` correctly as a body field — this is
       // how Razorpay links the payment to the server-side order we just created.
       const options = {
-        key: RAZORPAY_KEY_ID,
+        key: orderResult?.keyId || RAZORPAY_KEY_ID,
         amount: String(order.amount),        // amount in paise (e.g. "19900" for ₹199)
         currency: order.currency || 'INR',
         name: 'Expenso',
