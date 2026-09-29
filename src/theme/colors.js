@@ -45,5 +45,8 @@ const colors = {
   navy: '#1A1C29',
 };
 
+// Backwards-compatibility aliases
+colors.textSecondary = colors.text.secondary;
+
 export default colors;
 export const Colors = colors;
