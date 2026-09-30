@@ -225,8 +225,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: spacing.xl,
-    justifyContent: 'center',
-    paddingTop: spacing.huge,
+    paddingTop: spacing.xxl,
     paddingBottom: spacing.huge,
   },
   headerGlow: {

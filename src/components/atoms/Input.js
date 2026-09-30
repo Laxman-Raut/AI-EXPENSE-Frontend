@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 
 const Input = ({
@@ -20,30 +20,20 @@ const Input = ({
   ...props
 }) => {
   const [isFocused, setIsFocused] = useState(false);
-  const glowAnim = useRef(new Animated.Value(0)).current;
 
-  const handleFocus = () => {
+  const handleFocus = (e) => {
     setIsFocused(true);
-    Animated.timing(glowAnim, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
+    if (props.onFocus) {
+      props.onFocus(e);
+    }
   };
 
-  const handleBlur = () => {
+  const handleBlur = (e) => {
     setIsFocused(false);
-    Animated.timing(glowAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
+    if (props.onBlur) {
+      props.onBlur(e);
+    }
   };
-
-  const glowOpacity = glowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-  });
 
   const borderColor = error
     ? colors.danger
@@ -54,18 +44,6 @@ const Input = ({
   return (
     <View style={[styles.container, style]}>
       {label && <Text style={[styles.label, labelStyle]}>{label}</Text>}
-
-      {/* Glow ring layer */}
-      <Animated.View
-        style={[
-          styles.glowRing,
-          {
-            opacity: glowOpacity,
-            shadowColor: colors.primary,
-          },
-        ]}
-        pointerEvents="none"
-      />
 
       <View
         style={[
@@ -85,10 +63,13 @@ const Input = ({
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
+          autoComplete="off"
+          importantForAutofill="no"
+          textContentType="none"
           style={[styles.input, inputStyle]}
+          {...props}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          {...props}
         />
 
         {rightIcon && (
@@ -120,18 +101,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  glowRing: {
-    position: 'absolute',
-    top: -3,
-    left: -3,
-    right: -3,
-    bottom: -3,
-    borderRadius: radius.lg + 3,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
-    elevation: 6,
-  },
   inputWrapper: {
     height: 54,
     flexDirection: 'row',
@@ -144,18 +113,9 @@ const styles = StyleSheet.create({
   },
   focusedInputWrapper: {
     borderColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
   },
   errorInputWrapper: {
     borderColor: colors.danger,
-    shadowColor: colors.danger,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
   },
   iconContainer: {
     marginRight: spacing.sm,

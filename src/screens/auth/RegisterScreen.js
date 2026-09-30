@@ -351,6 +351,9 @@ const RegisterScreen = ({ navigation }) => {
                     onChangeText={(text) => handleOtpChange(text, index)}
                     onKeyPress={(e) => handleOtpKeyPress(e, index)}
                     keyboardType="number-pad"
+                    autoComplete="off"
+                    textContentType="none"
+                    importantForAutofill="noExcludeDescendants"
                     maxLength={OTP_LENGTH}
                     selectTextOnFocus
                     autoFocus={index === 0}
@@ -464,7 +467,6 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: spacing.xl,
-    justifyContent: 'center',
     paddingTop: spacing.xl,
     paddingBottom: spacing.huge,
   },

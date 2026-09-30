@@ -173,7 +173,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
   return (
     <View style={styles.root}>
       <Screen 
-        scrollable 
+        scrollable
         header={renderHeader()}
         style={styles.contentContainer}
         loading={loading}

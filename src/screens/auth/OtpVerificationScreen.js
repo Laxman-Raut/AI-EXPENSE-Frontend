@@ -175,6 +175,9 @@ const OtpVerificationScreen = ({ route, navigation }) => {
                 onChangeText={(text) => handleChange(text, index)}
                 onKeyPress={(e) => handleKeyPress(e, index)}
                 keyboardType="number-pad"
+                autoComplete="off"
+                textContentType="none"
+                importantForAutofill="noExcludeDescendants"
                 maxLength={OTP_LENGTH}
                 selectTextOnFocus
                 autoFocus={index === 0}
