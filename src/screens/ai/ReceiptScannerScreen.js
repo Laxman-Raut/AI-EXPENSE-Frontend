@@ -197,10 +197,7 @@ const ReceiptScannerScreen = ({ route, navigation }) => {
                 { text: 'Cancel', style: 'cancel' },
                 {
                   text: 'Upgrade Plan ⚡',
-                  onPress: () => navigation.navigate('Profile', {
-                    screen: 'Subscription',
-                    initial: false,
-                  }),
+                  onPress: () => navigation.navigate('Subscription'),
                 },
               ],
               'premium'

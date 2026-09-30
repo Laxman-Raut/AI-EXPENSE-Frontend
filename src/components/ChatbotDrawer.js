@@ -157,10 +157,7 @@ const ChatbotDrawer = ({ visible, onClose, navigation }) => {
               onPress: () => {
                 onClose();
                 if (navigation) {
-                  navigation.navigate('Profile', {
-                    screen: 'Subscription',
-                    initial: false,
-                  });
+                  navigation.navigate('Subscription');
                 }
               },
             },
