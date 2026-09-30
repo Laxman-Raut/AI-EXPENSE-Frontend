@@ -18,7 +18,7 @@ import { colors, spacing, typography, radius } from '../../theme';
 import { useGroups } from '../../hooks/useGroups';
 import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
-import { showInterstitialAd } from '../../services/interstitialAdService';
+import { showGroupCreationAd } from '../../services/interstitialAdService';
 
 const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=150&q=80',
@@ -69,7 +69,7 @@ const CreateEditGroupScreen = ({ route, navigation }) => {
       } else {
         const isPremium = await resolvePremiumAccess();
         if (isPremium === false) {
-          await showInterstitialAd('group_creation');
+          await showGroupCreationAd('group_creation');
         } else if (isPremium === null) {
           console.warn('[Ads] Group creation: plan could not be verified; continuing without an ad.');
         }

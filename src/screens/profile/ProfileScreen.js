@@ -29,6 +29,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 import { setGlobalCurrency } from '../../utils/formatCurrency';
 import { useQueryClient } from '@tanstack/react-query';
+import { navigateToSubscription } from '../../navigation/navigationService';
 
 const ProfileScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
@@ -339,7 +340,7 @@ const ProfileScreen = ({ navigation }) => {
           <SettingRow
             icon="card-outline"
             label="Pro Subscription"
-            onPress={() => navigation.navigate('Subscription')}
+            onPress={() => navigateToSubscription(navigation)}
           />
           <SettingRow
             icon="help-circle-outline"

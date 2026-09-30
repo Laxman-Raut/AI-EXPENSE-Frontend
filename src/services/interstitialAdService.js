@@ -2,12 +2,10 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import mobileAds, { AdEventType, InterstitialAd } from 'react-native-google-mobile-ads';
 
-// ─── Ad Unit IDs ────────────────────────────────────────────────────────────
-// NOTE: These are Google's public TEST IDs. Replace with your real AdMob IDs
-// before publishing to production.
-// Real App ID:        from AdMob dashboard → Apps → your app → App settings
-// Real Interstitial:  from AdMob dashboard → Apps → your app → Ad units
-const TEST_INTERSTITIAL_AD_UNIT_ID = 'ca-app-pub-3940256099942544/1033173712';
+// ─── Real Ad Unit IDs ────────────────────────────────────────────────────────
+const AD_UNIT_GROUP_CREATION = 'ca-app-pub-5049310918821127/1685219311';
+const AD_UNIT_ANALYTICS     = 'ca-app-pub-5049310918821127/4298016774';
+
 const AD_LOAD_TIMEOUT_MS = 5000;
 const ANALYTICS_AD_STATE_KEY = '@aet/analytics_interstitial_state';
 
@@ -85,7 +83,12 @@ export const initializeAds = () => {
   return initializationPromise;
 };
 
-export const showInterstitialAd = async (placement = 'unspecified') => {
+/**
+ * Internal helper — loads and shows a single interstitial for the given ad unit ID.
+ * Resolves true if the ad was shown and closed, false on any failure.
+ * Always resolves (never rejects) so callers can safely continue on failure.
+ */
+const _showInterstitial = async (adUnitId, placement) => {
   if (Platform.OS !== 'android') {
     console.log(`[Ads] ${placement}: interstitial skipped outside Android.`);
     return false;
@@ -96,13 +99,13 @@ export const showInterstitialAd = async (placement = 'unspecified') => {
     return false;
   }
 
-  console.log(`[Ads] ${placement}: requesting test interstitial.`);
+  console.log(`[Ads] ${placement}: requesting interstitial.`);
 
   return new Promise((resolve) => {
     let isFinished = false;
     let showRequested = false;
     let loadTimeout;
-    const ad = InterstitialAd.createForAdRequest(TEST_INTERSTITIAL_AD_UNIT_ID);
+    const ad = InterstitialAd.createForAdRequest(adUnitId);
     const subscriptions = [];
 
     const finish = (wasShown, message, error) => {
@@ -148,3 +151,26 @@ export const showInterstitialAd = async (placement = 'unspecified') => {
     }
   });
 };
+
+/**
+ * Shows the Group Creation interstitial for FREE users only.
+ * Call this after a group is successfully created, before navigating away.
+ * Premium users must never be passed here — check isPremium before calling.
+ */
+export const showGroupCreationAd = (placement = 'group_creation') =>
+  _showInterstitial(AD_UNIT_GROUP_CREATION, placement);
+
+/**
+ * Shows the Analytics interstitial for FREE users only.
+ * Premium users must never be passed here — check isPremium before calling.
+ */
+export const showAnalyticsAd = (placement = 'analytics') =>
+  _showInterstitial(AD_UNIT_ANALYTICS, placement);
+
+/**
+ * @deprecated Use showGroupCreationAd or showAnalyticsAd instead.
+ * Kept for any legacy call-sites that still reference showInterstitialAd.
+ * Routes to the analytics ad unit by default.
+ */
+export const showInterstitialAd = (placement = 'unspecified') =>
+  _showInterstitial(AD_UNIT_ANALYTICS, placement);

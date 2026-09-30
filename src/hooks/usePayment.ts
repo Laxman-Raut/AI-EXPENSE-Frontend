@@ -2,6 +2,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { Alert } from 'react-native';
 import { createPaymentOrder, verifyPayment } from '../store/subscriptionSlice';
+import { navigationRef } from '../navigation/AppNavigator';
 
 // ⚠️  DO NOT require('react-native-razorpay') at the top level.
 // If the native module is not linked it throws synchronously,
@@ -79,13 +80,10 @@ export const usePayment = () => {
         endDate: verifyResult?.subscription?.endDate || null,
       };
 
-      try {
+      if (navigationRef.isReady()) {
+        navigationRef.navigate('PaymentSuccess', successParams);
+      } else {
         navigation.navigate('PaymentSuccess', successParams);
-      } catch {
-        navigation.navigate('Profile', {
-          screen: 'PaymentSuccess',
-          params: successParams,
-        });
       }
 
     } catch (err: any) {
@@ -103,13 +101,10 @@ export const usePayment = () => {
           orderId: err?.metadata?.order_id || '',
         };
 
-        try {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate('PaymentFailed', failedParams);
+        } else {
           navigation.navigate('PaymentFailed', failedParams);
-        } catch {
-          navigation.navigate('Profile', {
-            screen: 'PaymentFailed',
-            params: failedParams,
-          });
         }
         return;
       }

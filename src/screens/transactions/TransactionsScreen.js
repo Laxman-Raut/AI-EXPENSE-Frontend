@@ -30,7 +30,6 @@ import {
 import { exportToExcel, exportToPDF } from '../../utils/exportUtils';
 import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
-import { showInterstitialAd } from '../../services/interstitialAdService';
 import { useAuth } from '../../hooks/useAuth';
 import useBanks from '../../hooks/useBanks';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -76,7 +75,7 @@ const TransactionsScreen = ({ navigation, route }) => {
   const { banks } = useBanks();
   const deleteTransaction = useDeleteTransaction();
   const { showAlert } = useAlert();
-  const { hasPremiumAccess, resolvePremiumAccess } = usePremiumAccess();
+  const { hasPremiumAccess, resolvePremiumAccess, showPremiumAlert } = usePremiumAccess();
 
   const [selectedBankId, setSelectedBankId] = useState(route?.params?.selectedBankId || null);
   const [selectedBankName, setSelectedBankName] = useState(route?.params?.selectedBankName || null);
@@ -199,6 +198,12 @@ const TransactionsScreen = ({ navigation, route }) => {
   }, [deleteTransaction, showAlert]);
 
   const handleExport = async (type) => {
+    if (!hasPremiumAccess) {
+      setExportModalVisible(false);
+      showPremiumAlert();
+      return;
+    }
+
     if (!filteredTxns || filteredTxns.length === 0) {
       showAlert('No Data', 'There are no transactions to export.');
       return;
@@ -207,12 +212,6 @@ const TransactionsScreen = ({ navigation, route }) => {
     setExporting(true);
     setExportModalVisible(false);
     try {
-      const isPremium = hasPremiumAccess || await resolvePremiumAccess();
-      if (isPremium === false) {
-        await showInterstitialAd(type === 'excel' ? 'excel_export' : 'pdf_export');
-      } else if (isPremium === null) {
-        console.warn('[Ads] Export: plan could not be verified; continuing without an ad.');
-      }
       if (type === 'excel') {
         await exportToExcel(filteredTxns);
       } else {

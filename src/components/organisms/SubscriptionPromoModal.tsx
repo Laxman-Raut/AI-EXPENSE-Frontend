@@ -3,6 +3,7 @@ import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'rea
 import { useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { navigateToSubscription } from '../../navigation/navigationService';
 import PrimaryButtonImport from '../atoms/PrimaryButton';
 import { colors, spacing, radius, typography as themeTypography } from '../../theme';
 
@@ -27,7 +28,7 @@ const SubscriptionPromoModal: React.FC<SubscriptionPromoModalProps> = ({
     if (onNavigateToPlans) {
       onNavigateToPlans();
     } else {
-      navigation.navigate('Subscription');
+      navigateToSubscription(navigation);
     }
   };
 

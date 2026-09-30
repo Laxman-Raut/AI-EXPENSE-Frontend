@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import subscriptionService from '../services/subscriptionService';
 import { fetchSubscription } from '../store/subscriptionSlice';
 import { useAlert } from '../context/AlertContext';
+import { navigateToSubscription } from '../navigation/navigationService';
 
 export const usePremiumAccess = () => {
   const dispatch = useDispatch();
@@ -37,7 +38,7 @@ export const usePremiumAccess = () => {
         {
           text: 'Upgrade Plan ⚡',
           onPress: () => {
-            navigation.navigate('Subscription');
+            navigateToSubscription(navigation);
           },
         },
       ],

@@ -15,6 +15,7 @@ import savingsApi from '../../api/savings';
 import CustomAlert from '../../components/molecules/CustomAlert';
 import { getCurrencySymbol } from '../../utils/formatCurrency';
 import { useQueryClient } from '@tanstack/react-query';
+import { navigateToSubscription } from '../../navigation/navigationService';
 
 const PRESET_TEMPLATES = [
   { name: 'Emergency Fund', icon: '🛡️', color: '#FF6B6B', defaultTarget: '50000' },
@@ -139,7 +140,7 @@ const CreateSavingsJarScreen = ({ route, navigation }) => {
           ],
           (btn) => {
             if (btn.text?.includes('Upgrade')) {
-              navigation.navigate('Subscription');
+              navigateToSubscription(navigation);
             }
           }
         );

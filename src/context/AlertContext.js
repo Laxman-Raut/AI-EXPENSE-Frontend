@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import CustomAlert from '../components/molecules/CustomAlert';
+import { navigateToSubscription } from '../navigation/navigationService';
 
 const AlertContext = createContext(undefined);
 
@@ -30,6 +31,8 @@ export const AlertProvider = ({ children }) => {
     hideAlert();
     if (btn.onPress) {
       await btn.onPress();
+    } else if (btn.text?.toLowerCase().includes('upgrade')) {
+      navigateToSubscription();
     }
   };
 

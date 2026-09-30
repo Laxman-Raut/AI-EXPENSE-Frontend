@@ -29,7 +29,7 @@ import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 import {
   getAnalyticsAdState,
   saveAnalyticsAdState,
-  showInterstitialAd,
+  showAnalyticsAd,
 } from '../../services/interstitialAdService';
 
 dayjs.extend(isBetween);
@@ -119,7 +119,7 @@ const AnalyticsScreen = () => {
         if (!isFocused || adState.secondAttempted || adState.shownCount >= 2) return;
         adState.secondAttempted = true;
         await saveAnalyticsAdState(adState);
-        const wasShown = await showInterstitialAd('analytics_second');
+        const wasShown = await showAnalyticsAd('analytics_second');
         if (wasShown) {
           adState.shownCount = 2;
           await saveAnalyticsAdState(adState);
@@ -164,7 +164,7 @@ const AnalyticsScreen = () => {
           if (adState.firstAttempted) return;
           adState.firstAttempted = true;
           await saveAnalyticsAdState(adState);
-          const wasShown = await showInterstitialAd('analytics_first');
+          const wasShown = await showAnalyticsAd('analytics_first');
           if (wasShown) {
             adState.shownCount = 1;
             adState.activeAnalyticsMs = 0;

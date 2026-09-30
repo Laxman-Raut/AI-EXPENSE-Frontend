@@ -21,9 +21,12 @@ import { useSelector } from 'react-redux';
 import { useAuth } from '../../hooks/useAuth';
 import { getGlobalCurrency } from '../../utils/formatCurrency';
 import { useSavingsJars } from '../../hooks/useSavings';
+import { useAlert } from '../../context/AlertContext';
+import { navigateToSubscription } from '../../navigation/navigationService';
 
 const SavingsScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
   const [activeTab, setActiveTab] = useState('active'); // active | completed | archived
 
@@ -159,16 +162,17 @@ const SavingsScreen = ({ navigation }) => {
 
   const handleCreateJar = () => {
     if (!isPremium && summary.activeJarsCount >= 3) {
-      Alert.alert(
-        'Free Plan Limit Reached',
+      showAlert(
+        'Free Plan Limit Reached 🚀',
         'Free users can create up to 3 Savings Jars. Upgrade to Premium for unlimited Savings Jars, AI Savings Insights & Cloud Sync!',
         [
           { text: 'Cancel', style: 'cancel' },
           {
-            text: 'Upgrade to Pro',
-            onPress: () => navigation.navigate('Subscription'),
+            text: 'Upgrade Plan ⚡',
+            onPress: () => navigateToSubscription(navigation),
           },
-        ]
+        ],
+        'premium'
       );
       return;
     }

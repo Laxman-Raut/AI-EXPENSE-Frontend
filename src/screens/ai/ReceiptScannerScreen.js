@@ -13,6 +13,7 @@ import { useScanReceipt } from '../../hooks/useAi';
 import { useCreateTransaction } from '../../hooks/useTransactions';
 import { useAlert } from '../../context/AlertContext';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
+import { navigateToSubscription } from '../../navigation/navigationService';
 import dayjs from 'dayjs';
 
 const ReceiptScannerScreen = ({ route, navigation }) => {
@@ -197,7 +198,7 @@ const ReceiptScannerScreen = ({ route, navigation }) => {
                 { text: 'Cancel', style: 'cancel' },
                 {
                   text: 'Upgrade Plan ⚡',
-                  onPress: () => navigation.navigate('Subscription'),
+                  onPress: () => navigateToSubscription(navigation),
                 },
               ],
               'premium'

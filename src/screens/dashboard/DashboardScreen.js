@@ -19,6 +19,7 @@ import FloatingVoiceButton from '../../components/FloatingVoiceButton';
 import subscriptionService from '../../services/subscriptionService';
 import { checkAndIncrementDailyPromo } from '../../services/subscriptionPromoStorage';
 import SubscriptionPromoModal from '../../components/organisms/SubscriptionPromoModal';
+import { navigateToSubscription } from '../../navigation/navigationService';
 import useBanks from '../../hooks/useBanks';
 import BankLogo from '../../components/atoms/BankLogo';
 import savingsApi from '../../api/savings';
@@ -837,7 +838,7 @@ const DashboardScreen = ({ navigation }) => {
         onClose={() => setShowPromoModal(false)}
         onNavigateToPlans={() => {
           setShowPromoModal(false);
-          navigation.navigate('Subscription');
+          navigateToSubscription(navigation);
         }}
       />
     </View>

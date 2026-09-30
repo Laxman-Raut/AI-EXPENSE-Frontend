@@ -28,6 +28,7 @@ import dayjs from 'dayjs';
 import ChatbotDrawer from './ChatbotDrawer';
 import { usePremiumAccess } from '../hooks/usePremiumAccess';
 import { useNavigation } from '@react-navigation/native';
+import { navigateToSubscription } from '../navigation/navigationService';
 
 const { SpeechRecognitionModule } = NativeModules;
 
@@ -243,7 +244,7 @@ const FloatingVoiceButton = () => {
               text: 'Upgrade ⚡',
               onPress: () => {
                 setModalVisible(false);
-                navigation.navigate('Subscription');
+                navigateToSubscription(navigation);
               },
             },
           ],

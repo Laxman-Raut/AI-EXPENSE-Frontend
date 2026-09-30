@@ -27,6 +27,7 @@ import upiService from '../../services/upiService';
 import PaymentBottomSheet from '../../components/PaymentBottomSheet';
 import Snackbar from '../../components/Snackbar';
 import { useAlert } from '../../context/AlertContext';
+import { navigateToSubscription } from '../../navigation/navigationService';
 import dayjs from 'dayjs';
 
 
@@ -592,7 +593,7 @@ const GroupDetailsScreen = ({ route, navigation }) => {
                             { text: 'Cancel', style: 'cancel' },
                             {
                               text: 'Upgrade Plan ⚡',
-                              onPress: () => navigation.navigate('Subscription'),
+                              onPress: () => navigateToSubscription(navigation),
                             },
                           ],
                           'premium'

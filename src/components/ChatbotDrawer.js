@@ -19,6 +19,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, spacing, radius, typography, shadow } from '../theme';
 import { sendChatbotMessage, getChatbotHistory, clearChatbotHistory } from '../api/chatbot';
 import { useAlert } from '../context/AlertContext';
+import { navigateToSubscription } from '../navigation/navigationService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.85;
@@ -156,9 +157,7 @@ const ChatbotDrawer = ({ visible, onClose, navigation }) => {
               text: 'Upgrade Plan ⚡',
               onPress: () => {
                 onClose();
-                if (navigation) {
-                  navigation.navigate('Subscription');
-                }
+                navigateToSubscription(navigation);
               },
             },
           ],
