@@ -80,6 +80,7 @@ const subscriptionSlice = createSlice({
   initialState: {
     plan: 'free',
     status: 'inactive',
+    hasFetched: false,
     provider: 'none',
     startDate: null,
     endDate: null,
@@ -102,10 +103,12 @@ const subscriptionSlice = createSlice({
       // fetchSubscription
       .addCase(fetchSubscription.pending, (state) => {
         state.loading = true;
+        state.hasFetched = false;
         state.error = null;
       })
       .addCase(fetchSubscription.fulfilled, (state, action) => {
         state.loading = false;
+        state.hasFetched = true;
         state.plan = action.payload.plan || 'free';
         state.status = action.payload.status || 'inactive';
         state.provider = action.payload.provider || 'none';

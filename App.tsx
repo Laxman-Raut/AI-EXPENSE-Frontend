@@ -10,6 +10,7 @@ import { createTables } from './src/database/schema';
 import AppNavigator from './src/navigation/AppNavigator';
 import './src/config/googleSignin';
 import apiClient from './src/api/client';
+import { initializeAds } from './src/services/interstitialAdService';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,6 +30,8 @@ export const queryClient = new QueryClient({
 
 const App = () => {
   useEffect(() => {
+    initializeAds();
+
     try {
       createTables();
     } catch (error) {

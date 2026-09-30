@@ -17,6 +17,8 @@ import LinearGradient from 'react-native-linear-gradient';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useGroups } from '../../hooks/useGroups';
 import { useAlert } from '../../context/AlertContext';
+import { usePremiumAccess } from '../../hooks/usePremiumAccess';
+import { showInterstitialAd } from '../../services/interstitialAdService';
 
 const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=150&q=80',
@@ -38,6 +40,7 @@ const CreateEditGroupScreen = ({ route, navigation }) => {
 
   const { createGroup, updateGroup } = useGroups();
   const { showAlert } = useAlert();
+  const { resolvePremiumAccess } = usePremiumAccess();
 
   const handleSave = async () => {
     if (savingRef.current) return;
@@ -64,6 +67,12 @@ const CreateEditGroupScreen = ({ route, navigation }) => {
           { text: 'Awesome', onPress: () => navigation.goBack() },
         ], 'success');
       } else {
+        const isPremium = await resolvePremiumAccess();
+        if (isPremium === false) {
+          await showInterstitialAd('group_creation');
+        } else if (isPremium === null) {
+          console.warn('[Ads] Group creation: plan could not be verified; continuing without an ad.');
+        }
         await createGroup({
           name: name.trim(),
           description: description.trim(),

@@ -1,14 +1,29 @@
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import subscriptionService from '../services/subscriptionService';
+import { fetchSubscription } from '../store/subscriptionSlice';
 import { useAlert } from '../context/AlertContext';
 
 export const usePremiumAccess = () => {
+  const dispatch = useDispatch();
   const navigation = useNavigation();
   const { showAlert } = useAlert();
-  const { plan, status, loading } = useSelector((state) => state.subscription);
+  const { plan, status, loading, hasFetched } = useSelector((state) => state.subscription);
 
   const hasPremiumAccess = subscriptionService.isSubscriptionPro({ plan, status });
+
+  const resolvePremiumAccess = async () => {
+    if (hasPremiumAccess) return true;
+    if (hasFetched) return false;
+
+    try {
+      const subscription = await dispatch(fetchSubscription()).unwrap();
+      return subscriptionService.isSubscriptionPro(subscription);
+    } catch (error) {
+      console.warn('[Subscription] Could not verify plan before protected action:', error);
+      return null;
+    }
+  };
 
   const showPremiumAlert = () => {
     showAlert(
@@ -22,10 +37,7 @@ export const usePremiumAccess = () => {
         {
           text: 'Upgrade Plan ⚡',
           onPress: () => {
-            navigation.navigate('Profile', {
-              screen: 'Subscription',
-              initial: false,
-            });
+            navigation.navigate('Subscription');
           },
         },
       ],
@@ -55,7 +67,9 @@ export const usePremiumAccess = () => {
 
   return {
     hasPremiumAccess,
+    resolvePremiumAccess,
     loading,
+    hasFetched,
     plan,
     status,
     showPremiumAlert,

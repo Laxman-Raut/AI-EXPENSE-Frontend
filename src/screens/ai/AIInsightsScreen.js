@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: colors.textSecondary,
-    fontSize: typography.size.md,
+    fontSize: typography.sizes.md,
     textAlign: 'center',
     marginTop: spacing.md,
     marginHorizontal: spacing.xl,
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     color: colors.primary,
-    fontSize: typography.size.md,
+    fontSize: typography.sizes.md,
     fontWeight: '600',
     marginTop: spacing.lg,
     paddingVertical: spacing.sm,

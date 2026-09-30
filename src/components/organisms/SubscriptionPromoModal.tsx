@@ -27,15 +27,7 @@ const SubscriptionPromoModal: React.FC<SubscriptionPromoModalProps> = ({
     if (onNavigateToPlans) {
       onNavigateToPlans();
     } else {
-      try {
-        navigation.navigate('Subscription');
-      } catch {
-        try {
-          navigation.navigate('Profile', { screen: 'Subscription' });
-        } catch (err) {
-          console.warn('Navigation to Subscription failed:', err);
-        }
-      }
+      navigation.navigate('Subscription');
     }
   };
 

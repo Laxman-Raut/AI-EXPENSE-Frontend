@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
+  AppState,
   View,
   Text,
   StyleSheet,
@@ -24,6 +25,12 @@ import { formatCurrency, getStoredAmountForCurrency } from '../../utils/formatCu
 import { useTransactions } from '../../hooks/useTransactions';
 import useBanks from '../../hooks/useBanks';
 import BankLogo from '../../components/atoms/BankLogo';
+import { usePremiumAccess } from '../../hooks/usePremiumAccess';
+import {
+  getAnalyticsAdState,
+  saveAnalyticsAdState,
+  showInterstitialAd,
+} from '../../services/interstitialAdService';
 
 dayjs.extend(isBetween);
 
@@ -75,6 +82,11 @@ const getCategoryIcon = (cat = '') => {
 };
 
 const AnalyticsScreen = () => {
+  const { resolvePremiumAccess } = usePremiumAccess();
+  const resolvePremiumAccessRef = useRef(resolvePremiumAccess);
+  resolvePremiumAccessRef.current = resolvePremiumAccess;
+  const analyticsAdStateRef = useRef(null);
+
   const [selectedPeriod, setSelectedPeriod] = useState('month'); // 'today' | 'month' | 'year' | 'range' | 'all'
   const [selectedMonth, setSelectedMonth] = useState(dayjs());
   const [startDate, setStartDate] = useState(dayjs().subtract(29, 'day'));
@@ -96,6 +108,87 @@ const AnalyticsScreen = () => {
     useCallback(() => {
       refetch();
     }, [refetch])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let isFocused = true;
+      let activeTimeInterval;
+
+      const attemptSecondAd = async (adState) => {
+        if (!isFocused || adState.secondAttempted || adState.shownCount >= 2) return;
+        adState.secondAttempted = true;
+        await saveAnalyticsAdState(adState);
+        const wasShown = await showInterstitialAd('analytics_second');
+        if (wasShown) {
+          adState.shownCount = 2;
+          await saveAnalyticsAdState(adState);
+        }
+      };
+
+      const startActiveAnalyticsTimer = (adState) => {
+        if (adState.secondAttempted || adState.shownCount >= 2) return;
+        if (adState.activeAnalyticsMs >= 10 * 60 * 1000) {
+          attemptSecondAd(adState);
+          return;
+        }
+
+        activeTimeInterval = setInterval(() => {
+          if (!isFocused || AppState.currentState !== 'active') return;
+
+          adState.activeAnalyticsMs += 1000;
+          if (adState.activeAnalyticsMs % 10000 === 0) {
+            saveAnalyticsAdState(adState);
+          }
+          if (adState.activeAnalyticsMs >= 10 * 60 * 1000) {
+            clearInterval(activeTimeInterval);
+            attemptSecondAd(adState);
+          }
+        }, 1000);
+      };
+
+      const startAnalyticsAds = async () => {
+        const isPremium = await resolvePremiumAccessRef.current();
+        // Only skip ads if user is confirmed Pro. If null (fetch failed), still show ads.
+        if (!isFocused || isPremium === true) {
+          return;
+        }
+
+        const adState = await getAnalyticsAdState();
+        if (!isFocused) return;
+        analyticsAdStateRef.current = adState;
+
+        if (adState.shownCount >= 2) return;
+
+        if (adState.shownCount === 0) {
+          if (adState.firstAttempted) return;
+          adState.firstAttempted = true;
+          await saveAnalyticsAdState(adState);
+          const wasShown = await showInterstitialAd('analytics_first');
+          if (wasShown) {
+            adState.shownCount = 1;
+            adState.activeAnalyticsMs = 0;
+            await saveAnalyticsAdState(adState);
+            if (isFocused) startActiveAnalyticsTimer(adState);
+          }
+          return;
+        }
+
+        if (adState.shownCount === 1) startActiveAnalyticsTimer(adState);
+      };
+
+      startAnalyticsAds().catch((error) => {
+        console.error('[Ads] Analytics placement failed safely:', error);
+      });
+
+      return () => {
+        isFocused = false;
+        if (activeTimeInterval) clearInterval(activeTimeInterval);
+        if (analyticsAdStateRef.current) {
+          saveAnalyticsAdState(analyticsAdStateRef.current);
+        }
+      };
+    }, [])
   );
 
   const openMonthPicker = () => {

@@ -243,7 +243,7 @@ const FloatingVoiceButton = () => {
               text: 'Upgrade ⚡',
               onPress: () => {
                 setModalVisible(false);
-                navigation.navigate('Profile', { screen: 'Subscription', initial: false });
+                navigation.navigate('Subscription');
               },
             },
           ],
