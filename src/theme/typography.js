@@ -35,4 +35,9 @@ const typography = {
   },
 };
 
+// Backwards-compatibility defensive aliases
+typography.size = typography.sizes;
+typography.weight = typography.weights;
+typography.lineHeight = typography.lineHeights;
+
 export default typography;

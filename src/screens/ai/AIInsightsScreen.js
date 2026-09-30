@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: colors.textSecondary,
-    fontSize: typography.sizes.md,
+    fontSize: typography.size.md,
     textAlign: 'center',
     marginTop: spacing.md,
     marginHorizontal: spacing.xl,

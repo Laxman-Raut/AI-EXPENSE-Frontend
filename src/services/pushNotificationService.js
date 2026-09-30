@@ -140,12 +140,19 @@ export const displayLocalNotification = async (title, body, data = {}) => {
   }
 };
 
+let foregroundUnsubscribe = null;
+
 /**
  * Setup foreground message handler
  * When app is OPEN, FCM messages arrive silently — we show them via Notifee
  */
 export const setupForegroundHandler = () => {
-  return messaging().onMessage(async (remoteMessage) => {
+  if (foregroundUnsubscribe) {
+    foregroundUnsubscribe();
+    foregroundUnsubscribe = null;
+  }
+
+  foregroundUnsubscribe = messaging().onMessage(async (remoteMessage) => {
     console.log('[FCM] Foreground message received:', remoteMessage?.notification?.title);
 
     const title = remoteMessage?.notification?.title || remoteMessage?.data?.title || 'Notification';
@@ -154,6 +161,8 @@ export const setupForegroundHandler = () => {
 
     await displayLocalNotification(title, body, data);
   });
+
+  return foregroundUnsubscribe;
 };
 
 /**

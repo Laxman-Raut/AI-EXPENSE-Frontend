@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -42,16 +42,6 @@ const OnboardingScreen = ({ navigation }) => {
 
   // Animated dot widths
   const dotWidths = useRef(SLIDES.map((_, i) => new Animated.Value(i === 0 ? 28 : 8))).current;
-
-  useEffect(() => {
-    const checkOnboarding = async () => {
-      const seen = await AsyncStorage.getItem('onboarding_seen');
-      if (seen === 'true') {
-        navigation.replace('Login');
-      }
-    };
-    checkOnboarding();
-  }, [navigation]);
 
   const animateToSlide = (nextIdx) => {
     // Animate dots

@@ -27,6 +27,9 @@ const Screen = ({
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[styles.scrollContent, style]}
       refreshControl={refreshControl}
+      keyboardShouldPersistTaps="always"
+      keyboardDismissMode="none"
+      removeClippedSubviews={false}
     >
       {children}
     </ScrollView>
@@ -36,9 +39,9 @@ const Screen = ({
     </View>
   );
 
-  const container = keyboardAvoiding ? (
+  const container = (Platform.OS === 'ios' && keyboardAvoiding) ? (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior="padding"
       style={styles.keyboardContainer}
     >
       {content}
