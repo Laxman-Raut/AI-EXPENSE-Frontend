@@ -97,21 +97,28 @@ export const ensureNotificationChannel = async () => {
 };
 
 /**
- * Helper to navigate to Notifications screen when notification is clicked
+ * Helper to navigate to target screen or Notifications when notification is clicked
  */
-const navigateToNotificationsScreen = (attempts = 0) => {
+const navigateToNotificationTarget = (data = {}, attempts = 0) => {
   if (navigationRef.isReady()) {
-    console.log('[FCM] Navigation container ready — navigating to Notifications screen');
+    console.log('[FCM] Navigation container ready — navigating with data:', JSON.stringify(data));
     try {
-      navigationRef.navigate('Today', {
-        screen: 'Notifications',
-        initial: false,
-      });
+      if (data?.screen === 'Budget' || data?.type === 'budget') {
+        navigationRef.navigate('Budget');
+      } else if (data?.screen === 'RecurringTransactions' || data?.type === 'reminder') {
+        navigationRef.navigate('Profile', { screen: 'RecurringTransactions' });
+      } else if (data?.transactionId) {
+        navigationRef.navigate('TransactionDetail', { id: data.transactionId });
+      } else if (data?.screen === 'Subscription') {
+        navigationRef.navigate('Subscription');
+      } else {
+        navigationRef.navigate('Notifications');
+      }
     } catch (navErr) {
       console.error('[FCM] Navigation error:', navErr?.message);
     }
   } else if (attempts < 30) {
-    setTimeout(() => navigateToNotificationsScreen(attempts + 1), 100);
+    setTimeout(() => navigateToNotificationTarget(data, attempts + 1), 100);
   }
 };
 
@@ -174,7 +181,7 @@ export const setupNotificationClickListener = () => {
   notifee.onForegroundEvent(({ type, detail }) => {
     if (type === EventType.PRESS) {
       console.log('[FCM] Notification tapped (foreground/background event):', detail?.notification?.title);
-      navigateToNotificationsScreen();
+      navigateToNotificationTarget(detail?.notification?.data || {});
     }
   });
 
@@ -182,20 +189,20 @@ export const setupNotificationClickListener = () => {
   notifee.getInitialNotification().then((initialNotification) => {
     if (initialNotification) {
       console.log('[FCM] App opened from killed state via Notifee:', initialNotification?.notification?.title);
-      navigateToNotificationsScreen();
+      navigateToNotificationTarget(initialNotification?.notification?.data || {});
     }
   });
 
   // 3. FCM native notification open handlers
   messaging().onNotificationOpenedApp((remoteMessage) => {
     console.log('[FCM] App opened from background via FCM:', remoteMessage?.notification?.title);
-    navigateToNotificationsScreen();
+    navigateToNotificationTarget(remoteMessage?.data || {});
   });
 
   messaging().getInitialNotification().then((remoteMessage) => {
     if (remoteMessage) {
       console.log('[FCM] App opened from killed state via FCM:', remoteMessage?.notification?.title);
-      navigateToNotificationsScreen();
+      navigateToNotificationTarget(remoteMessage?.data || {});
     }
   });
 };

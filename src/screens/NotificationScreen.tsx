@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Platform,
   Animated,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import colors from '../theme/colors';
@@ -21,15 +23,15 @@ import {
   useClearNotifications,
 } from '../hooks/useNotifications';
 
-// Icon + color per notification type
-const TYPE_META = {
-  budget:   { icon: 'wallet-outline',       color: '#FF9500', label: 'Budget'   },
-  expense:  { icon: 'arrow-up-circle-outline', color: '#FF4D67', label: 'Expense' },
-  income:   { icon: 'arrow-down-circle-outline', color: '#00D26A', label: 'Income' },
-  reminder: { icon: 'alarm-outline',         color: '#5856D6', label: 'Reminder' },
-  ai:       { icon: 'sparkles-outline',      color: '#AF52DE', label: 'AI'      },
-  security: { icon: 'shield-checkmark-outline', color: '#FF3B30', label: 'Security' },
-  system:   { icon: 'information-circle-outline', color: '#5AC8FA', label: 'System' },
+// Icon + color + destination label per notification type
+const TYPE_META: Record<string, { icon: string; color: string; label: string; actionLabel: string }> = {
+  budget:   { icon: 'wallet-outline',          color: '#FF9500', label: 'Budget',   actionLabel: 'View Budget' },
+  expense:  { icon: 'arrow-up-circle-outline', color: '#FF4D67', label: 'Expense',  actionLabel: 'View Expense' },
+  income:   { icon: 'arrow-down-circle-outline', color: '#00D26A', label: 'Income', actionLabel: 'View Income' },
+  reminder: { icon: 'alarm-outline',            color: '#5856D6', label: 'Reminder', actionLabel: 'View Recurring' },
+  ai:       { icon: 'sparkles-outline',         color: '#AF52DE', label: 'AI',       actionLabel: 'View Insights' },
+  security: { icon: 'shield-checkmark-outline', color: '#FF3B30', label: 'Security', actionLabel: 'Security Settings' },
+  system:   { icon: 'information-circle-outline', color: '#5AC8FA', label: 'System', actionLabel: 'View Details' },
 };
 
 const getTypeMeta = (type: string) => {
@@ -54,27 +56,47 @@ const formatTime = (dateStr: string) => {
   return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 };
 
+const formatFullDateTime = (dateStr: string) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 interface NotificationCardProps {
   item: any;
+  onPress: () => void;
   onRead: (id: string) => void;
   onDelete: (id: string) => void;
+  onOpenDetails: (item: any) => void;
 }
 
 // ─── Single Notification Card ─────────────────────────────────────────────────
-const NotificationCard: React.FC<NotificationCardProps> = ({ item, onRead, onDelete }) => {
+const NotificationCard: React.FC<NotificationCardProps> = ({
+  item,
+  onPress,
+  onRead,
+  onDelete,
+  onOpenDetails,
+}) => {
   const meta = getTypeMeta(item.type || 'system');
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () =>
-    Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, tension: 200 }).start();
+    Animated.spring(scaleAnim, { toValue: 0.98, useNativeDriver: true, tension: 200 }).start();
   const handlePressOut = () =>
     Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 200 }).start();
 
   return (
     <Animated.View style={[styles.cardWrapper, { transform: [{ scale: scaleAnim }] }]}>
       <TouchableOpacity
-        activeOpacity={1}
-        onPress={() => !item.read && onRead(item._id)}
+        activeOpacity={0.88}
+        onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         style={[styles.card, !item.read && styles.cardUnread]}
@@ -103,31 +125,54 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ item, onRead, onDel
             {item.body}
           </Text>
 
-          {/* Actions row */}
-          <View style={styles.cardActions}>
-            {!item.read && (
+          {/* Action pill + Actions row */}
+          <View style={styles.cardBottomRow}>
+            <View style={styles.cardActions}>
               <TouchableOpacity
-                style={styles.actionBtn}
-                onPress={() => onRead(item._id)}
+                style={styles.navLinkBtn}
+                onPress={onPress}
                 activeOpacity={0.7}
               >
-                <Icon name="checkmark-circle-outline" size={14} color={colors.primary} />
-                <Text style={[styles.actionText, { color: colors.primary }]}>Mark read</Text>
+                <Text style={[styles.navLinkText, { color: meta.color }]}>{meta.actionLabel}</Text>
+                <Icon name="chevron-forward" size={13} color={meta.color} />
               </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={styles.actionBtn}
-              onPress={() => onDelete(item._id)}
-              activeOpacity={0.7}
-            >
-              <Icon name="trash-outline" size={14} color={colors.danger} />
-              <Text style={[styles.actionText, { color: colors.danger }]}>Delete</Text>
-            </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => onOpenDetails(item)}
+                activeOpacity={0.7}
+              >
+                <Icon name="reader-outline" size={13} color={colors.text.muted} />
+                <Text style={styles.actionText}>Details</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.rightActions}>
+              {!item.read && (
+                <TouchableOpacity
+                  style={styles.actionIconBtn}
+                  onPress={() => onRead(item._id)}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="checkmark-done-outline" size={15} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.actionIconBtn}
+                onPress={() => onDelete(item._id)}
+                activeOpacity={0.7}
+              >
+                <Icon name="trash-outline" size={15} color={colors.danger} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
-        {/* Unread dot */}
-        {!item.read && <View style={[styles.unreadDot, { backgroundColor: meta.color }]} />}
+        {/* Chevron icon indicating tap-navigation */}
+        <View style={styles.chevronCol}>
+          {!item.read && <View style={[styles.unreadDot, { backgroundColor: meta.color }]} />}
+          <Icon name="chevron-forward" size={16} color={colors.text.muted} style={{ marginTop: 6 }} />
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -140,7 +185,7 @@ const EmptyState = () => (
       <Icon name="notifications-off-outline" size={48} color={colors.text.muted} />
     </View>
     <Text style={styles.emptyTitle}>All caught up!</Text>
-    <Text style={styles.emptySubtitle}>No notifications yet. Budget alerts, expense summaries and AI tips will appear here.</Text>
+    <Text style={styles.emptySubtitle}>No notifications yet. Budget alerts, recurring due reminders and updates will appear here.</Text>
   </View>
 );
 
@@ -156,6 +201,8 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
   const deleteMutation     = useDeleteNotification();
   const clearMutation      = useClearNotifications();
 
+  const [selectedNotification, setSelectedNotification] = useState<any>(null);
+
   const unreadCount = (notifications as any[]).filter((n: any) => !n.read).length;
 
   const handleRead = (id: string) => {
@@ -164,6 +211,9 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
 
   const handleDelete = (id: string) => {
     (deleteMutation as any).mutate(id);
+    if (selectedNotification?._id === id) {
+      setSelectedNotification(null);
+    }
   };
 
   const handleClearAll = () => {
@@ -184,6 +234,59 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
   const handleMarkAllRead = () => {
     const unread = (notifications as any[]).filter((n: any) => !n.read);
     unread.forEach((n: any) => (markReadMutation as any).mutate(n._id));
+  };
+
+  // ─── Deep Navigation Handler ────────────────────────────────────────────────
+  const handleItemPress = (item: any) => {
+    if (!item.read) {
+      handleRead(item._id);
+    }
+
+    const type = item.type || 'system';
+    const data = item.data || {};
+
+    // 1. Direct screen from data payload
+    if (data.screen === 'Budget' || type === 'budget') {
+      navigation.navigate('Budget');
+      return;
+    }
+
+    if (data.screen === 'RecurringTransactions' || type === 'reminder') {
+      navigation.navigate('Profile', { screen: 'RecurringTransactions' });
+      return;
+    }
+
+    if (data.transactionId || type === 'expense' || type === 'income') {
+      if (data.transactionId) {
+        navigation.navigate('TransactionDetail', { id: data.transactionId });
+      } else {
+        navigation.navigate('Wallet');
+      }
+      return;
+    }
+
+    if (type === 'ai' || data.screen === 'AIInsights') {
+      navigation.navigate('Analytics', { screen: 'AIInsights' });
+      return;
+    }
+
+    if (type === 'subscription' || data.screen === 'Subscription') {
+      navigation.navigate('Subscription');
+      return;
+    }
+
+    if (type === 'security') {
+      navigation.navigate('Profile');
+      return;
+    }
+
+    // Default: Open full detail modal
+    setSelectedNotification(item);
+  };
+
+  const handleModalAction = (item: any) => {
+    setSelectedNotification(null);
+    handleItemPress(item);
   };
 
   return (
@@ -243,8 +346,10 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
           renderItem={({ item }) => (
             <NotificationCard
               item={item}
+              onPress={() => handleItemPress(item)}
               onRead={handleRead}
               onDelete={handleDelete}
+              onOpenDetails={setSelectedNotification}
             />
           )}
           ListEmptyComponent={<EmptyState />}
@@ -258,6 +363,74 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
           refreshing={isLoading}
         />
       )}
+
+      {/* ─── Notification Details Modal ────────────────────────────────────── */}
+      <Modal
+        visible={!!selectedNotification}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedNotification(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            {selectedNotification && (() => {
+              const meta = getTypeMeta(selectedNotification.type || 'system');
+              return (
+                <>
+                  {/* Modal Header */}
+                  <View style={styles.modalHeader}>
+                    <View style={[styles.modalIconBox, { backgroundColor: meta.color + '20' }]}>
+                      <Icon name={meta.icon} size={24} color={meta.color} />
+                    </View>
+                    <View style={styles.modalHeaderInfo}>
+                      <View style={[styles.typeBadge, { backgroundColor: meta.color + '20', alignSelf: 'flex-start' }]}>
+                        <Text style={[styles.typeBadgeText, { color: meta.color }]}>{meta.label}</Text>
+                      </View>
+                      <Text style={styles.modalTimeText}>
+                        {formatFullDateTime(selectedNotification.createdAt)}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.modalCloseBtn}
+                      onPress={() => setSelectedNotification(null)}
+                      activeOpacity={0.7}
+                    >
+                      <Icon name="close" size={20} color={colors.text.secondary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Modal Content */}
+                  <ScrollView style={styles.modalBodyScroll} showsVerticalScrollIndicator={false}>
+                    <Text style={styles.modalTitle}>{selectedNotification.title}</Text>
+                    <Text style={styles.modalBodyText}>{selectedNotification.body}</Text>
+                  </ScrollView>
+
+                  {/* Modal Footer Actions */}
+                  <View style={styles.modalFooter}>
+                    <TouchableOpacity
+                      style={[styles.modalActionPrimaryBtn, { backgroundColor: meta.color }]}
+                      onPress={() => handleModalAction(selectedNotification)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.modalActionPrimaryText}>{meta.actionLabel}</Text>
+                      <Icon name="arrow-forward" size={16} color="#FFFFFF" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.modalDeleteBtn}
+                      onPress={() => handleDelete(selectedNotification._id)}
+                      activeOpacity={0.7}
+                    >
+                      <Icon name="trash-outline" size={16} color={colors.danger} />
+                      <Text style={styles.modalDeleteText}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              );
+            })()}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -343,7 +516,7 @@ const styles = StyleSheet.create({
   },
   markAllText: {
     color: colors.primary,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
   },
 
@@ -374,15 +547,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardUnread: {
-    borderColor: colors.primary + '30',
-    backgroundColor: colors.primary + '06',
+    borderColor: colors.primary + '35',
+    backgroundColor: colors.primary + '07',
   },
   unreadBar: {
     position: 'absolute',
     left: 0,
     top: 0,
     bottom: 0,
-    width: 3,
+    width: 3.5,
     borderRadius: 3,
   },
   iconBox: {
@@ -419,7 +592,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   cardTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text.secondary,
     marginBottom: 3,
@@ -429,30 +602,64 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   cardBody: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.text.muted,
     lineHeight: 18,
     marginBottom: spacing.sm,
   },
+  cardBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
   cardActions: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
+  },
+  navLinkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingVertical: 2,
+  },
+  navLinkText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
+    paddingVertical: 2,
   },
   actionText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    color: colors.text.muted,
+    fontWeight: '500',
+  },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionIconBtn: {
+    padding: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chevronCol: {
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 2,
+    flexShrink: 0,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginTop: 4,
-    flexShrink: 0,
+    marginBottom: 4,
   },
 
   // ── Loading ────────────────────────────────────────────────────────────────
@@ -497,5 +704,114 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
     textAlign: 'center',
     lineHeight: 20,
+  },
+
+  // ─── Modal Styles ──────────────────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  modalCard: {
+    width: '100%',
+    maxHeight: '80%',
+    backgroundColor: colors.cardElevated || '#14151E',
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.5,
+    shadowRadius: 18,
+    elevation: 12,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  modalIconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  modalHeaderInfo: {
+    flex: 1,
+  },
+  modalTimeText: {
+    fontSize: 11,
+    color: colors.text.muted,
+    marginTop: 3,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBodyScroll: {
+    maxHeight: 280,
+    marginVertical: spacing.md,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
+    lineHeight: 22,
+  },
+  modalBodyText: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    lineHeight: 22,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.md,
+  },
+  modalActionPrimaryBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  modalActionPrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  modalDeleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    height: 44,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(255,77,103,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,77,103,0.2)',
+  },
+  modalDeleteText: {
+    color: colors.danger,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
