@@ -10,6 +10,7 @@ import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
 import { Platform, PermissionsAndroid } from 'react-native';
 import apiClient from '../api/client';
 import { navigationRef } from '../navigation/AppNavigator';
+import { resolveNotificationRoute } from '../utils/notificationRouter';
 
 const CHANNEL_ID = 'expense-tracker';
 
@@ -99,26 +100,26 @@ export const ensureNotificationChannel = async () => {
 /**
  * Helper to navigate to target screen or Notifications when notification is clicked
  */
-const navigateToNotificationTarget = (data = {}, attempts = 0) => {
+const navigateToNotificationTarget = (payload = {}, attempts = 0) => {
   if (navigationRef.isReady()) {
-    console.log('[FCM] Navigation container ready — navigating with data:', JSON.stringify(data));
+    console.log('[FCM] Navigation container ready — navigating with payload:', JSON.stringify(payload));
     try {
-      if (data?.screen === 'Budget' || data?.type === 'budget') {
-        navigationRef.navigate('Budget');
-      } else if (data?.screen === 'RecurringTransactions' || data?.type === 'reminder') {
-        navigationRef.navigate('Profile', { screen: 'RecurringTransactions' });
-      } else if (data?.transactionId) {
-        navigationRef.navigate('TransactionDetail', { id: data.transactionId });
-      } else if (data?.screen === 'Subscription') {
-        navigationRef.navigate('Subscription');
+      const target = resolveNotificationRoute(payload);
+      if (target?.params) {
+        navigationRef.navigate(target.screen, target.params);
+      } else if (target?.screen) {
+        navigationRef.navigate(target.screen);
       } else {
         navigationRef.navigate('Notifications');
       }
     } catch (navErr) {
       console.error('[FCM] Navigation error:', navErr?.message);
+      try {
+        navigationRef.navigate('Notifications');
+      } catch {}
     }
   } else if (attempts < 30) {
-    setTimeout(() => navigateToNotificationTarget(data, attempts + 1), 100);
+    setTimeout(() => navigateToNotificationTarget(payload, attempts + 1), 100);
   }
 };
 
