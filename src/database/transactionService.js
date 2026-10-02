@@ -1,4 +1,5 @@
 import db from './database';
+import { runMigration } from './migrations';
 import { convertCurrencyValue, getExchangeRate, normalizeCurrencyCode } from '../utils/formatCurrency';
 
 /**
@@ -89,6 +90,22 @@ export const addTransaction = (data) => {
       isSynced: data.isSynced ? 1 : 0,
     };
   } catch (error) {
+    if (error?.message && error.message.includes('has no column named')) {
+      console.warn('[SQLite] Missing column detected during addTransaction. Running migration and retrying...');
+      try {
+        runMigration();
+        const result = db.execute(query, params);
+        return {
+          id: result.insertId,
+          ...data,
+          ...snapshot,
+          isSynced: data.isSynced ? 1 : 0,
+        };
+      } catch (retryError) {
+        console.error('Error adding transaction to SQLite on retry:', retryError);
+        throw retryError;
+      }
+    }
     console.error('Error adding transaction to SQLite:', error);
     throw error;
   }
@@ -229,6 +246,17 @@ export const updateTransaction = (data) => {
     db.execute(query, params);
     return { ...data };
   } catch (error) {
+    if (error?.message && error.message.includes('has no column named')) {
+      console.warn('[SQLite] Missing column detected during updateTransaction. Running migration and retrying...');
+      try {
+        runMigration();
+        db.execute(query, params);
+        return { ...data };
+      } catch (retryError) {
+        console.error('Error updating transaction in SQLite on retry:', retryError);
+        throw retryError;
+      }
+    }
     console.error('Error updating transaction in SQLite:', error);
     throw error;
   }

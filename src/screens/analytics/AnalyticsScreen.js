@@ -27,9 +27,10 @@ import useBanks from '../../hooks/useBanks';
 import BankLogo from '../../components/atoms/BankLogo';
 import { usePremiumAccess } from '../../hooks/usePremiumAccess';
 import {
-  getAnalyticsAdState,
-  saveAnalyticsAdState,
+  canShowAnalyticsAd,
+  recordAnalyticsAdShown,
   showAnalyticsAd,
+  preloadAnalyticsAd,
 } from '../../services/interstitialAdService';
 
 dayjs.extend(isBetween);
@@ -85,7 +86,7 @@ const AnalyticsScreen = () => {
   const { resolvePremiumAccess } = usePremiumAccess();
   const resolvePremiumAccessRef = useRef(resolvePremiumAccess);
   resolvePremiumAccessRef.current = resolvePremiumAccess;
-  const analyticsAdStateRef = useRef(null);
+  const isAdShowingRef = useRef(false);
 
   const [selectedPeriod, setSelectedPeriod] = useState('month'); // 'today' | 'month' | 'year' | 'range' | 'all'
   const [selectedMonth, setSelectedMonth] = useState(dayjs());
@@ -110,86 +111,60 @@ const AnalyticsScreen = () => {
     }, [refetch])
   );
 
+  /**
+   * Triggers an ad display only if:
+   * 1. User is not Premium
+   * 2. Fewer than 10 ads shown today
+   * 3. At least 30 minutes have elapsed since the last ad
+   * 4. User interacted/clicked (e.g. navigated to Analytics, switched period, changed chart)
+   */
+  const handleAnalyticsAdTrigger = useCallback(async (source = 'tab_click') => {
+    if (isAdShowingRef.current) return false;
+
+    try {
+      const isPremium = await resolvePremiumAccessRef.current();
+      // Skip ads for confirmed Premium subscribers
+      if (isPremium === true) return false;
+
+      const eligibility = await canShowAnalyticsAd();
+      if (!eligibility.canShow) {
+        return false;
+      }
+
+      isAdShowingRef.current = true;
+      console.log(`[Ads] 30m cooldown passed & under 10/day. Showing analytics ad from: ${source}`);
+      const wasShown = await showAnalyticsAd(`analytics_${source}`);
+      if (wasShown) {
+        await recordAnalyticsAdShown();
+      }
+      return wasShown;
+    } catch (err) {
+      console.warn('[Ads] Analytics ad trigger error:', err);
+      return false;
+    } finally {
+      isAdShowingRef.current = false;
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      let isFocused = true;
-      let activeTimeInterval;
+      // Preload next ad so it's instantly available in memory
+      preloadAnalyticsAd();
 
-      const attemptSecondAd = async (adState) => {
-        if (!isFocused || adState.secondAttempted || adState.shownCount >= 2) return;
-        adState.secondAttempted = true;
-        await saveAnalyticsAdState(adState);
-        const wasShown = await showAnalyticsAd('analytics_second');
-        if (wasShown) {
-          adState.shownCount = 2;
-          await saveAnalyticsAdState(adState);
-        }
-      };
-
-      const startActiveAnalyticsTimer = (adState) => {
-        if (adState.secondAttempted || adState.shownCount >= 2) return;
-        if (adState.activeAnalyticsMs >= 10 * 60 * 1000) {
-          attemptSecondAd(adState);
-          return;
-        }
-
-        activeTimeInterval = setInterval(() => {
-          if (!isFocused || AppState.currentState !== 'active') return;
-
-          adState.activeAnalyticsMs += 1000;
-          if (adState.activeAnalyticsMs % 10000 === 0) {
-            saveAnalyticsAdState(adState);
-          }
-          if (adState.activeAnalyticsMs >= 10 * 60 * 1000) {
-            clearInterval(activeTimeInterval);
-            attemptSecondAd(adState);
-          }
-        }, 1000);
-      };
-
-      const startAnalyticsAds = async () => {
-        const isPremium = await resolvePremiumAccessRef.current();
-        // Only skip ads if user is confirmed Pro. If null (fetch failed), still show ads.
-        if (!isFocused || isPremium === true) {
-          return;
-        }
-
-        const adState = await getAnalyticsAdState();
-        if (!isFocused) return;
-        analyticsAdStateRef.current = adState;
-
-        if (adState.shownCount >= 2) return;
-
-        if (adState.shownCount === 0) {
-          if (adState.firstAttempted) return;
-          adState.firstAttempted = true;
-          await saveAnalyticsAdState(adState);
-          const wasShown = await showAnalyticsAd('analytics_first');
-          if (wasShown) {
-            adState.shownCount = 1;
-            adState.activeAnalyticsMs = 0;
-            await saveAnalyticsAdState(adState);
-            if (isFocused) startActiveAnalyticsTimer(adState);
-          }
-          return;
-        }
-
-        if (adState.shownCount === 1) startActiveAnalyticsTimer(adState);
-      };
-
-      startAnalyticsAds().catch((error) => {
-        console.error('[Ads] Analytics placement failed safely:', error);
-      });
-
-      return () => {
-        isFocused = false;
-        if (activeTimeInterval) clearInterval(activeTimeInterval);
-        if (analyticsAdStateRef.current) {
-          saveAnalyticsAdState(analyticsAdStateRef.current);
-        }
-      };
-    }, [])
+      // Trigger ad check when user opens/clicks into Analytics tab
+      handleAnalyticsAdTrigger('open_tab');
+    }, [handleAnalyticsAdTrigger])
   );
+
+  const handlePeriodChange = (periodId) => {
+    setSelectedPeriod(periodId);
+    handleAnalyticsAdTrigger('period_change');
+  };
+
+  const handleChartTypeChange = (type) => {
+    setChartType(type);
+    handleAnalyticsAdTrigger('chart_toggle');
+  };
 
   const openMonthPicker = () => {
     setPickerYear(selectedMonth.year());
@@ -618,7 +593,7 @@ const AnalyticsScreen = () => {
                 <TouchableOpacity
                   key={p.id}
                   style={[styles.periodPill, isSel && styles.periodPillSelected]}
-                  onPress={() => setSelectedPeriod(p.id)}
+                  onPress={() => handlePeriodChange(p.id)}
                   activeOpacity={0.8}
                 >
                   <Text style={[styles.periodPillText, isSel && styles.periodPillTextSelected]}>
@@ -769,7 +744,7 @@ const AnalyticsScreen = () => {
             <View style={styles.chartToggleContainer}>
               <TouchableOpacity
                 style={[styles.chartToggleBtn, chartType === 'expense' && styles.chartToggleBtnActiveExp]}
-                onPress={() => setChartType('expense')}
+                onPress={() => handleChartTypeChange('expense')}
               >
                 <Text style={[styles.chartToggleText, chartType === 'expense' && styles.chartToggleTextActiveExp]}>
                   Expense
@@ -777,7 +752,7 @@ const AnalyticsScreen = () => {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.chartToggleBtn, chartType === 'income' && styles.chartToggleBtnActiveInc]}
-                onPress={() => setChartType('income')}
+                onPress={() => handleChartTypeChange('income')}
               >
                 <Text style={[styles.chartToggleText, chartType === 'income' && styles.chartToggleTextActiveInc]}>
                   Income

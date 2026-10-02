@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { store } from './src/store';
 import { AuthProvider } from './src/context/AuthContext';
 import { AlertProvider } from './src/context/AlertContext';
-import { createTables } from './src/database/schema';
+import { createTables, runMigration } from './src/database';
 import AppNavigator from './src/navigation/AppNavigator';
 import './src/config/googleSignin';
 import apiClient from './src/api/client';
@@ -34,6 +34,7 @@ const App = () => {
 
     try {
       createTables();
+      runMigration();
     } catch (error) {
       console.error('Error initializing SQLite tables:', error);
     }

@@ -1,4 +1,5 @@
 import db from "./database";
+import { runMigration } from "./migrations";
 
 export const createTables = () => {
   try {
@@ -132,6 +133,8 @@ export const createTables = () => {
 
 
     console.log("✅ SQLite Tables Created Successfully");
+
+    runMigration();
 
   } catch (error) {
 
