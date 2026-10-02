@@ -63,9 +63,18 @@
       android:usesCleartextTraffic="true"
       android:supportsRtl="true">
       <meta-data
-    android:name="com.google.android.gms.ads.APPLICATION_ID"
-    android:value="ca-app-pub-5049310918821127~7882127858"
-    tools:replace="android:value"/>
+        android:name="com.google.android.gms.ads.APPLICATION_ID"
+        android:value="ca-app-pub-5049310918821127~7882127858"
+        tools:replace="android:value"/>
+
+      <!-- Firebase Cloud Messaging Default Notification Channel and Icon -->
+      <meta-data
+        android:name="com.google.firebase.messaging.default_notification_channel_id"
+        android:value="expense-tracker"
+        tools:replace="android:value" />
+      <meta-data
+        android:name="com.google.firebase.messaging.default_notification_icon"
+        android:resource="@mipmap/ic_launcher" />
 
       <activity
     android:name=".MainActivity"

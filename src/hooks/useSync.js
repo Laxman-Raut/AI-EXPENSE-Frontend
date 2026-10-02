@@ -6,14 +6,12 @@ import syncService from '../services/syncService';
 /**
  * Auto-sync hook that monitors network connectivity and syncs
  * unsynced local SQLite transactions to the cloud when the device
- * transitions from offline to online.
+ * transitions from offline to online, or on initial app launch.
  */
 export const useAutoSync = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState(null);
   const wasConnectedRef = useRef(true);
-  // isSyncing ko ref se track karo — useCallback dependency se hataya
-  // Warna performSync recreate hogi → listener baar baar re-register hoga
   const isSyncingRef = useRef(false);
   const queryClient = useQueryClient();
 
@@ -39,10 +37,16 @@ export const useAutoSync = () => {
       isSyncingRef.current = false;
       setIsSyncing(false);
     }
-  // isSyncing dependency hataya — ref use kar rahe hain ab
   }, [queryClient]);
 
   useEffect(() => {
+    // Initial sync check on mount
+    NetInfo.fetch().then((state) => {
+      if (state.isConnected) {
+        performSync();
+      }
+    });
+
     const unsubscribe = NetInfo.addEventListener((state) => {
       const isConnected = !!state.isConnected;
       const wasConnected = wasConnectedRef.current;
@@ -63,4 +67,3 @@ export const useAutoSync = () => {
 };
 
 export default useAutoSync;
-

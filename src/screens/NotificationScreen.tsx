@@ -23,6 +23,11 @@ import {
   useClearNotifications,
 } from '../hooks/useNotifications';
 import { resolveNotificationRoute, ResolvedNotificationRoute } from '../utils/notificationRouter';
+import {
+  getNotifications as getLocalNotifications,
+  deleteNotification as deleteLocalNotification,
+  clearNotifications as clearLocalNotifications,
+} from '../services/notificationStorage';
 
 const formatTime = (dateStr: string) => {
   if (!dateStr) return '';
@@ -180,21 +185,65 @@ interface NotificationScreenProps {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) => {
   const { showAlert } = useAlert() as any;
-  const { data: notifications = [], isLoading, refetch } = useNotifications();
+  const { data: serverNotifications = [], isLoading, refetch } = useNotifications();
   const markReadMutation   = useMarkNotificationRead();
   const deleteMutation     = useDeleteNotification();
   const clearMutation      = useClearNotifications();
 
+  const [localNotifications, setLocalNotifications] = useState<any[]>([]);
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
 
-  const unreadCount = (notifications as any[]).filter((n: any) => !n.read).length;
+  // Load local notifications on mount & refresh server data
+  React.useEffect(() => {
+    refetch();
+    getLocalNotifications().then((local) => {
+      if (Array.isArray(local)) {
+        setLocalNotifications(local);
+      }
+    });
+  }, [refetch]);
+
+  // Merge server & local notifications, deduplicating by title + body
+  const notifications = React.useMemo(() => {
+    const list = [...(serverNotifications || [])];
+    const serverTitles = new Set(list.map((s: any) => `${s.title}_${s.body}`));
+
+    localNotifications.forEach((loc: any) => {
+      const key = `${loc.title}_${loc.body}`;
+      if (!serverTitles.has(key)) {
+        list.push({
+          _id: loc.id || `local_${Math.random()}`,
+          title: loc.title,
+          body: loc.body,
+          type: loc.type || 'budget',
+          read: loc.read || false,
+          createdAt: loc.time || new Date().toISOString(),
+          data: loc.data || { screen: 'Budget' },
+          isLocal: true,
+        });
+      }
+    });
+
+    return list.sort(
+      (a: any, b: any) =>
+        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+  }, [serverNotifications, localNotifications]);
+
+  const unreadCount = notifications.filter((n: any) => !n.read).length;
 
   const handleRead = (id: string) => {
     (markReadMutation as any).mutate(id);
   };
 
   const handleDelete = (id: string) => {
-    (deleteMutation as any).mutate(id);
+    const isLocal = localNotifications.some((loc: any) => loc.id === id);
+    if (isLocal) {
+      deleteLocalNotification(id);
+      setLocalNotifications((prev) => prev.filter((n) => n.id !== id));
+    } else {
+      (deleteMutation as any).mutate(id);
+    }
     if (selectedNotification?._id === id) {
       setSelectedNotification(null);
     }
@@ -209,14 +258,18 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
         {
           text: 'Clear All',
           style: 'destructive',
-          onPress: () => (clearMutation as any).mutate(),
+          onPress: () => {
+            (clearMutation as any).mutate();
+            clearLocalNotifications();
+            setLocalNotifications([]);
+          },
         },
       ]
     );
   };
 
   const handleMarkAllRead = () => {
-    const unread = (notifications as any[]).filter((n: any) => !n.read);
+    const unread = notifications.filter((n: any) => !n.read);
     unread.forEach((n: any) => (markReadMutation as any).mutate(n._id));
   };
 
