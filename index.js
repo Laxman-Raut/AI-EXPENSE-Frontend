@@ -47,6 +47,9 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
         android: {
           channelId: 'expense-tracker',
           importance: AndroidImportance.HIGH,
+          sound: 'default',
+          vibrationPattern: [300, 500],
+          smallIcon: 'ic_launcher',
           pressAction: {
             id: 'default',
             launchActivity: 'default',

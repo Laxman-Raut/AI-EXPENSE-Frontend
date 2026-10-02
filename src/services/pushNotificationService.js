@@ -30,7 +30,11 @@ export const requestNotificationPermission = async () => {
       }
     }
 
-    // Request Firebase messaging permission
+    // Request Notifee & Firebase messaging permissions
+    try {
+      await notifee.requestPermission();
+    } catch {}
+
     const authStatus = await messaging().requestPermission();
     const enabled =
       authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
@@ -87,13 +91,28 @@ export const clearFcmTokenFromBackend = async () => {
  */
 export const ensureNotificationChannel = async () => {
   if (Platform.OS === 'android') {
-    await notifee.createChannel({
-      id: CHANNEL_ID,
-      name: 'Expenso',
-      importance: AndroidImportance.HIGH,
-      sound: 'default',
-      vibration: true,
-    });
+    try {
+      const channel = await notifee.getChannel(CHANNEL_ID);
+      // Android locks channel settings once created. If channel is missing or not HIGH importance with sound,
+      // recreate it so the OS enforces heads-up banner popups.
+      if (!channel || channel.importance < AndroidImportance.HIGH || !channel.sound) {
+        if (channel) {
+          await notifee.deleteChannel(CHANNEL_ID);
+        }
+        await notifee.createChannel({
+          id: CHANNEL_ID,
+          name: 'Expenso Notifications',
+          importance: AndroidImportance.HIGH,
+          sound: 'default',
+          vibration: true,
+          vibrationPattern: [300, 500],
+          lights: true,
+        });
+        console.log('[FCM] Created high importance notification channel:', CHANNEL_ID);
+      }
+    } catch (err) {
+      console.warn('[FCM] Channel configuration warning:', err?.message);
+    }
   }
 };
 
@@ -124,7 +143,7 @@ const navigateToNotificationTarget = (payload = {}, attempts = 0) => {
 };
 
 /**
- * Display a local notification using Notifee
+ * Display a local notification using Notifee with heads-up popup banner
  */
 export const displayLocalNotification = async (title, body, data = {}) => {
   try {
@@ -135,11 +154,14 @@ export const displayLocalNotification = async (title, body, data = {}) => {
       body,
       android: {
         channelId: CHANNEL_ID,
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+        vibrationPattern: [300, 500],
+        smallIcon: 'ic_launcher',
         pressAction: {
           id: 'default',
           launchActivity: 'default',
         },
-        importance: AndroidImportance.HIGH,
       },
       data,
     });
