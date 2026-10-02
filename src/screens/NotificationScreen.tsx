@@ -22,22 +22,7 @@ import {
   useDeleteNotification,
   useClearNotifications,
 } from '../hooks/useNotifications';
-
-// Icon + color + destination label per notification type
-const TYPE_META: Record<string, { icon: string; color: string; label: string; actionLabel: string }> = {
-  budget:   { icon: 'wallet-outline',          color: '#FF9500', label: 'Budget',   actionLabel: 'View Budget' },
-  expense:  { icon: 'arrow-up-circle-outline', color: '#FF4D67', label: 'Expense',  actionLabel: 'View Expense' },
-  income:   { icon: 'arrow-down-circle-outline', color: '#00D26A', label: 'Income', actionLabel: 'View Income' },
-  reminder: { icon: 'alarm-outline',            color: '#5856D6', label: 'Reminder', actionLabel: 'View Recurring' },
-  ai:       { icon: 'sparkles-outline',         color: '#AF52DE', label: 'AI',       actionLabel: 'View Insights' },
-  security: { icon: 'shield-checkmark-outline', color: '#FF3B30', label: 'Security', actionLabel: 'Security Settings' },
-  system:   { icon: 'information-circle-outline', color: '#5AC8FA', label: 'System', actionLabel: 'View Details' },
-};
-
-const getTypeMeta = (type: string) => {
-  const key = type as keyof typeof TYPE_META;
-  return TYPE_META[key] || TYPE_META.system;
-};
+import { resolveNotificationRoute, ResolvedNotificationRoute } from '../utils/notificationRouter';
 
 const formatTime = (dateStr: string) => {
   if (!dateStr) return '';
@@ -84,7 +69,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
   onDelete,
   onOpenDetails,
 }) => {
-  const meta = getTypeMeta(item.type || 'system');
+  const routeInfo: ResolvedNotificationRoute = resolveNotificationRoute(item);
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () =>
@@ -95,25 +80,28 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
   return (
     <Animated.View style={[styles.cardWrapper, { transform: [{ scale: scaleAnim }] }]}>
       <TouchableOpacity
-        activeOpacity={0.88}
+        activeOpacity={0.85}
         onPress={onPress}
+        onLongPress={() => onOpenDetails(item)}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         style={[styles.card, !item.read && styles.cardUnread]}
       >
-        {/* Unread accent bar */}
-        {!item.read && <View style={[styles.unreadBar, { backgroundColor: meta.color }]} />}
+        {/* Unread vertical accent bar */}
+        {!item.read && <View style={[styles.unreadBar, { backgroundColor: routeInfo.color }]} />}
 
-        {/* Icon */}
-        <View style={[styles.iconBox, { backgroundColor: meta.color + '20' }]}>
-          <Icon name={meta.icon} size={22} color={meta.color} />
+        {/* Icon with colored badge background */}
+        <View style={[styles.iconBox, { backgroundColor: routeInfo.color + '22' }]}>
+          <Icon name={routeInfo.icon} size={22} color={routeInfo.color} />
         </View>
 
-        {/* Content */}
+        {/* Card Content */}
         <View style={styles.cardContent}>
           <View style={styles.cardTopRow}>
-            <View style={[styles.typeBadge, { backgroundColor: meta.color + '18' }]}>
-              <Text style={[styles.typeBadgeText, { color: meta.color }]}>{meta.label}</Text>
+            <View style={[styles.typeBadge, { backgroundColor: routeInfo.color + '18' }]}>
+              <Text style={[styles.typeBadgeText, { color: routeInfo.color }]}>
+                {routeInfo.badgeLabel}
+              </Text>
             </View>
             <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
           </View>
@@ -125,53 +113,47 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
             {item.body}
           </Text>
 
-          {/* Action pill + Actions row */}
+          {/* Action Row */}
           <View style={styles.cardBottomRow}>
-            <View style={styles.cardActions}>
-              <TouchableOpacity
-                style={styles.navLinkBtn}
-                onPress={onPress}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.navLinkText, { color: meta.color }]}>{meta.actionLabel}</Text>
-                <Icon name="chevron-forward" size={13} color={meta.color} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.actionBtn}
-                onPress={() => onOpenDetails(item)}
-                activeOpacity={0.7}
-              >
-                <Icon name="reader-outline" size={13} color={colors.text.muted} />
-                <Text style={styles.actionText}>Details</Text>
-              </TouchableOpacity>
-            </View>
+            {/* Direct navigation CTA button */}
+            <TouchableOpacity
+              style={[styles.actionCtaBtn, { backgroundColor: routeInfo.color + '15', borderColor: routeInfo.color + '30' }]}
+              onPress={onPress}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.actionCtaText, { color: routeInfo.color }]}>
+                {routeInfo.actionLabel}
+              </Text>
+              <Icon name="arrow-forward" size={12} color={routeInfo.color} />
+            </TouchableOpacity>
 
             <View style={styles.rightActions}>
               {!item.read && (
                 <TouchableOpacity
                   style={styles.actionIconBtn}
                   onPress={() => onRead(item._id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   activeOpacity={0.7}
                 >
-                  <Icon name="checkmark-done-outline" size={15} color={colors.primary} />
+                  <Icon name="checkmark-done-outline" size={16} color={colors.primary} />
                 </TouchableOpacity>
               )}
               <TouchableOpacity
                 style={styles.actionIconBtn}
                 onPress={() => onDelete(item._id)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 activeOpacity={0.7}
               >
-                <Icon name="trash-outline" size={15} color={colors.danger} />
+                <Icon name="trash-outline" size={16} color={colors.danger} />
               </TouchableOpacity>
             </View>
           </View>
         </View>
 
-        {/* Chevron icon indicating tap-navigation */}
+        {/* Chevron icon indicating tap opens destination */}
         <View style={styles.chevronCol}>
-          {!item.read && <View style={[styles.unreadDot, { backgroundColor: meta.color }]} />}
-          <Icon name="chevron-forward" size={16} color={colors.text.muted} style={{ marginTop: 6 }} />
+          {!item.read && <View style={[styles.unreadDot, { backgroundColor: routeInfo.color }]} />}
+          <Icon name="chevron-forward" size={16} color={colors.text.muted} style={{ marginTop: 4 }} />
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -185,7 +167,9 @@ const EmptyState = () => (
       <Icon name="notifications-off-outline" size={48} color={colors.text.muted} />
     </View>
     <Text style={styles.emptyTitle}>All caught up!</Text>
-    <Text style={styles.emptySubtitle}>No notifications yet. Budget alerts, recurring due reminders and updates will appear here.</Text>
+    <Text style={styles.emptySubtitle}>
+      No notifications yet. Budget alerts, daily tracking reminders, and recurring payment updates will appear here.
+    </Text>
   </View>
 );
 
@@ -236,55 +220,32 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
     unread.forEach((n: any) => (markReadMutation as any).mutate(n._id));
   };
 
-  // ─── Deep Navigation Handler ────────────────────────────────────────────────
+  // ─── Direct Navigation on Click ─────────────────────────────────────────────
   const handleItemPress = (item: any) => {
+    // 1. Mark as read immediately
     if (!item.read) {
       handleRead(item._id);
     }
 
-    const type = item.type || 'system';
-    const data = item.data || {};
+    // 2. Resolve destination screen
+    const target = resolveNotificationRoute(item);
 
-    // 1. Direct screen from data payload
-    if (data.screen === 'Budget' || type === 'budget') {
-      navigation.navigate('Budget');
-      return;
-    }
+    console.log(`[Notification] Navigating to: ${target.screen}`, target.params || '');
 
-    if (data.screen === 'RecurringTransactions' || type === 'reminder') {
-      navigation.navigate('Profile', { screen: 'RecurringTransactions' });
-      return;
-    }
-
-    if (data.transactionId || type === 'expense' || type === 'income') {
-      if (data.transactionId) {
-        navigation.navigate('TransactionDetail', { id: data.transactionId });
+    try {
+      if (target.params) {
+        navigation.navigate(target.screen, target.params);
       } else {
-        navigation.navigate('Wallet');
+        navigation.navigate(target.screen);
       }
-      return;
+    } catch (navErr: any) {
+      console.error('[Notification] Navigation error:', navErr?.message);
+      // Fallback: if navigation fails, open detail modal
+      setSelectedNotification(item);
     }
-
-    if (type === 'ai' || data.screen === 'AIInsights') {
-      navigation.navigate('Analytics', { screen: 'AIInsights' });
-      return;
-    }
-
-    if (type === 'subscription' || data.screen === 'Subscription') {
-      navigation.navigate('Subscription');
-      return;
-    }
-
-    if (type === 'security') {
-      navigation.navigate('Profile');
-      return;
-    }
-
-    // Default: Open full detail modal
-    setSelectedNotification(item);
   };
 
-  const handleModalAction = (item: any) => {
+  const handleModalProceed = (item: any) => {
     setSelectedNotification(null);
     handleItemPress(item);
   };
@@ -321,7 +282,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
         )}
       </View>
 
-      {/* Mark all read pill — only shown when there are unread items */}
+      {/* Mark all read pill */}
       {unreadCount > 0 && (
         <TouchableOpacity
           style={styles.markAllPill}
@@ -333,7 +294,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
         </TouchableOpacity>
       )}
 
-      {/* Body */}
+      {/* Notifications List */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -364,7 +325,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
         />
       )}
 
-      {/* ─── Notification Details Modal ────────────────────────────────────── */}
+      {/* ─── Notification Details Modal (Optional Read-More on Long Press) ──── */}
       <Modal
         visible={!!selectedNotification}
         transparent
@@ -374,17 +335,16 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             {selectedNotification && (() => {
-              const meta = getTypeMeta(selectedNotification.type || 'system');
+              const target = resolveNotificationRoute(selectedNotification);
               return (
                 <>
-                  {/* Modal Header */}
                   <View style={styles.modalHeader}>
-                    <View style={[styles.modalIconBox, { backgroundColor: meta.color + '20' }]}>
-                      <Icon name={meta.icon} size={24} color={meta.color} />
+                    <View style={[styles.modalIconBox, { backgroundColor: target.color + '22' }]}>
+                      <Icon name={target.icon} size={24} color={target.color} />
                     </View>
                     <View style={styles.modalHeaderInfo}>
-                      <View style={[styles.typeBadge, { backgroundColor: meta.color + '20', alignSelf: 'flex-start' }]}>
-                        <Text style={[styles.typeBadgeText, { color: meta.color }]}>{meta.label}</Text>
+                      <View style={[styles.typeBadge, { backgroundColor: target.color + '20', alignSelf: 'flex-start' }]}>
+                        <Text style={[styles.typeBadgeText, { color: target.color }]}>{target.badgeLabel}</Text>
                       </View>
                       <Text style={styles.modalTimeText}>
                         {formatFullDateTime(selectedNotification.createdAt)}
@@ -399,20 +359,18 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
                     </TouchableOpacity>
                   </View>
 
-                  {/* Modal Content */}
                   <ScrollView style={styles.modalBodyScroll} showsVerticalScrollIndicator={false}>
                     <Text style={styles.modalTitle}>{selectedNotification.title}</Text>
                     <Text style={styles.modalBodyText}>{selectedNotification.body}</Text>
                   </ScrollView>
 
-                  {/* Modal Footer Actions */}
                   <View style={styles.modalFooter}>
                     <TouchableOpacity
-                      style={[styles.modalActionPrimaryBtn, { backgroundColor: meta.color }]}
-                      onPress={() => handleModalAction(selectedNotification)}
+                      style={[styles.modalActionPrimaryBtn, { backgroundColor: target.color }]}
+                      onPress={() => handleModalProceed(selectedNotification)}
                       activeOpacity={0.85}
                     >
-                      <Text style={styles.modalActionPrimaryText}>{meta.actionLabel}</Text>
+                      <Text style={styles.modalActionPrimaryText}>{target.actionLabel}</Text>
                       <Icon name="arrow-forward" size={16} color="#FFFFFF" />
                     </TouchableOpacity>
 
@@ -611,33 +569,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 2,
+    marginTop: 4,
   },
-  cardActions: {
+  actionCtaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
   },
-  navLinkBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingVertical: 2,
-  },
-  navLinkText: {
+  actionCtaText: {
     fontSize: 11,
     fontWeight: '700',
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingVertical: 2,
-  },
-  actionText: {
-    fontSize: 11,
-    color: colors.text.muted,
-    fontWeight: '500',
   },
   rightActions: {
     flexDirection: 'row',
@@ -645,7 +590,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionIconBtn: {
-    padding: 3,
+    padding: 4,
     justifyContent: 'center',
     alignItems: 'center',
   },
