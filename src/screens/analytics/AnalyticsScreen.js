@@ -71,12 +71,19 @@ const CATEGORY_COLORS = [
 
 const getCategoryIcon = (cat = '') => {
   const c = cat.toLowerCase();
+  // Income categories
+  if (c.includes('salary') || c.includes('income')) return 'cash';
+  if (c.includes('freelance') || c.includes('business')) return 'briefcase';
+  if (c.includes('invest') || c.includes('stock') || c.includes('dividend') || c.includes('interest')) return 'trending-up';
+  if (c.includes('rental')) return 'key';
+  if (c.includes('gift') || c.includes('reward')) return 'gift';
+  if (c.includes('refund') || c.includes('cashback')) return 'trophy';
+
+  // Expense categories
   if (c.includes('food') || c.includes('dining')) return 'fast-food';
   if (c.includes('shop') || c.includes('grocer')) return 'bag-handle';
   if (c.includes('travel') || c.includes('flight') || c.includes('cab')) return 'airplane';
   if (c.includes('bill') || c.includes('recharge') || c.includes('utility')) return 'receipt';
-  if (c.includes('salary') || c.includes('income')) return 'cash';
-  if (c.includes('invest') || c.includes('stock')) return 'trending-up';
   if (c.includes('health') || c.includes('med')) return 'heart-pulse';
   if (c.includes('entertain') || c.includes('movie')) return 'game-controller';
   return 'pie-chart';
@@ -341,7 +348,23 @@ const AnalyticsScreen = () => {
       }
     } else if (selectedPeriod === 'range') {
       const diffDays = Math.max(1, endDate.diff(startDate, 'day') + 1);
-      if (diffDays <= 7) {
+      if (diffDays === 1) {
+        // Single day: breakdown by hours to form a valid chart curve
+        const hours = [0, 6, 12, 18, 23];
+        const hourTotals = Array(5).fill(0);
+        filtered.forEach((t) => {
+          const d = dayjs(t.transactionDate || t.createdAt);
+          if (d.isSame(startDate, 'day')) {
+            const h = d.hour();
+            const idx = Math.min(4, Math.floor(h / 5));
+            hourTotals[idx] += getStoredAmountForCurrency(t, userCurrency);
+          }
+        });
+        points = hours.map((h, i) => ({
+          value: hourTotals[i],
+          label: `${h}:00`,
+        }));
+      } else if (diffDays <= 7) {
         for (let i = 0; i < diffDays; i++) {
           const currentDay = startDate.add(i, 'day');
           const dayTotal = filtered
@@ -414,6 +437,11 @@ const AnalyticsScreen = () => {
     const hasData = points.some((p) => p.value > 0);
     return { points, hasData };
   }, [periodFilteredTxns, selectedPeriod, selectedMonth, startDate, endDate, chartType, userCurrency]);
+
+  const maxTrendVal = useMemo(() => {
+    const max = Math.max(0, ...(trendChartData.points || []).map((p) => p.value || 0));
+    return max > 0 ? Math.ceil(max * 1.15) : 100;
+  }, [trendChartData.points]);
 
   // ─────────────────────────────────────────────────────────────
   // 4. CATEGORY BREAKDOWN (Where did money go / come from?)
@@ -718,7 +746,7 @@ const AnalyticsScreen = () => {
             </View>
             <Text style={styles.statLabel}>Net Balance</Text>
             <Text style={[styles.statValue, { color: stats.netSavings >= 0 ? colors.text.primary : '#FF4D67' }]}>
-              {formatCurrency(stats.netSavings, userCurrency)}
+              {stats.netSavings < 0 ? '-' : ''}{formatCurrency(stats.netSavings, userCurrency)}
             </Text>
           </LinearGradient>
 
@@ -766,6 +794,7 @@ const AnalyticsScreen = () => {
               data={trendChartData.points}
               width={gridWidth}
               height={170}
+              maxValue={maxTrendVal}
               color={chartType === 'expense' ? '#FF4D67' : '#00D26A'}
               thickness={3}
               startFillColor={chartType === 'expense' ? '#FF4D67' : '#00D26A'}
