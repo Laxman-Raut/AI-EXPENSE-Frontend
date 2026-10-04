@@ -119,9 +119,9 @@ export const createTransaction = async (data) => {
     });
   }
 
-  // Run local budget alert check if offline or as fallback
+  // Run local budget alert check ONLY when offline (cloud handles it when online via FCM)
   try {
-    if (data.type === 'expense' && user) {
+    if (!isConnected && data.type === 'expense' && user) {
       const monthlyBudget = Number(user.monthlyBudgetINR || user.monthlyBudget || 0);
       if (monthlyBudget > 0) {
         const allTxns = await transactionRepository.getAll(userId);

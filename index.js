@@ -7,7 +7,7 @@ import './src/theme/ThemeManager';
 import { AppRegistry } from 'react-native';
 import '@react-native-firebase/app';
 import messaging from '@react-native-firebase/messaging';
-import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
+import notifee, { AndroidImportance, AndroidVisibility, EventType } from '@notifee/react-native';
 import App from './App';
 import { name as appName } from './app.json';
 
@@ -31,13 +31,21 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
   if (title || body) {
     try {
       // Ensure high-importance notification channel exists
-      await notifee.createChannel({
-        id: 'expense-tracker',
-        name: 'Expenso',
-        importance: AndroidImportance.HIGH,
-        sound: 'default',
-        vibration: true,
-      });
+      const channel = await notifee.getChannel('expense-tracker');
+      if (!channel || channel.importance < AndroidImportance.HIGH || !channel.sound) {
+        if (channel) {
+          await notifee.deleteChannel('expense-tracker');
+        }
+        await notifee.createChannel({
+          id: 'expense-tracker',
+          name: 'Expenso Notifications',
+          importance: AndroidImportance.HIGH,
+          sound: 'default',
+          vibration: true,
+          vibrationPattern: [300, 500],
+          lights: true,
+        });
+      }
 
       // Display notification on status bar / lockscreen
       await notifee.displayNotification({
@@ -47,6 +55,7 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
         android: {
           channelId: 'expense-tracker',
           importance: AndroidImportance.HIGH,
+          visibility: AndroidVisibility.PUBLIC,
           sound: 'default',
           vibrationPattern: [300, 500],
           smallIcon: 'ic_launcher',
@@ -54,6 +63,7 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
             id: 'default',
             launchActivity: 'default',
           },
+          lightUpScreen: true,
         },
         data: remoteMessage?.data || {},
       });

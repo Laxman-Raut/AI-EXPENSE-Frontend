@@ -203,13 +203,21 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
     });
   }, [refetch]);
 
-  // Merge server & local notifications, deduplicating by title + body
+  // Merge server & local notifications, deduplicating by title + body and budget type
   const notifications = React.useMemo(() => {
     const list = [...(serverNotifications || [])];
-    const serverTitles = new Set(list.map((s: any) => `${s.title}_${s.body}`));
+    const serverTitles = new Set(list.map((s: any) => `${(s.title || '').trim()}_${(s.body || '').trim()}`));
+    const hasServerBudgetAlert = list.some((s: any) => s.type === 'budget' || (s.title && s.title.toLowerCase().includes('budget')));
 
     localNotifications.forEach((loc: any) => {
-      const key = `${loc.title}_${loc.body}`;
+      const key = `${(loc.title || '').trim()}_${(loc.body || '').trim()}`;
+      const isLocalBudget = loc.type === 'budget' || (loc.title && loc.title.toLowerCase().includes('budget'));
+
+      // If server already contains budget notifications, do not add duplicate local budget alerts
+      if (isLocalBudget && hasServerBudgetAlert) {
+        return;
+      }
+
       if (!serverTitles.has(key)) {
         list.push({
           _id: loc.id || `local_${Math.random()}`,

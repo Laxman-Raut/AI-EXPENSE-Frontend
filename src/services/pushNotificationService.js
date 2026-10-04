@@ -6,7 +6,7 @@
  */
 
 import messaging from '@react-native-firebase/messaging';
-import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
+import notifee, { AndroidImportance, AndroidVisibility, EventType } from '@notifee/react-native';
 import { Platform, PermissionsAndroid } from 'react-native';
 import apiClient from '../api/client';
 import { navigationRef } from '../navigation/AppNavigator';
@@ -155,6 +155,7 @@ export const displayLocalNotification = async (title, body, data = {}) => {
       android: {
         channelId: CHANNEL_ID,
         importance: AndroidImportance.HIGH,
+        visibility: AndroidVisibility.PUBLIC,
         sound: 'default',
         vibrationPattern: [300, 500],
         smallIcon: 'ic_launcher',
@@ -162,6 +163,7 @@ export const displayLocalNotification = async (title, body, data = {}) => {
           id: 'default',
           launchActivity: 'default',
         },
+        lightUpScreen: true,
       },
       data,
     });
