@@ -11,6 +11,8 @@ import notifee, { AndroidImportance, AndroidVisibility, EventType } from '@notif
 import App from './App';
 import { name as appName } from './app.json';
 
+const NOTIFICATION_CHANNEL_ID = 'expense-tracker-v2';
+
 // ─────────────────────────────────────────────────────────────
 // FCM Background Message Handler
 // This runs when the app is KILLED or in BACKGROUND.
@@ -28,24 +30,20 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
 
   console.log('[FCM Background] Message received:', title);
 
-  if (title || body) {
+  // FCM posts notification payloads itself while the app is backgrounded.
+  // Only data-only messages need a local notification here.
+  if (!remoteMessage?.notification && (title || body)) {
     try {
       // Ensure high-importance notification channel exists
-      const channel = await notifee.getChannel('expense-tracker');
-      if (!channel || channel.importance < AndroidImportance.HIGH || !channel.sound) {
-        if (channel) {
-          await notifee.deleteChannel('expense-tracker');
-        }
-        await notifee.createChannel({
-          id: 'expense-tracker',
-          name: 'Expenso Notifications',
-          importance: AndroidImportance.HIGH,
-          sound: 'default',
-          vibration: true,
-          vibrationPattern: [300, 500],
-          lights: true,
-        });
-      }
+      await notifee.createChannel({
+        id: NOTIFICATION_CHANNEL_ID,
+        name: 'Expenso Notifications',
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+        vibration: true,
+        vibrationPattern: [300, 500],
+        lights: true,
+      });
 
       // Display notification on status bar / lockscreen
       await notifee.displayNotification({
@@ -53,7 +51,7 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
         title,
         body,
         android: {
-          channelId: 'expense-tracker',
+          channelId: NOTIFICATION_CHANNEL_ID,
           importance: AndroidImportance.HIGH,
           visibility: AndroidVisibility.PUBLIC,
           sound: 'default',

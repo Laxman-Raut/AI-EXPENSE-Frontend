@@ -71,7 +71,7 @@
       <!-- Firebase Cloud Messaging Default Notification Channel and Icon -->
       <meta-data
         android:name="com.google.firebase.messaging.default_notification_channel_id"
-        android:value="expense-tracker"
+        android:value="expense-tracker-v2"
         tools:replace="android:value" />
       <meta-data
         android:name="com.google.firebase.messaging.default_notification_icon"

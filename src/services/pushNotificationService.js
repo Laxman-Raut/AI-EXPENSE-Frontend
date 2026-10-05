@@ -12,7 +12,7 @@ import apiClient from '../api/client';
 import { navigationRef } from '../navigation/AppNavigator';
 import { resolveNotificationRoute } from '../utils/notificationRouter';
 
-const CHANNEL_ID = 'expense-tracker';
+const CHANNEL_ID = 'expense-tracker-v2';
 
 /**
  * Request notification permission (Android 13+ requires explicit permission)
@@ -92,24 +92,16 @@ export const clearFcmTokenFromBackend = async () => {
 export const ensureNotificationChannel = async () => {
   if (Platform.OS === 'android') {
     try {
-      const channel = await notifee.getChannel(CHANNEL_ID);
-      // Android locks channel settings once created. If channel is missing or not HIGH importance with sound,
-      // recreate it so the OS enforces heads-up banner popups.
-      if (!channel || channel.importance < AndroidImportance.HIGH || !channel.sound) {
-        if (channel) {
-          await notifee.deleteChannel(CHANNEL_ID);
-        }
-        await notifee.createChannel({
-          id: CHANNEL_ID,
-          name: 'Expenso Notifications',
-          importance: AndroidImportance.HIGH,
-          sound: 'default',
-          vibration: true,
-          vibrationPattern: [300, 500],
-          lights: true,
-        });
-        console.log('[FCM] Created high importance notification channel:', CHANNEL_ID);
-      }
+      await notifee.createChannel({
+        id: CHANNEL_ID,
+        name: 'Expenso Notifications',
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+        vibration: true,
+        vibrationPattern: [300, 500],
+        lights: true,
+      });
+      console.log('[FCM] Ensured high importance notification channel:', CHANNEL_ID);
     } catch (err) {
       console.warn('[FCM] Channel configuration warning:', err?.message);
     }
