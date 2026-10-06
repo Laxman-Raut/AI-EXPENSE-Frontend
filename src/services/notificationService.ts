@@ -18,7 +18,7 @@ class NotificationService {
 
     // Create notification channel
     await notifee.createChannel({
-      id: 'expense-tracker',
+      id: 'expense-tracker-v2',
       name: 'Expenso',
       importance: AndroidImportance.HIGH,
     });
@@ -30,7 +30,7 @@ class NotificationService {
     title,
     body,
     android: {
-      channelId: 'expense-tracker',
+      channelId: 'expense-tracker-v2',
       pressAction: {
         id: 'default',
       },

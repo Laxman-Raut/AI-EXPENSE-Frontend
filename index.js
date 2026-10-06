@@ -7,49 +7,67 @@ import './src/theme/ThemeManager';
 import { AppRegistry } from 'react-native';
 import '@react-native-firebase/app';
 import messaging from '@react-native-firebase/messaging';
-import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
+import notifee, { AndroidImportance, AndroidVisibility, EventType } from '@notifee/react-native';
 import App from './App';
 import { name as appName } from './app.json';
+
+const NOTIFICATION_CHANNEL_ID = 'expense-tracker-v2';
 
 // ─────────────────────────────────────────────────────────────
 // FCM Background Message Handler
 // This runs when the app is KILLED or in BACKGROUND.
-// When an FCM message contains a 'notification' payload, Android
-// automatically displays it in the notification tray.
-// We only display via Notifee if it's a data-only payload (no duplicate!).
+// Displays the push notification on the status bar and lockscreen via Notifee.
 // ─────────────────────────────────────────────────────────────
 messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-  console.log('[FCM Background] Message received:', remoteMessage?.notification?.title || remoteMessage?.data?.title);
+  const title =
+    remoteMessage?.notification?.title ||
+    remoteMessage?.data?.title ||
+    'ExpenseAI';
+  const body =
+    remoteMessage?.notification?.body ||
+    remoteMessage?.data?.body ||
+    '';
 
-  // If FCM already included a notification payload, Android OS displays it natively.
-  // We avoid calling Notifee here to prevent showing 2 duplicate banners for the same message!
-  if (!remoteMessage?.notification && (remoteMessage?.data?.title || remoteMessage?.data?.body)) {
-    const title = remoteMessage?.data?.title || 'Notification';
-    const body = remoteMessage?.data?.body || '';
+  console.log('[FCM Background] Message received:', title);
 
-    // Ensure channel exists
-    await notifee.createChannel({
-      id: 'expense-tracker',
-      name: 'Expenso',
-      importance: AndroidImportance.HIGH,
-      sound: 'default',
-      vibration: true,
-    });
-
-    // Display notification on lockscreen
-    await notifee.displayNotification({
-      title,
-      body,
-      android: {
-        channelId: 'expense-tracker',
+  // FCM posts notification payloads itself while the app is backgrounded.
+  // Only data-only messages need a local notification here.
+  if (!remoteMessage?.notification && (title || body)) {
+    try {
+      // Ensure high-importance notification channel exists
+      await notifee.createChannel({
+        id: NOTIFICATION_CHANNEL_ID,
+        name: 'Expenso Notifications',
         importance: AndroidImportance.HIGH,
-        pressAction: {
-          id: 'default',
-          launchActivity: 'default',
+        sound: 'default',
+        vibration: true,
+        vibrationPattern: [300, 500],
+        lights: true,
+      });
+
+      // Display notification on status bar / lockscreen
+      await notifee.displayNotification({
+        id: remoteMessage?.messageId || Date.now().toString(),
+        title,
+        body,
+        android: {
+          channelId: NOTIFICATION_CHANNEL_ID,
+          importance: AndroidImportance.HIGH,
+          visibility: AndroidVisibility.PUBLIC,
+          sound: 'default',
+          vibrationPattern: [300, 500],
+          smallIcon: 'ic_launcher',
+          pressAction: {
+            id: 'default',
+            launchActivity: 'default',
+          },
+          lightUpScreen: true,
         },
-      },
-      data: remoteMessage?.data || {},
-    });
+        data: remoteMessage?.data || {},
+      });
+    } catch (dispErr) {
+      console.warn('[FCM Background] Display error:', dispErr?.message);
+    }
   }
 });
 

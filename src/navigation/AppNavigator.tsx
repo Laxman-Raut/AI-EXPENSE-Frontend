@@ -59,6 +59,7 @@ const AppNavigator: React.FC = () => {
     // Setup listener to refresh when app returns to foreground
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
+        initializePushNotifications();
         const now = Date.now();
         // Sirf 5 minute baad dobara fetch karo — har foreground pe nahi
         if (now - lastSubFetchRef.current >= THROTTLE_MS) {

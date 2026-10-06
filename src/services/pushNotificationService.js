@@ -6,13 +6,13 @@
  */
 
 import messaging from '@react-native-firebase/messaging';
-import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
+import notifee, { AndroidImportance, AndroidVisibility, EventType } from '@notifee/react-native';
 import { Platform, PermissionsAndroid } from 'react-native';
 import apiClient from '../api/client';
 import { navigationRef } from '../navigation/AppNavigator';
 import { resolveNotificationRoute } from '../utils/notificationRouter';
 
-const CHANNEL_ID = 'expense-tracker';
+const CHANNEL_ID = 'expense-tracker-v2';
 
 /**
  * Request notification permission (Android 13+ requires explicit permission)
@@ -30,7 +30,11 @@ export const requestNotificationPermission = async () => {
       }
     }
 
-    // Request Firebase messaging permission
+    // Request Notifee & Firebase messaging permissions
+    try {
+      await notifee.requestPermission();
+    } catch {}
+
     const authStatus = await messaging().requestPermission();
     const enabled =
       authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
@@ -87,13 +91,20 @@ export const clearFcmTokenFromBackend = async () => {
  */
 export const ensureNotificationChannel = async () => {
   if (Platform.OS === 'android') {
-    await notifee.createChannel({
-      id: CHANNEL_ID,
-      name: 'Expenso',
-      importance: AndroidImportance.HIGH,
-      sound: 'default',
-      vibration: true,
-    });
+    try {
+      await notifee.createChannel({
+        id: CHANNEL_ID,
+        name: 'Expenso Notifications',
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+        vibration: true,
+        vibrationPattern: [300, 500],
+        lights: true,
+      });
+      console.log('[FCM] Ensured high importance notification channel:', CHANNEL_ID);
+    } catch (err) {
+      console.warn('[FCM] Channel configuration warning:', err?.message);
+    }
   }
 };
 
@@ -124,7 +135,7 @@ const navigateToNotificationTarget = (payload = {}, attempts = 0) => {
 };
 
 /**
- * Display a local notification using Notifee
+ * Display a local notification using Notifee with heads-up popup banner
  */
 export const displayLocalNotification = async (title, body, data = {}) => {
   try {
@@ -135,11 +146,16 @@ export const displayLocalNotification = async (title, body, data = {}) => {
       body,
       android: {
         channelId: CHANNEL_ID,
+        importance: AndroidImportance.HIGH,
+        visibility: AndroidVisibility.PUBLIC,
+        sound: 'default',
+        vibrationPattern: [300, 500],
+        smallIcon: 'ic_launcher',
         pressAction: {
           id: 'default',
           launchActivity: 'default',
         },
-        importance: AndroidImportance.HIGH,
+        lightUpScreen: true,
       },
       data,
     });
