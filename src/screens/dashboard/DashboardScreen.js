@@ -50,9 +50,17 @@ const DashboardScreen = ({ navigation }) => {
 
   const subscription = useSelector((state) => state.subscription);
   const isPro = subscriptionService.isSubscriptionPro(subscription);
+  // hasFetched ensures we only check promo AFTER the subscription status is confirmed
+  // This prevents the modal from showing to paid users during the initial loading state
+  const hasFetched = subscription?.hasFetched ?? false;
   const [showPromoModal, setShowPromoModal] = useState(false);
 
   useEffect(() => {
+    // Don't run promo check until subscription status is confirmed from the server
+    // Without this guard, isPro would be false initially (default state) and the
+    // promo modal would incorrectly show to paid users before the API responds.
+    if (!hasFetched) return;
+
     let timer;
     const checkPromo = async () => {
       const shouldShow = await checkAndIncrementDailyPromo(isPro);
@@ -66,7 +74,7 @@ const DashboardScreen = ({ navigation }) => {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [isPro]);
+  }, [isPro, hasFetched]);
 
   const { banks, loading: banksLoading, refetch: refetchBanks } = useBanks();
   const { data: savingsData, refetch: refetchSavings } = useSavingsJars(null, activeCurrency);

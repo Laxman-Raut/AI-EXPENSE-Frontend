@@ -1,16 +1,16 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import mobileAds, { AdEventType, InterstitialAd, TestIds } from 'react-native-google-mobile-ads';
-
 // ─── Real Ad Unit IDs ────────────────────────────────────────────────────────
-const REAL_AD_UNIT_GROUP_CREATION = 'ca-app-pub-5049310918821127/1685219311';
-const REAL_AD_UNIT_ANALYTICS     = 'ca-app-pub-5049310918821127/4298016774';
+import mobileAds, { AdEventType, InterstitialAd } from 'react-native-google-mobile-ads';
 
-// In development (__DEV__), use official Google test ad unit IDs so ads ALWAYS load reliably
-// without being blocked by AdMob invalid traffic or lack of ad inventory.
-// In release builds, use real live AdMob unit IDs.
-export const AD_UNIT_GROUP_CREATION = __DEV__ ? TestIds.INTERSTITIAL : REAL_AD_UNIT_GROUP_CREATION;
-export const AD_UNIT_ANALYTICS     = __DEV__ ? TestIds.INTERSTITIAL : REAL_AD_UNIT_ANALYTICS;
+const REAL_AD_UNIT_GROUP_CREATION =
+  'ca-app-pub-5049310918821127/1685219311';
+
+const REAL_AD_UNIT_ANALYTICS =
+  'ca-app-pub-5049310918821127/4298016774';
+
+export const AD_UNIT_GROUP_CREATION = REAL_AD_UNIT_GROUP_CREATION;
+export const AD_UNIT_ANALYTICS = REAL_AD_UNIT_ANALYTICS;
 
 // ─── Analytics Ad Frequency Limits ──────────────────────────────────────────
 export const ANALYTICS_MAX_DAILY_ADS = 10;
