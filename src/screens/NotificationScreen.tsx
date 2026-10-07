@@ -28,6 +28,7 @@ import {
   deleteNotification as deleteLocalNotification,
   clearNotifications as clearLocalNotifications,
 } from '../services/notificationStorage';
+import { navigateUniversal } from '../navigation/navigationService';
 
 const formatTime = (dateStr: string) => {
   if (!dateStr) return '';
@@ -293,14 +294,8 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
 
     console.log(`[Notification] Navigating to: ${target.screen}`, target.params || '');
 
-    try {
-      if (target.params) {
-        navigation.navigate(target.screen, target.params);
-      } else {
-        navigation.navigate(target.screen);
-      }
-    } catch (navErr: any) {
-      console.error('[Notification] Navigation error:', navErr?.message);
+    const success = navigateUniversal(target.screen, target.params, navigation);
+    if (!success) {
       // Fallback: if navigation fails, open detail modal
       setSelectedNotification(item);
     }

@@ -10,6 +10,7 @@ import notifee, { AndroidImportance, AndroidVisibility, EventType } from '@notif
 import { Platform, PermissionsAndroid } from 'react-native';
 import apiClient from '../api/client';
 import { navigationRef } from '../navigation/AppNavigator';
+import { navigateUniversal } from '../navigation/navigationService';
 import { resolveNotificationRoute } from '../utils/notificationRouter';
 
 const CHANNEL_ID = 'expense-tracker-v2';
@@ -116,17 +117,14 @@ const navigateToNotificationTarget = (payload = {}, attempts = 0) => {
     console.log('[FCM] Navigation container ready — navigating with payload:', JSON.stringify(payload));
     try {
       const target = resolveNotificationRoute(payload);
-      if (target?.params) {
-        navigationRef.navigate(target.screen, target.params);
-      } else if (target?.screen) {
-        navigationRef.navigate(target.screen);
-      } else {
-        navigationRef.navigate('Notifications');
+      const success = navigateUniversal(target.screen, target.params);
+      if (!success) {
+        navigateUniversal('Notifications');
       }
     } catch (navErr) {
       console.error('[FCM] Navigation error:', navErr?.message);
       try {
-        navigationRef.navigate('Notifications');
+        navigateUniversal('Notifications');
       } catch {}
     }
   } else if (attempts < 30) {
