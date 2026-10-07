@@ -60,19 +60,16 @@ const GroupsListScreen = ({ navigation }) => {
   // ─── Real-Time Focus Sync ───────────────────────────────
   useFocusEffect(
     useCallback(() => {
-      refetch(true);
+      refetch();
 
-      let interval;
-      if (searchQuery.length === 0) {
-        interval = setInterval(() => {
-          refetch(true);
-        }, 4000);
-      }
+      const interval = setInterval(() => {
+        refetch();
+      }, 15000);
 
       return () => {
-        if (interval) clearInterval(interval);
+        clearInterval(interval);
       };
-    }, [refetch, searchQuery])
+    }, [refetch])
   );
 
   const filteredGroups = useMemo(() => {

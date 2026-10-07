@@ -165,6 +165,8 @@ export const displayLocalNotification = async (title, body, data = {}) => {
 };
 
 let foregroundUnsubscribe = null;
+let clickListenersInitialized = false;
+let tokenRefreshUnsubscribe = null;
 
 /**
  * Setup foreground message handler
@@ -194,6 +196,9 @@ export const setupForegroundHandler = () => {
  * Opens app and navigates to Notifications screen when notification is tapped
  */
 export const setupNotificationClickListener = () => {
+  if (clickListenersInitialized) return;
+  clickListenersInitialized = true;
+
   // 1. Notifee foreground/background notification tap handler
   notifee.onForegroundEvent(({ type, detail }) => {
     if (type === EventType.PRESS) {
@@ -229,10 +234,15 @@ export const setupNotificationClickListener = () => {
  * FCM token can change — re-register with backend when it does
  */
 export const setupTokenRefreshHandler = () => {
-  return messaging().onTokenRefresh(async (newToken) => {
+  if (tokenRefreshUnsubscribe) {
+    tokenRefreshUnsubscribe();
+    tokenRefreshUnsubscribe = null;
+  }
+  tokenRefreshUnsubscribe = messaging().onTokenRefresh(async (newToken) => {
     console.log('[FCM] Token refreshed:', newToken?.substring(0, 30) + '...');
     await registerFcmTokenWithBackend(newToken);
   });
+  return tokenRefreshUnsubscribe;
 };
 
 /**

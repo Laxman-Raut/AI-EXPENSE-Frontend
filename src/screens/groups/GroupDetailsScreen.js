@@ -177,13 +177,13 @@ const GroupDetailsScreen = ({ route, navigation }) => {
   // ─── Real-Time Focus Sync ───
   useFocusEffect(
     useCallback(() => {
-      refetchGroup(true);
-      refetchSplits(true);
+      refetchGroup();
+      refetchSplits();
 
       const interval = setInterval(() => {
-        refetchGroup(true);
-        refetchSplits(true);
-      }, 3500);
+        refetchGroup();
+        refetchSplits();
+      }, 15000);
 
       return () => clearInterval(interval);
     }, [refetchGroup, refetchSplits])

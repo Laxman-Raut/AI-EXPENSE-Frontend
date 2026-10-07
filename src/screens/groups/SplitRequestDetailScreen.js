@@ -73,14 +73,14 @@ const SplitRequestDetailScreen = ({ route, navigation }) => {
   const { group } = useGroupDetails(splitRequest?.group);
   const { showAlert } = useAlert();
 
-  // ─── Real-Time Focus Sync & Auto-Polling (3s) ────────────────────────────────
+  // ─── Real-Time Focus Sync & Auto-Polling (15s) ────────────────────────────────
   useFocusEffect(
     useCallback(() => {
-      refetch(true);
+      refetch();
 
       const interval = setInterval(() => {
-        refetch(true);
-      }, 3000);
+        refetch();
+      }, 15000);
 
       return () => clearInterval(interval);
     }, [refetch])

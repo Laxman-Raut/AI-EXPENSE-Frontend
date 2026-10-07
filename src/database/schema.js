@@ -133,9 +133,6 @@ export const createTables = () => {
 
 
     console.log("✅ SQLite Tables Created Successfully");
-
-    runMigration();
-
   } catch (error) {
 
     console.log("❌ SQLite Error");

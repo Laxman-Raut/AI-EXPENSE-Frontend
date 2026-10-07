@@ -343,11 +343,15 @@ export const bulkInsertFromCloud = (cloudItems = [], userId = null) => {
         db.execute(query, params);
       }
       // Sab writes ek saath commit
-      db.execute('COMMIT;');
+      try {
+        db.execute('COMMIT;');
+      } catch (_) {}
     } catch (innerError) {
-      // Koi bhi error aaye toh rollback karo — data corrupt nahi hoga
-      db.execute('ROLLBACK;');
-      throw innerError;
+      // Koi bhi error aaye toh rollback karo
+      try {
+        db.execute('ROLLBACK;');
+      } catch (_) {}
+      console.warn('Batch insert failed, rolled back:', innerError?.message);
     }
   } catch (error) {
     console.error('Error bulk inserting cloud transactions to SQLite:', error);

@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // ─── Real Ad Unit IDs ────────────────────────────────────────────────────────
-import mobileAds, { AdEventType, InterstitialAd } from 'react-native-google-mobile-ads';
+import mobileAds, { AdEventType, InterstitialAd, TestIds } from 'react-native-google-mobile-ads';
 
 const REAL_AD_UNIT_GROUP_CREATION =
   'ca-app-pub-5049310918821127/1685219311';
@@ -9,14 +9,14 @@ const REAL_AD_UNIT_GROUP_CREATION =
 const REAL_AD_UNIT_ANALYTICS =
   'ca-app-pub-5049310918821127/4298016774';
 
-export const AD_UNIT_GROUP_CREATION = REAL_AD_UNIT_GROUP_CREATION;
-export const AD_UNIT_ANALYTICS = REAL_AD_UNIT_ANALYTICS;
+export const AD_UNIT_GROUP_CREATION = __DEV__ ? TestIds.INTERSTITIAL : REAL_AD_UNIT_GROUP_CREATION;
+export const AD_UNIT_ANALYTICS = __DEV__ ? TestIds.INTERSTITIAL : REAL_AD_UNIT_ANALYTICS;
 
 // ─── Analytics Ad Frequency Limits ──────────────────────────────────────────
 export const ANALYTICS_MAX_DAILY_ADS = 10;
 export const ANALYTICS_AD_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes between ads
 
-const AD_LOAD_TIMEOUT_MS = 15000; // 15 seconds allows sufficient time for AdMob auction & download
+const AD_LOAD_TIMEOUT_MS = 6000; // 6s timeout max to prevent freezing the app
 const ANALYTICS_AD_STATE_KEY = '@aet/analytics_interstitial_state';
 
 const getLocalDayKey = () => {
@@ -272,11 +272,13 @@ export const showAnalyticsAd = async (placement = 'analytics') => {
 
     // Case 2: Not preloaded or still loading -> wait or initiate load with timeout
     console.log(`[Ads] ${placement}: ad not yet preloaded, loading now...`);
+    let needsLoad = false;
     if (!analyticsInterstitial || (!isAnalyticsAdLoading && !isAnalyticsAdLoaded)) {
       analyticsInterstitial = InterstitialAd.createForAdRequest(AD_UNIT_ANALYTICS, {
         requestNonPersonalizedAdsOnly: true,
       });
       isAnalyticsAdLoading = true;
+      needsLoad = true;
     }
 
     const currentAd = analyticsInterstitial;
@@ -298,8 +300,7 @@ export const showAnalyticsAd = async (placement = 'analytics') => {
       finish(false, `${placement}: interstitial load timed out (${AD_LOAD_TIMEOUT_MS}ms); continuing without ad.`);
     }, AD_LOAD_TIMEOUT_MS);
 
-    if (!isAnalyticsAdLoading) {
-      isAnalyticsAdLoading = true;
+    if (needsLoad) {
       try {
         currentAd.load();
       } catch (err) {

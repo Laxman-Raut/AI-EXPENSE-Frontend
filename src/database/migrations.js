@@ -33,20 +33,28 @@ export const getTableColumns = (tableName) => {
   }
 };
 
-export const ensureColumn = (tableName, columnName, definition) => {
+export const ensureTableColumns = (tableName, columns) => {
   try {
-    const columns = getTableColumns(tableName);
-    if (columns.includes(columnName)) return;
-
-    db.execute(`ALTER TABLE ${tableName} ADD COLUMN ${definition};`);
-    console.log(`[SQLite Migration] Added missing column "${columnName}" to "${tableName}".`);
-  } catch (error) {
-    if (error?.message && error.message.includes('duplicate column name')) {
-      // Column already exists, safe to ignore
-      return;
+    const existing = new Set(getTableColumns(tableName));
+    for (const [columnName, definition] of columns) {
+      if (!existing.has(columnName)) {
+        try {
+          db.execute(`ALTER TABLE ${tableName} ADD COLUMN ${definition};`);
+          console.log(`[SQLite Migration] Added missing column "${columnName}" to "${tableName}".`);
+        } catch (colErr) {
+          if (!colErr?.message?.includes('duplicate column name')) {
+            console.warn(`[SQLite Migration] Could not add column "${columnName}" to "${tableName}":`, colErr?.message);
+          }
+        }
+      }
     }
-    console.warn(`[SQLite Migration] Could not add column "${columnName}" to "${tableName}":`, error?.message);
+  } catch (error) {
+    console.warn(`[SQLite Migration] Failed to migrate ${tableName}:`, error?.message);
   }
+};
+
+export const ensureColumn = (tableName, columnName, definition) => {
+  ensureTableColumns(tableName, [[columnName, definition]]);
 };
 
 export const runMigration = () => {
@@ -54,40 +62,44 @@ export const runMigration = () => {
     console.log("🚀 Checking & Running SQLite Database Migrations...");
 
     // ─── TRANSACTIONS COLUMNS ──────────────────────────────────────────────
-    ensureColumn('transactions', 'currency', "currency TEXT DEFAULT 'INR'");
-    ensureColumn('transactions', 'originalAmount', 'originalAmount REAL');
-    ensureColumn('transactions', 'originalCurrency', "originalCurrency TEXT DEFAULT 'INR'");
-    ensureColumn('transactions', 'amountINR', 'amountINR REAL');
-    ensureColumn('transactions', 'amountUSD', 'amountUSD REAL');
-    ensureColumn('transactions', 'exchangeRate', 'exchangeRate REAL');
-    ensureColumn('transactions', 'exchangeRateTimestamp', 'exchangeRateTimestamp TEXT');
-    ensureColumn('transactions', 'paymentMethod', 'paymentMethod TEXT');
-    ensureColumn('transactions', 'transactionDate', 'transactionDate TEXT');
-    ensureColumn('transactions', 'bankAccount', 'bankAccount TEXT');
-    ensureColumn('transactions', 'note', 'note TEXT');
-    ensureColumn('transactions', 'isSynced', 'isSynced INTEGER DEFAULT 0');
-    ensureColumn('transactions', 'deleted', 'deleted INTEGER DEFAULT 0');
-    ensureColumn('transactions', 'createdAt', 'createdAt TEXT');
-    ensureColumn('transactions', 'updatedAt', 'updatedAt TEXT');
+    ensureTableColumns('transactions', [
+      ['currency', "currency TEXT DEFAULT 'INR'"],
+      ['originalAmount', 'originalAmount REAL'],
+      ['originalCurrency', "originalCurrency TEXT DEFAULT 'INR'"],
+      ['amountINR', 'amountINR REAL'],
+      ['amountUSD', 'amountUSD REAL'],
+      ['exchangeRate', 'exchangeRate REAL'],
+      ['exchangeRateTimestamp', 'exchangeRateTimestamp TEXT'],
+      ['paymentMethod', 'paymentMethod TEXT'],
+      ['transactionDate', 'transactionDate TEXT'],
+      ['bankAccount', 'bankAccount TEXT'],
+      ['note', 'note TEXT'],
+      ['isSynced', 'isSynced INTEGER DEFAULT 0'],
+      ['deleted', 'deleted INTEGER DEFAULT 0'],
+      ['createdAt', 'createdAt TEXT'],
+      ['updatedAt', 'updatedAt TEXT'],
+    ]);
 
     // ─── USERS COLUMNS ─────────────────────────────────────────────────────
-    ensureColumn('users', 'currency', "currency TEXT DEFAULT 'INR'");
-    ensureColumn('users', 'monthlyBudget', 'monthlyBudget REAL DEFAULT 0');
-    ensureColumn('users', 'lastVisitedAt', 'lastVisitedAt TEXT');
-    ensureColumn('users', 'subscriptionPlan', "subscriptionPlan TEXT DEFAULT 'free'");
-    ensureColumn('users', 'subscriptionStatus', "subscriptionStatus TEXT DEFAULT 'inactive'");
-    ensureColumn('users', 'subscriptionProvider', "subscriptionProvider TEXT DEFAULT 'none'");
-    ensureColumn('users', 'subscriptionStartDate', 'subscriptionStartDate TEXT');
-    ensureColumn('users', 'subscriptionEndDate', 'subscriptionEndDate TEXT');
-    ensureColumn('users', 'autoRenew', 'autoRenew INTEGER DEFAULT 0');
-    ensureColumn('users', 'chatbotUsed', 'chatbotUsed INTEGER DEFAULT 0');
-    ensureColumn('users', 'chatbotLimit', 'chatbotLimit INTEGER DEFAULT 0');
-    ensureColumn('users', 'receiptUsed', 'receiptUsed INTEGER DEFAULT 0');
-    ensureColumn('users', 'receiptLimit', 'receiptLimit INTEGER DEFAULT 0');
-    ensureColumn('users', 'voiceUsed', 'voiceUsed INTEGER DEFAULT 0');
-    ensureColumn('users', 'voiceLimit', 'voiceLimit INTEGER DEFAULT 0');
-    ensureColumn('users', 'resetOtp', 'resetOtp TEXT');
-    ensureColumn('users', 'resetOtpExpiry', 'resetOtpExpiry TEXT');
+    ensureTableColumns('users', [
+      ['currency', "currency TEXT DEFAULT 'INR'"],
+      ['monthlyBudget', 'monthlyBudget REAL DEFAULT 0'],
+      ['lastVisitedAt', 'lastVisitedAt TEXT'],
+      ['subscriptionPlan', "subscriptionPlan TEXT DEFAULT 'free'"],
+      ['subscriptionStatus', "subscriptionStatus TEXT DEFAULT 'inactive'"],
+      ['subscriptionProvider', "subscriptionProvider TEXT DEFAULT 'none'"],
+      ['subscriptionStartDate', 'subscriptionStartDate TEXT'],
+      ['subscriptionEndDate', 'subscriptionEndDate TEXT'],
+      ['autoRenew', 'autoRenew INTEGER DEFAULT 0'],
+      ['chatbotUsed', 'chatbotUsed INTEGER DEFAULT 0'],
+      ['chatbotLimit', 'chatbotLimit INTEGER DEFAULT 0'],
+      ['receiptUsed', 'receiptUsed INTEGER DEFAULT 0'],
+      ['receiptLimit', 'receiptLimit INTEGER DEFAULT 0'],
+      ['voiceUsed', 'voiceUsed INTEGER DEFAULT 0'],
+      ['voiceLimit', 'voiceLimit INTEGER DEFAULT 0'],
+      ['resetOtp', 'resetOtp TEXT'],
+      ['resetOtpExpiry', 'resetOtpExpiry TEXT'],
+    ]);
 
     console.log("✅ SQLite Migrations Completed Successfully");
   } catch (error) {
