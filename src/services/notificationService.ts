@@ -1,51 +1,28 @@
-import notifee, {
-  AndroidImportance,
-  AuthorizationStatus,
-} from '@notifee/react-native';
-import { saveNotification } from './notificationStorage';
+import { hasNotification, saveNotification } from './notificationStorage';
+import {
+  displayLocalNotification,
+  ensureNotificationChannel,
+  requestNotificationPermission,
+} from './pushNotificationService';
 class NotificationService {
   async initialize() {
-    // Request permission
-    const settings = await notifee.requestPermission();
-
-    if (
-      settings.authorizationStatus >= AuthorizationStatus.AUTHORIZED
-    ) {
-      console.log('Notification permission granted');
-    } else {
-      console.log('Notification permission denied');
-    }
-
-    // Create notification channel
-    await notifee.createChannel({
-      id: 'expense-tracker-v2',
-      name: 'Expenso',
-      importance: AndroidImportance.HIGH,
-    });
+    const granted = await requestNotificationPermission();
+    if (granted) await ensureNotificationChannel();
   }
 
- async show(title: string, body: string) {
-  // Display notification
-  await notifee.displayNotification({
-    title,
-    body,
-    android: {
-      channelId: 'expense-tracker-v2',
-      pressAction: {
-        id: 'default',
-      },
-    },
-  });
+  async show(title: string, body: string, id = Date.now().toString()) {
+    if (await hasNotification(id)) return;
 
-  // Save notification locally
-  await saveNotification({
-    id: Date.now().toString(),
-    title,
-    body,
-    time: new Date().toLocaleString(),
-    read: false,
-  });
-}
+    await displayLocalNotification(title, body);
+
+    await saveNotification({
+      id,
+      title,
+      body,
+      time: new Date().toLocaleString(),
+      read: false,
+    });
+  }
   async checkBudgetAlert(
     monthlyBudget: number,
     totalSpent: number,
@@ -53,18 +30,30 @@ class NotificationService {
     if (monthlyBudget <= 0) return;
 
     const percentage = (totalSpent / monthlyBudget) * 100;
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     if (percentage >= 80 && percentage < 100) {
       await this.show(
         '⚠️ Budget Alert',
-        `You've used ${percentage.toFixed(0)}% of your monthly budget.`,
+        `You've spent 80% of your monthly budget.`,
+        `budget-${monthKey}-80`,
       );
     }
 
     if (percentage >= 100) {
       await this.show(
+        'Monthly Budget Reached',
+        'You have reached 100% of your monthly budget.',
+        `budget-${monthKey}-100`,
+      );
+    }
+
+    if (percentage > 100) {
+      await this.show(
         '🚨 Budget Exceeded',
         'You have exceeded your monthly budget.',
+        `budget-${monthKey}-exceeded`,
       );
     }
   }

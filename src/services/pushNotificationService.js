@@ -13,7 +13,8 @@ import { navigationRef } from '../navigation/AppNavigator';
 import { navigateUniversal } from '../navigation/navigationService';
 import { resolveNotificationRoute } from '../utils/notificationRouter';
 
-const CHANNEL_ID = 'expense-tracker-v2';
+const ADMIN_CHANNEL_ID = 'expense-tracker-v2';
+const APP_ALERT_CHANNEL_ID = ADMIN_CHANNEL_ID;
 
 /**
  * Request notification permission (Android 13+ requires explicit permission)
@@ -94,7 +95,7 @@ export const ensureNotificationChannel = async () => {
   if (Platform.OS === 'android') {
     try {
       await notifee.createChannel({
-        id: CHANNEL_ID,
+        id: ADMIN_CHANNEL_ID,
         name: 'Expenso Notifications',
         importance: AndroidImportance.HIGH,
         sound: 'default',
@@ -102,7 +103,7 @@ export const ensureNotificationChannel = async () => {
         vibrationPattern: [300, 500],
         lights: true,
       });
-      console.log('[FCM] Ensured high importance notification channel:', CHANNEL_ID);
+      console.log('[FCM] Ensured high-importance notification channels.');
     } catch (err) {
       console.warn('[FCM] Channel configuration warning:', err?.message);
     }
@@ -143,7 +144,7 @@ export const displayLocalNotification = async (title, body, data = {}) => {
       title,
       body,
       android: {
-        channelId: CHANNEL_ID,
+        channelId: APP_ALERT_CHANNEL_ID,
         importance: AndroidImportance.HIGH,
         visibility: AndroidVisibility.PUBLIC,
         sound: 'default',

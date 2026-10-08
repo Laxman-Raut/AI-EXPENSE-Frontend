@@ -93,3 +93,14 @@ export const clearNotifications = async () => {
     console.log(error);
   }
 };
+
+export const hasNotification = async (id: string) => {
+  try {
+    const existing = await AsyncStorage.getItem(STORAGE_KEY);
+    const notifications: AppNotification[] = existing ? JSON.parse(existing) : [];
+    return notifications.some(notification => notification.id === id);
+  } catch (error) {
+    console.log(error);
+    return false;
+  }
+};
