@@ -52,36 +52,36 @@ const buildSnapshot = (data = {}) => {
  * Adds a transaction to SQLite database
  */
 export const addTransaction = (data) => {
+  const now = new Date().toISOString();
+  const snapshot = buildSnapshot(data);
+  const query = `
+    INSERT INTO transactions (
+      cloudId, userId, type, category, description, amount, currency, originalAmount, originalCurrency, amountINR, amountUSD, exchangeRate, exchangeRateTimestamp, paymentMethod, transactionDate, bankAccount, note, isSynced, deleted, createdAt, updatedAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?);
+  `;
+  const params = [
+    data.cloudId || null,
+    data.userId || null,
+    data.type,
+    data.category,
+    data.description || '',
+    snapshot.originalAmount,
+    snapshot.currency,
+    snapshot.originalAmount,
+    snapshot.originalCurrency,
+    snapshot.amountINR,
+    snapshot.amountUSD,
+    snapshot.exchangeRate,
+    snapshot.exchangeRateTimestamp,
+    data.paymentMethod || 'UPI',
+    data.transactionDate || now,
+    data.bankAccount || null,
+    data.note || '',
+    data.isSynced ? 1 : 0,
+    now,
+    now,
+  ];
   try {
-    const now = new Date().toISOString();
-    const snapshot = buildSnapshot(data);
-    const query = `
-      INSERT INTO transactions (
-        cloudId, userId, type, category, description, amount, currency, originalAmount, originalCurrency, amountINR, amountUSD, exchangeRate, exchangeRateTimestamp, paymentMethod, transactionDate, bankAccount, note, isSynced, deleted, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?);
-    `;
-    const params = [
-      data.cloudId || null,
-      data.userId || null,
-      data.type,
-      data.category,
-      data.description || '',
-      snapshot.originalAmount,
-      snapshot.currency,
-      snapshot.originalAmount,
-      snapshot.originalCurrency,
-      snapshot.amountINR,
-      snapshot.amountUSD,
-      snapshot.exchangeRate,
-      snapshot.exchangeRateTimestamp,
-      data.paymentMethod || 'UPI',
-      data.transactionDate || now,
-      data.bankAccount || null,
-      data.note || '',
-      data.isSynced ? 1 : 0,
-      now,
-      now,
-    ];
     const result = db.execute(query, params);
     return {
       id: result.insertId,
@@ -199,50 +199,50 @@ export const getUnsyncedTransactions = (userId = null) => {
  * Updates a transaction in SQLite
  */
 export const updateTransaction = (data) => {
+  const now = new Date().toISOString();
+  const snapshot = buildSnapshot(data);
+  const query = `
+    UPDATE transactions SET
+      type = ?,
+      category = ?,
+      description = ?,
+      amount = ?,
+      currency = ?,
+      originalAmount = ?,
+      originalCurrency = ?,
+      amountINR = ?,
+      amountUSD = ?,
+      exchangeRate = ?,
+      exchangeRateTimestamp = ?,
+      paymentMethod = ?,
+      transactionDate = ?,
+      bankAccount = ?,
+      note = ?,
+      isSynced = ?,
+      updatedAt = ?
+    WHERE id = ?;
+  `;
+  const params = [
+    data.type,
+    data.category,
+    data.description || '',
+    snapshot.originalAmount,
+    snapshot.currency,
+    snapshot.originalAmount,
+    snapshot.originalCurrency,
+    snapshot.amountINR,
+    snapshot.amountUSD,
+    snapshot.exchangeRate,
+    snapshot.exchangeRateTimestamp,
+    data.paymentMethod || 'UPI',
+    data.transactionDate || now,
+    data.bankAccount || null,
+    data.note || '',
+    data.isSynced ? 1 : 0,
+    now,
+    data.id,
+  ];
   try {
-    const now = new Date().toISOString();
-    const snapshot = buildSnapshot(data);
-    const query = `
-      UPDATE transactions SET
-        type = ?,
-        category = ?,
-        description = ?,
-        amount = ?,
-        currency = ?,
-        originalAmount = ?,
-        originalCurrency = ?,
-        amountINR = ?,
-        amountUSD = ?,
-        exchangeRate = ?,
-        exchangeRateTimestamp = ?,
-        paymentMethod = ?,
-        transactionDate = ?,
-        bankAccount = ?,
-        note = ?,
-        isSynced = ?,
-        updatedAt = ?
-      WHERE id = ?;
-    `;
-    const params = [
-      data.type,
-      data.category,
-      data.description || '',
-      snapshot.originalAmount,
-      snapshot.currency,
-      snapshot.originalAmount,
-      snapshot.originalCurrency,
-      snapshot.amountINR,
-      snapshot.amountUSD,
-      snapshot.exchangeRate,
-      snapshot.exchangeRateTimestamp,
-      data.paymentMethod || 'UPI',
-      data.transactionDate || now,
-      data.bankAccount || null,
-      data.note || '',
-      data.isSynced ? 1 : 0,
-      now,
-      data.id,
-    ];
     db.execute(query, params);
     return { ...data };
   } catch (error) {

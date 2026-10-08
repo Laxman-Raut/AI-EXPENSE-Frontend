@@ -1,6 +1,7 @@
 import transactionRepository from '../repositories/transactionRepository';
 import { syncBulkTransactions } from '../api/transactions';
 import { checkIsConnected } from '../utils/netInfoHelper';
+import subscriptionService from './subscriptionService';
 
 const getCurrentUser = () => {
   try {
@@ -14,12 +15,40 @@ const getCurrentUser = () => {
   }
 };
 
+const getCurrentSubscription = () => {
+  try {
+    const storeModule = require('../store');
+    const store = storeModule.default || storeModule.store;
+    return store?.getState?.()?.subscription || null;
+  } catch (err) {
+    return null;
+  }
+};
+
 class SyncService {
+  activeSync = null;
+
   /**
    * Syncs all unsynced local SQLite transactions to MongoDB Cloud for current user
    */
-  async syncOfflineDataToCloud() {
+  async syncOfflineDataToCloud({ subscription } = {}) {
+    if (this.activeSync) return this.activeSync;
+
+    this.activeSync = this.runSync(subscription);
     try {
+      return await this.activeSync;
+    } finally {
+      this.activeSync = null;
+    }
+  }
+
+  async runSync(subscription) {
+    try {
+      const activeSubscription = subscription || getCurrentSubscription();
+      if (!subscriptionService.isSubscriptionPro(activeSubscription)) {
+        return { success: false, reason: 'free-plan', syncedCount: 0 };
+      }
+
       const isConnected = await checkIsConnected();
       if (!isConnected) {
         console.log('Sync skipped: Device is offline');

@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as authApi from '../api/auth';
-import { clearFcmTokenFromBackend } from '../services/pushNotificationService';
+import { clearFcmTokenFromBackend, resetPushListeners } from '../services/pushNotificationService';
 
 export const checkStoredAuth = createAsyncThunk(
   'auth/checkStoredAuth',
@@ -114,6 +114,12 @@ export const verifyRegistrationOtp = createAsyncThunk(
 export const logout = createAsyncThunk(
   'auth/logout',
   async () => {
+    // Reset FCM listeners first to prevent stale duplicate handlers on next login
+    try {
+      resetPushListeners();
+    } catch (err) {
+      console.warn('[Auth] Reset push listeners error:', err?.message);
+    }
     try {
       await clearFcmTokenFromBackend();
     } catch (err) {

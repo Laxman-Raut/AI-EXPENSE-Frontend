@@ -1,7 +1,7 @@
 import apiClient from './client';
 
 export const fetchTransactions = async () => {
-  const response = await apiClient.get('transactions');
+  const response = await apiClient.get('transactions', { timeout: 10000 });
   return response.data;
 };
 
@@ -29,4 +29,3 @@ export const syncBulkTransactions = async (transactions) => {
   const response = await apiClient.post('transactions/sync', { transactions });
   return response.data;
 };
-

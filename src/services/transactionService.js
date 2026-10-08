@@ -36,11 +36,10 @@ const getCurrentUser = () => {
  * Fetch transactions (From MongoDB when connected, fallback to SQLite when offline)
  */
 export const fetchTransactions = async () => {
-  const isConnected = await checkIsConnected();
   const user = getCurrentUser();
   const userId = user?._id || user?.email || null;
 
-  if (isConnected && userId) {
+  if (isUserPro() && (await checkIsConnected()) && userId) {
     try {
       const response = await api.fetchTransactions();
       if (response && response.success && Array.isArray(response.data)) {
@@ -60,11 +59,10 @@ export const fetchTransactions = async () => {
  * Fetch single transaction by ID
  */
 export const fetchTransaction = async (id) => {
-  const isConnected = await checkIsConnected();
   const user = getCurrentUser();
   const userId = user?._id || user?.email || null;
 
-  if (isConnected && userId) {
+  if (isUserPro() && (await checkIsConnected()) && userId) {
     try {
       const response = await api.fetchTransaction(id);
       if (response && response.success) {
@@ -85,6 +83,7 @@ export const createTransaction = async (data) => {
   const isConnected = await checkIsConnected();
   const user = getCurrentUser();
   const userId = data.userId || user?._id || user?.email || null;
+  const canUseCloud = isUserPro() && isConnected && !!userId;
 
   const payload = {
     ...data,
@@ -93,7 +92,7 @@ export const createTransaction = async (data) => {
 
   let savedRecord = null;
 
-  if (isConnected && userId) {
+  if (canUseCloud) {
     try {
       const response = await api.createTransaction(payload);
       if (response && response.success) {
@@ -121,7 +120,7 @@ export const createTransaction = async (data) => {
 
   // Run local budget alert check ONLY when offline (cloud handles it when online via FCM)
   try {
-    if (!isConnected && data.type === 'expense' && user) {
+    if ((!isConnected || !isUserPro()) && data.type === 'expense' && user) {
       const monthlyBudget = Number(user.monthlyBudgetINR || user.monthlyBudget || 0);
       if (monthlyBudget > 0) {
         const allTxns = await transactionRepository.getAll(userId);
@@ -149,13 +148,14 @@ export const updateTransaction = async (id, data) => {
   const isConnected = await checkIsConnected();
   const user = getCurrentUser();
   const userId = data.userId || user?._id || user?.email || null;
+  const canUseCloud = isUserPro() && isConnected && !!userId;
 
   const payload = {
     ...data,
     userId,
   };
 
-  if (isConnected && userId) {
+  if (canUseCloud) {
     try {
       const response = await api.updateTransaction(id, payload);
       if (response && response.success) {
@@ -186,11 +186,12 @@ export const deleteTransaction = async (id) => {
   const isConnected = await checkIsConnected();
   const user = getCurrentUser();
   const userId = user?._id || user?.email || null;
+  const canUseCloud = isUserPro() && isConnected && !!userId;
 
   const localRecord = await transactionRepository.getById(id, userId);
-  const cloudId = localRecord?.cloudId || id;
+  const cloudId = localRecord?.cloudId;
 
-  if (isConnected && cloudId) {
+  if (canUseCloud && cloudId) {
     try {
       await api.deleteTransaction(cloudId);
     } catch (error) {

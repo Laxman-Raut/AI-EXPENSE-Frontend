@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSelector } from 'react-redux';
 import NetInfo from '@react-native-community/netinfo';
 import { useQueryClient } from '@tanstack/react-query';
 import syncService from '../services/syncService';
+import subscriptionService from '../services/subscriptionService';
 
 /**
  * Auto-sync hook that monitors network connectivity and syncs
@@ -14,8 +16,16 @@ export const useAutoSync = () => {
   const wasConnectedRef = useRef(true);
   const isSyncingRef = useRef(false);
   const queryClient = useQueryClient();
+  const subscription = useSelector((state) => state.subscription);
+  const isPaidPlanActive = subscriptionService.isSubscriptionPro(subscription);
+  // Keep a stable ref so performSync doesn't need isPaidPlanActive in its deps
+  const isPaidPlanRef = useRef(isPaidPlanActive);
+  useEffect(() => {
+    isPaidPlanRef.current = isPaidPlanActive;
+  }, [isPaidPlanActive]);
 
   const performSync = useCallback(async () => {
+    if (!isPaidPlanRef.current) return;
     if (isSyncingRef.current) return;
     isSyncingRef.current = true;
     setIsSyncing(true);
@@ -37,9 +47,11 @@ export const useAutoSync = () => {
       isSyncingRef.current = false;
       setIsSyncing(false);
     }
-  }, [queryClient]);
+  }, [queryClient]); // stable: only queryClient needed, isPaidPlan read from ref
 
   useEffect(() => {
+    if (!isPaidPlanActive) return undefined;
+
     // Initial sync check on mount
     NetInfo.fetch().then((state) => {
       if (state.isConnected) {
@@ -61,7 +73,7 @@ export const useAutoSync = () => {
     });
 
     return () => unsubscribe();
-  }, [performSync]);
+  }, [isPaidPlanActive, performSync]);
 
   return { isSyncing, lastSyncResult, manualSync: performSync };
 };

@@ -338,8 +338,10 @@ const DashboardScreen = ({ navigation }) => {
     return 'Good Evening 🌙';
   };
 
-  // Custom Header — useCallback se memoize kiya, Screen component re-render nahi karega
-  const renderHeader = useCallback(() => (
+  // Custom Header — useMemo se memoize kiya (JSX element return karta hai, function nahi)
+  // Screen component header ko directly React child ki tarah render karta hai,
+  // isliye useMemo use karo (useCallback nahi) taaki element memoized rahe
+  const renderHeader = useMemo(() => (
     <View style={styles.header}>
       <View style={styles.headerLeft}>
         <Text style={styles.greetingText}>{getGreeting()}</Text>
@@ -378,7 +380,7 @@ const DashboardScreen = ({ navigation }) => {
     <View style={styles.root}>
       <Screen
         scrollable
-        header={renderHeader()}
+        header={renderHeader}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

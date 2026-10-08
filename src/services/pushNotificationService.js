@@ -180,6 +180,23 @@ let clickListenersInitialized = false;
 let tokenRefreshUnsubscribe = null;
 
 /**
+ * Tears down all active push notification listeners and resets guard flags.
+ * Call this on logout to prevent duplicate listeners on next login.
+ */
+export const resetPushListeners = () => {
+  if (foregroundUnsubscribe) {
+    try { foregroundUnsubscribe(); } catch {}
+    foregroundUnsubscribe = null;
+  }
+  if (tokenRefreshUnsubscribe) {
+    try { tokenRefreshUnsubscribe(); } catch {}
+    tokenRefreshUnsubscribe = null;
+  }
+  clickListenersInitialized = false;
+  console.log('[FCM] Push listeners reset (ready for re-initialization).');
+};
+
+/**
  * Setup foreground message handler
  * When app is OPEN, FCM messages arrive silently — we show them via Notifee
  */

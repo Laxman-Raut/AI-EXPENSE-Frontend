@@ -8,7 +8,7 @@ export const fetchMonthlyAnalyticsData = async (params = 'monthly') => {
         .filter(([_, v]) => v !== undefined && v !== null && v !== '')
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
         .join('&');
-  const response = await apiClient.get(`analytics/monthly?${query}`);
+  const response = await apiClient.get(`analytics/monthly?${query}`, { timeout: 10000 });
   return unwrapApiResponse(response);
 };
 
@@ -19,6 +19,6 @@ export const fetchCategoryAnalyticsData = async (params = 'monthly') => {
         .filter(([_, v]) => v !== undefined && v !== null && v !== '')
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
         .join('&');
-  const response = await apiClient.get(`analytics/category?${query}`);
+  const response = await apiClient.get(`analytics/category?${query}`, { timeout: 10000 });
   return unwrapApiResponse(response);
 };

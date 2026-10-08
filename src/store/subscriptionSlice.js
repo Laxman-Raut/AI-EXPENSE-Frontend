@@ -21,10 +21,11 @@ export const upgradeUserSubscription = createAsyncThunk(
     try {
       const data = await subscriptionService.upgradeUserSubscription();
       // Auto sync offline SQLite data to MongoDB Cloud upon upgrade
-      try {
-        await syncService.syncOfflineDataToCloud();
-      } catch (syncError) {
-        console.error('Auto sync after upgrade failed:', syncError);
+      if (subscriptionService.isSubscriptionPro(data)) {
+        const syncResult = await syncService.syncOfflineDataToCloud({ subscription: data });
+        if (!syncResult.success) {
+          console.warn('Auto sync after upgrade did not complete:', syncResult.reason || syncResult.error);
+        }
       }
       return data;
     } catch (error) {
@@ -63,10 +64,13 @@ export const verifyPayment = createAsyncThunk(
     try {
       const data = await subscriptionService.verifyPayment(payload);
       // Auto sync offline SQLite data to MongoDB Cloud upon payment verification
-      try {
-        await syncService.syncOfflineDataToCloud();
-      } catch (syncError) {
-        console.error('Auto sync after payment failed:', syncError);
+      if (subscriptionService.isSubscriptionPro(data?.subscription)) {
+        const syncResult = await syncService.syncOfflineDataToCloud({
+          subscription: data.subscription,
+        });
+        if (!syncResult.success) {
+          console.warn('Auto sync after payment did not complete:', syncResult.reason || syncResult.error);
+        }
       }
       return data;
     } catch (error) {
