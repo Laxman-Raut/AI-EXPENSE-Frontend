@@ -1,7 +1,4 @@
 {
   "name": "Expenso",
-  "displayName": "Expenso",
-  "react-native-google-mobile-ads": {
-    "android_app_id": "ca-app-pub-5049310918821127~7882127858"
-  }
+  "displayName": "Expenso"
 }

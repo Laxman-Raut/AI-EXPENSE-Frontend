@@ -4,6 +4,34 @@ import subscriptionService from './subscriptionService';
 import { checkIsConnected } from '../utils/netInfoHelper';
 import { getGlobalCurrency, getStoredAmountForCurrency, getExchangeRate } from '../utils/formatCurrency';
 
+const NETWORK_CHECK_TIMEOUT_MS = 3000;
+
+const withTimeout = (promise, timeoutMs, operation) => {
+  let timeoutId;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(new Error(`${operation} timed out after ${timeoutMs}ms`)),
+        timeoutMs
+      );
+    }),
+  ]).finally(() => clearTimeout(timeoutId));
+};
+
+const isNetworkAvailable = async () => {
+  try {
+    return await withTimeout(
+      Promise.resolve().then(checkIsConnected),
+      NETWORK_CHECK_TIMEOUT_MS,
+      'Network check'
+    );
+  } catch (error) {
+    console.warn('Network status check failed, using local dashboard data:', error?.message || error);
+    return false;
+  }
+};
+
 /**
  * Helper to check if current user has an active Pro subscription
  */
@@ -41,7 +69,8 @@ export const computeLocalDashboardSummary = async () => {
   const user = getUserState();
   const userId = user?._id || user?.email || null;
   const activeCurrency = user?.currency || getGlobalCurrency() || 'INR';
-  const transactions = await transactionRepository.getAll(userId);
+  const localTransactions = await transactionRepository.getAll(userId);
+  const transactions = Array.isArray(localTransactions) ? localTransactions : [];
   const rate = getExchangeRate() || 95.24;
 
   const now = new Date();
@@ -54,6 +83,7 @@ export const computeLocalDashboardSummary = async () => {
   let monthlyIncome = 0;
 
   transactions.forEach((t) => {
+    if (!t || typeof t !== 'object') return;
     const amt = getStoredAmountForCurrency(t, activeCurrency);
     if (t.type === 'income') {
       totalIncome += amt;
@@ -61,7 +91,8 @@ export const computeLocalDashboardSummary = async () => {
       totalExpense += amt;
     }
 
-    const tDate = t.transactionDate ? new Date(t.transactionDate) : new Date(t.createdAt || Date.now());
+    const tDate = new Date(t.transactionDate || t.createdAt || Date.now());
+    if (Number.isNaN(tDate.getTime())) return;
     if (tDate >= startOfMonth && tDate <= endOfMonth) {
       if (t.type === 'income') monthlyIncome += amt;
       else if (t.type === 'expense') monthlyExpense += amt;
@@ -123,14 +154,14 @@ export const computeLocalDashboardSummary = async () => {
  */
 export const fetchDashboardSummary = async () => {
   const isPro = isUserPro();
-  const isConnected = await checkIsConnected();
+  const isConnected = await isNetworkAvailable();
 
   if (isPro && isConnected) {
     try {
       const summary = await api.fetchDashboardSummary();
-      if (summary) return summary;
+      if (summary && typeof summary === 'object' && !Array.isArray(summary)) return summary;
     } catch (error) {
-      console.warn('Cloud dashboard fetch failed, calculating from local SQLite:', error.message);
+      console.warn('Cloud dashboard fetch failed, calculating from local SQLite:', error?.message || error);
     }
   }
 
@@ -142,19 +173,20 @@ export const fetchDashboardSummary = async () => {
  */
 export const fetchRecentTransactions = async () => {
   const isPro = isUserPro();
-  const isConnected = await checkIsConnected();
+  const isConnected = await isNetworkAvailable();
 
   if (isPro && isConnected) {
     try {
       const txns = await api.fetchRecentTransactions();
       if (Array.isArray(txns) && txns.length > 0) return txns;
     } catch (error) {
-      console.warn('Cloud recent transactions fetch failed, returning local SQLite data:', error.message);
+      console.warn('Cloud recent transactions fetch failed, returning local SQLite data:', error?.message || error);
     }
   }
 
   const user = getUserState();
   const userId = user?._id || user?.email || null;
-  const allTxns = await transactionRepository.getAll(userId);
+  const localTransactions = await transactionRepository.getAll(userId);
+  const allTxns = Array.isArray(localTransactions) ? localTransactions : [];
   return allTxns.slice(0, 5);
 };

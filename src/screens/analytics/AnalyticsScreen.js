@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
-  AppState,
   View,
   Text,
   StyleSheet,
@@ -25,13 +24,7 @@ import { formatCurrency, getStoredAmountForCurrency } from '../../utils/formatCu
 import { useTransactions } from '../../hooks/useTransactions';
 import useBanks from '../../hooks/useBanks';
 import BankLogo from '../../components/atoms/BankLogo';
-import { usePremiumAccess } from '../../hooks/usePremiumAccess';
-import {
-  canShowAnalyticsAd,
-  recordAnalyticsAdShown,
-  showAnalyticsAd,
-  preloadAnalyticsAd,
-} from '../../services/interstitialAdService';
+
 
 dayjs.extend(isBetween);
 
@@ -90,10 +83,6 @@ const getCategoryIcon = (cat = '') => {
 };
 
 const AnalyticsScreen = () => {
-  const { resolvePremiumAccess } = usePremiumAccess();
-  const resolvePremiumAccessRef = useRef(resolvePremiumAccess);
-  resolvePremiumAccessRef.current = resolvePremiumAccess;
-  const isAdShowingRef = useRef(false);
 
   const [selectedPeriod, setSelectedPeriod] = useState('month'); // 'today' | 'month' | 'year' | 'range' | 'all'
   const [selectedMonth, setSelectedMonth] = useState(dayjs());
@@ -118,59 +107,12 @@ const AnalyticsScreen = () => {
     }, [refetch])
   );
 
-  /**
-   * Triggers an ad display only if:
-   * 1. User is not Premium
-   * 2. Fewer than 10 ads shown today
-   * 3. At least 30 minutes have elapsed since the last ad
-   * 4. User interacted/clicked (e.g. navigated to Analytics, switched period, changed chart)
-   */
-  const handleAnalyticsAdTrigger = useCallback(async (source = 'tab_click') => {
-    if (isAdShowingRef.current) return false;
-
-    try {
-      const isPremium = await resolvePremiumAccessRef.current();
-      // Skip ads for confirmed Premium subscribers
-      if (isPremium === true) return false;
-
-      const eligibility = await canShowAnalyticsAd();
-      if (!eligibility.canShow) {
-        return false;
-      }
-
-      isAdShowingRef.current = true;
-      console.log(`[Ads] 30m cooldown passed & under 10/day. Showing analytics ad from: ${source}`);
-      const wasShown = await showAnalyticsAd(`analytics_${source}`);
-      if (wasShown) {
-        await recordAnalyticsAdShown();
-      }
-      return wasShown;
-    } catch (err) {
-      console.warn('[Ads] Analytics ad trigger error:', err);
-      return false;
-    } finally {
-      isAdShowingRef.current = false;
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      // Preload next ad so it's instantly available in memory
-      preloadAnalyticsAd();
-
-      // Trigger ad check when user opens/clicks into Analytics tab
-      handleAnalyticsAdTrigger('open_tab');
-    }, [handleAnalyticsAdTrigger])
-  );
-
   const handlePeriodChange = (periodId) => {
     setSelectedPeriod(periodId);
-    handleAnalyticsAdTrigger('period_change');
   };
 
   const handleChartTypeChange = (type) => {
     setChartType(type);
-    handleAnalyticsAdTrigger('chart_toggle');
   };
 
   const openMonthPicker = () => {
