@@ -6,6 +6,7 @@ import ScreenImport from '../../../components/templates/Screen';
 import CardImport from '../../../components/molecules/Card';
 import PrimaryButtonImport from '../../../components/atoms/PrimaryButton';
 import { colors, spacing, typography as themeTypography, radius } from '../../../theme';
+import { navigateUniversal } from '../../../navigation/navigationService';
 
 const Screen = ScreenImport as any;
 const Card = CardImport as any;
@@ -37,6 +38,42 @@ const PaymentSuccessScreen: React.FC<PaymentSuccessScreenProps> = ({ navigation,
     month: 'long',
     year: 'numeric',
   }) : 'N/A';
+
+  const handleGoToDashboard = () => {
+    if (typeof navigation?.reset === 'function') {
+      try {
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'MainTabs',
+              params: {
+                screen: 'Today',
+                params: { screen: 'TodayHome' },
+              },
+            },
+          ],
+        });
+        return;
+      } catch (err) {
+        console.warn('[PaymentSuccess] navigation.reset failed:', err);
+      }
+    }
+
+    if (typeof navigation?.navigate === 'function') {
+      try {
+        navigation.navigate('MainTabs', {
+          screen: 'Today',
+          params: { screen: 'TodayHome' },
+        });
+        return;
+      } catch (err) {
+        console.warn('[PaymentSuccess] navigation.navigate failed:', err);
+      }
+    }
+
+    navigateUniversal('TodayHome');
+  };
 
   return (
     <Screen scrollable safeAreaStyle={styles.safeArea} edges={['top', 'bottom']}>
@@ -104,7 +141,7 @@ const PaymentSuccessScreen: React.FC<PaymentSuccessScreenProps> = ({ navigation,
           <PrimaryButton
             title="Go to Dashboard"
             type="outline"
-            onPress={() => navigation.navigate('Today', { screen: 'TodayHome' })}
+            onPress={handleGoToDashboard}
             style={[styles.btn, styles.secondaryBtn]}
             textStyle={styles.secondaryBtnText}
           />
