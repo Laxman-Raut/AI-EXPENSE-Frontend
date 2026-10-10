@@ -14,7 +14,7 @@ import { navigateUniversal } from '../navigation/navigationService';
 import { resolveNotificationRoute } from '../utils/notificationRouter';
 
 const ADMIN_CHANNEL_ID = 'expense-tracker-v2';
-const APP_ALERT_CHANNEL_ID = ADMIN_CHANNEL_ID;
+const APP_ALERT_CHANNEL_ID = 'expense-tracker-app-alerts';
 
 /**
  * Request notification permission (Android 13+ requires explicit permission)
@@ -94,15 +94,26 @@ export const clearFcmTokenFromBackend = async () => {
 export const ensureNotificationChannel = async () => {
   if (Platform.OS === 'android') {
     try {
-      await notifee.createChannel({
-        id: ADMIN_CHANNEL_ID,
-        name: 'Expenso Notifications',
-        importance: AndroidImportance.HIGH,
-        sound: 'default',
-        vibration: true,
-        vibrationPattern: [300, 500],
-        lights: true,
-      });
+      await Promise.all([
+        notifee.createChannel({
+          id: ADMIN_CHANNEL_ID,
+          name: 'Expenso Notifications',
+          importance: AndroidImportance.HIGH,
+          sound: 'default',
+          vibration: true,
+          vibrationPattern: [300, 500],
+          lights: true,
+        }),
+        notifee.createChannel({
+          id: APP_ALERT_CHANNEL_ID,
+          name: 'Budget and Group Alerts',
+          importance: AndroidImportance.HIGH,
+          sound: 'default',
+          vibration: true,
+          vibrationPattern: [300, 500],
+          lights: true,
+        }),
+      ]);
       console.log('[FCM] Ensured high-importance notification channels.');
     } catch (err) {
       console.warn('[FCM] Channel configuration warning:', err?.message);
@@ -139,12 +150,13 @@ const navigateToNotificationTarget = (payload = {}, attempts = 0) => {
 export const displayLocalNotification = async (title, body, data = {}) => {
   try {
     await ensureNotificationChannel();
+    const isAdminNotification = data.sentByAdmin === 'true' || data.sentByAdmin === true;
 
     await notifee.displayNotification({
       title,
       body,
       android: {
-        channelId: APP_ALERT_CHANNEL_ID,
+        channelId: isAdminNotification ? ADMIN_CHANNEL_ID : APP_ALERT_CHANNEL_ID,
         importance: AndroidImportance.HIGH,
         visibility: AndroidVisibility.PUBLIC,
         sound: 'default',

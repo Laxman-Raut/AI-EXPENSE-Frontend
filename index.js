@@ -12,6 +12,7 @@ import App from './App';
 import { name as appName } from './app.json';
 
 const NOTIFICATION_CHANNEL_ID = 'expense-tracker-v2';
+const APP_ALERT_CHANNEL_ID = 'expense-tracker-app-alerts';
 
 // ─────────────────────────────────────────────────────────────
 // FCM Background Message Handler
@@ -30,14 +31,18 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
 
   console.log('[FCM Background] Message received:', title);
 
-  // FCM posts notification payloads itself while the app is backgrounded.
-  // Only data-only messages need a local notification here.
+  // Fixed app alerts use data-only FCM so Notifee can reliably show heads-up banners.
+  // Admin campaigns retain their existing native FCM notification delivery.
   if (!remoteMessage?.notification && (title || body)) {
     try {
-      // Ensure high-importance notification channel exists
+      const isAdminNotification =
+        remoteMessage?.data?.sentByAdmin === 'true' ||
+        remoteMessage?.data?.sentByAdmin === true;
+      const channelId = isAdminNotification ? NOTIFICATION_CHANNEL_ID : APP_ALERT_CHANNEL_ID;
+
       await notifee.createChannel({
-        id: NOTIFICATION_CHANNEL_ID,
-        name: 'Expenso Notifications',
+        id: channelId,
+        name: isAdminNotification ? 'Expenso Notifications' : 'Budget and Group Alerts',
         importance: AndroidImportance.HIGH,
         sound: 'default',
         vibration: true,
@@ -51,7 +56,7 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
         title,
         body,
         android: {
-          channelId: NOTIFICATION_CHANNEL_ID,
+          channelId,
           importance: AndroidImportance.HIGH,
           visibility: AndroidVisibility.PUBLIC,
           sound: 'default',
