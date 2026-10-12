@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, RefreshControl, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, RefreshControl, TouchableOpacity, Dimensions, Platform, TextInput } from 'react-native';
 import { useSelector } from 'react-redux';
 import { PieChart, LineChart } from 'react-native-gifted-charts';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
@@ -87,6 +87,8 @@ const DashboardScreen = ({ navigation }) => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('ALL'); // 'ALL' | 'EXPENSES' | 'INCOME'
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -153,11 +155,21 @@ const DashboardScreen = ({ navigation }) => {
 
   // Filter transactions — useMemo se sirf dependency change hone pe recalculate hoga
   const filteredTransactions = useMemo(() => {
-    const list = recentTxns || [];
-    if (activeFilter === 'EXPENSES') return list.filter((txn) => txn.type === 'expense');
-    if (activeFilter === 'INCOME') return list.filter((txn) => txn.type === 'income');
+    let list = recentTxns || [];
+    if (activeFilter === 'EXPENSES') list = list.filter((txn) => txn.type === 'expense');
+    if (activeFilter === 'INCOME') list = list.filter((txn) => txn.type === 'income');
+    if (searchOpen && searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter((txn) => {
+        const descMatch = (txn.description || '').toLowerCase().includes(q);
+        const catMatch = (txn.category || '').toLowerCase().includes(q);
+        const methodMatch = (txn.paymentMethod || '').toLowerCase().includes(q);
+        const amountMatch = String(txn.amount || '').includes(q);
+        return descMatch || catMatch || methodMatch || amountMatch;
+      });
+    }
     return list;
-  }, [recentTxns, activeFilter]);
+  }, [recentTxns, activeFilter, searchOpen, searchQuery]);
 
   // Calculate totals
   const totalExpense = summary?.totalExpense || 0;
@@ -342,39 +354,65 @@ const DashboardScreen = ({ navigation }) => {
   // Screen component header ko directly React child ki tarah render karta hai,
   // isliye useMemo use karo (useCallback nahi) taaki element memoized rahe
   const renderHeader = useMemo(() => (
-    <View style={styles.header}>
-      <View style={styles.headerLeft}>
-        <Text style={styles.greetingText}>{getGreeting()}</Text>
-        <Text style={styles.usernameText}>{user?.fullName || 'Laxman Raut'}</Text>
+    <View>
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.greetingText}>{getGreeting()}</Text>
+          <Text style={styles.usernameText}>{user?.fullName || 'Laxman Raut'}</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={styles.searchBtn} 
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <Icon name="notifications-outline" size={20} color={colors.text.primary} />
+            {unreadCount > 0 && (
+              <View style={styles.notificationBadge} />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.searchBtn} 
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Calendar')}
+          >
+            <Icon name="calendar-outline" size={20} color={colors.text.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.searchBtn, searchOpen && styles.searchBtnActive]} 
+            activeOpacity={0.7}
+            onPress={() => {
+              setSearchOpen((prev) => !prev);
+              if (searchOpen) setSearchQuery('');
+            }}
+          >
+            <Icon name={searchOpen ? 'close-outline' : 'search-outline'} size={20} color={searchOpen ? colors.primary : colors.text.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
-      <View style={styles.headerRight}>
-        <TouchableOpacity 
-          style={styles.searchBtn} 
-          activeOpacity={0.7}
-          onPress={() => navigation.navigate('Notifications')}
-        >
-          <Icon name="notifications-outline" size={20} color={colors.text.primary} />
-          {unreadCount > 0 && (
-            <View style={styles.notificationBadge} />
-          )}
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.searchBtn} 
-          activeOpacity={0.7}
-          onPress={() => navigation.navigate('Calendar')}
-        >
-          <Icon name="calendar-outline" size={20} color={colors.text.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.searchBtn} 
-          activeOpacity={0.7}
-          onPress={() => navigation.navigate('Wallet')}
-        >
-          <Icon name="search-outline" size={20} color={colors.text.primary} />
-        </TouchableOpacity>
-      </View>
+      {searchOpen && (
+        <View style={styles.searchBarContainer}>
+          <View style={styles.searchBarInner}>
+            <Icon name="search-outline" size={18} color={colors.text.secondary} style={styles.searchBarIcon} />
+            <TextInput
+              style={styles.searchBarInput}
+              placeholder="Search recent transactions..."
+              placeholderTextColor={colors.text.muted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+                <Icon name="close-circle" size={16} color={colors.text.muted} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
     </View>
-  ), [user?.fullName, unreadCount, navigation]);
+  ), [user?.fullName, unreadCount, navigation, searchOpen, searchQuery]);
 
   return (
     <View style={styles.root}>
@@ -789,7 +827,9 @@ const DashboardScreen = ({ navigation }) => {
 
         {/* Recent Transactions List */}
         <View style={styles.transactionsHeaderRow}>
-          <Text style={styles.transactionsTitle}>Recent Transactions</Text>
+          <Text style={styles.transactionsTitle}>
+            {searchOpen && searchQuery.trim() ? `Search Results (${filteredTransactions.length})` : 'Recent Transactions'}
+          </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Wallet')}>
             <Text style={styles.seeAllText}>See all</Text>
           </TouchableOpacity>
@@ -799,7 +839,9 @@ const DashboardScreen = ({ navigation }) => {
           {filteredTransactions.length === 0 ? (
             <View style={styles.emptyRecentContainer}>
               <Icon name="receipt-outline" size={32} color={colors.text.muted} />
-              <Text style={styles.emptyRecentText}>No recent transactions</Text>
+              <Text style={styles.emptyRecentText}>
+                {searchOpen && searchQuery.trim() ? `No transactions matching "${searchQuery}"` : 'No recent transactions'}
+              </Text>
             </View>
           ) : (
             filteredTransactions.map((txn, index) => {
@@ -903,6 +945,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  searchBtnActive: {
+    backgroundColor: colors.primary + '20',
+    borderColor: colors.primary,
+  },
+  searchBarContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
+  },
+  searchBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.sm,
+    height: 40,
+  },
+  searchBarIcon: {
+    marginRight: 6,
+  },
+  searchBarInput: {
+    flex: 1,
+    color: colors.text.primary,
+    fontSize: typography.sizes.sm,
+    paddingVertical: 0,
+  },
+  clearSearchBtn: {
+    padding: 4,
   },
   notificationBadge: {
     position: 'absolute',
