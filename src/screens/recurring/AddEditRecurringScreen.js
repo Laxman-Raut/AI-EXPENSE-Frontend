@@ -20,6 +20,7 @@ import {
   useUpdateRecurringTransaction,
   useRecurringTransaction,
 } from '../../hooks/useRecurringTransactions';
+import { showRecurringAutomationAd } from '../../services/interstitialAdService';
 import dayjs from 'dayjs';
 
 const FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly', 'emi'];
@@ -75,6 +76,15 @@ const AddEditRecurringScreen = ({ navigation, route }) => {
       setCategory(route.params.selectedCategory);
     }
   }, [route.params?.selectedCategory]);
+
+  // Trigger test interstitial ad when Free user starts creating a new recurring automation
+  useEffect(() => {
+    if (!isEditing) {
+      showRecurringAutomationAd('recurring_create_start').catch((err) => {
+        console.warn('[Ads] Recurring automation ad error:', err);
+      });
+    }
+  }, [isEditing]);
 
   const handleSelectFrequency = (f) => {
     setFrequency(f);

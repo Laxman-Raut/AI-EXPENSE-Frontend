@@ -24,6 +24,7 @@ import { formatCurrency, getStoredAmountForCurrency } from '../../utils/formatCu
 import { useTransactions } from '../../hooks/useTransactions';
 import useBanks from '../../hooks/useBanks';
 import BankLogo from '../../components/atoms/BankLogo';
+import { showAnalyticsAd } from '../../services/interstitialAdService';
 
 
 dayjs.extend(isBetween);
@@ -101,9 +102,27 @@ const AnalyticsScreen = () => {
   const { data: transactions = [], isLoading, refetch } = useTransactions(userCurrency);
   const { banks } = useBanks();
 
+  const isAdTriggeringRef = useRef(false);
+
   useFocusEffect(
     useCallback(() => {
       refetch();
+
+      // Trigger test interstitial ad for Free users when opening Analytics tab
+      // Avoid duplicate trigger on re-focus when returning from the ad
+      if (!isAdTriggeringRef.current) {
+        isAdTriggeringRef.current = true;
+        showAnalyticsAd('analytics_tab_open')
+          .catch((err) => {
+            console.warn('[Ads] Analytics ad error:', err);
+          })
+          .finally(() => {
+            // Delay resetting local ref to avoid re-trigger when returning from the ad
+            setTimeout(() => {
+              isAdTriggeringRef.current = false;
+            }, 3000);
+          });
+      }
     }, [refetch])
   );
 

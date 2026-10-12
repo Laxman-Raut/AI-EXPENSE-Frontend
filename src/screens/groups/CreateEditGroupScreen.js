@@ -17,6 +17,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useGroups } from '../../hooks/useGroups';
 import { useAlert } from '../../context/AlertContext';
+import { showGroupCreationAd } from '../../services/interstitialAdService';
 
 const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=150&q=80',
@@ -64,6 +65,14 @@ const CreateEditGroupScreen = ({ route, navigation }) => {
           { text: 'Awesome', onPress: () => navigation.goBack() },
         ], 'success');
       } else {
+        // Attempt to show test interstitial ad for Free users creating a group
+        // Never block group creation if ad is unavailable or fails
+        try {
+          await showGroupCreationAd('group_creation');
+        } catch (adError) {
+          console.warn('[Ads] Group creation ad failed; continuing group creation:', adError);
+        }
+
         await createGroup({
           name: name.trim(),
           description: description.trim(),

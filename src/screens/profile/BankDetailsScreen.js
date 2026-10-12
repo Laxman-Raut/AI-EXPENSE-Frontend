@@ -322,7 +322,8 @@ const BankDetailsScreen = ({ navigation, route }) => {
           <FlatList
             data={groupedTxns}
             keyExtractor={(item, index) => item.date || `group-${index}`}
-            ListHeaderComponent={renderHeader}
+            ListHeaderComponent={renderHeader()}
+            keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}

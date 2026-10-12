@@ -738,7 +738,8 @@ const TransactionsScreen = ({ navigation, route }) => {
         <FlatList
           data={listRows}
           keyExtractor={(item) => item.id}
-          ListHeaderComponent={renderHeader}
+          ListHeaderComponent={renderHeader()}
+          keyboardShouldPersistTaps="handled"
           renderItem={renderTransactionRow}
           initialNumToRender={12}
           maxToRenderPerBatch={8}
